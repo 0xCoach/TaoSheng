@@ -18,7 +18,7 @@ internal object CallFolderCatalog {
         val groups = listOf(setOf("xiaomi","redmi","poco"), setOf("huawei"), setOf("honor"), setOf("oppo","oneplus","realme"), setOf("vivo","iqoo"), setOf("samsung"))
         val index = groups.indexOfFirst { brand.lowercase() in it }.takeIf { it >= 0 } ?: groups.indexOfFirst { manufacturer.lowercase() in it }
         val found = index.takeIf { it >= 0 }?.let(all::get) ?: all.last()
-        return if ("oneplus" in names) found.copy(note="老款一加的通话录音放在系统保护的位置，涛声读不到；升级到 ColorOS 后可用。$note") else found
+        return if ("oneplus" in names) found.copy(note="老款一加的通话录音放在系统保护的位置，声声不息读不到；升级到 ColorOS 后可用。$note") else found
     }
     fun matches(path: String): Boolean {
         val p = path.lowercase().replace('\\','/').trimEnd('/')

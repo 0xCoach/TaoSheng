@@ -21,6 +21,9 @@ object TopicPolicy {
     fun days(mask: Int?): Set<DayOfWeek> = DayOfWeek.entries.filter { (mask ?: 0) and (1 shl (it.isoDayNumber - 1)) != 0 }.toSet()
     fun words(name: String?): List<String> = name.orEmpty().split(Regex("[\\s\\p{P}\\p{S}]+"))
         .filter { codePointCount(it) >= 2 }.distinct()
+    /** 同系列归组键：名字去掉全部空白后小写，匿名专题不参与系列跟进。与迁移回填的 SQL 口径一致。 */
+    fun seriesKey(name: String?): String? =
+        name?.replace(Regex("[\\s　]+"), "")?.lowercase()?.takeIf { it.isNotEmpty() }
     fun next(start: Long, days: Set<DayOfWeek>, after: Long, zone: TimeZone): Long? {
         if (days.isEmpty()) return null
         val local = Instant.fromEpochMilliseconds(start).toLocalDateTime(zone)

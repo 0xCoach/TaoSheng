@@ -39,6 +39,6 @@ object UpdateDiagnostics {
         val prefs = context.getSharedPreferences("update-times", Context.MODE_PRIVATE)
         return (prefs.getString("runs", "").orEmpty().lines() + prefs.getString("checks", "").orEmpty().lines())
             .filter { it.isNotBlank() }.sortedBy { it.substringBefore(' ').toLongOrNull() ?: 0L }
-            .joinToString("\n") { "涛声更新 $it" }
+            .joinToString("\n") { "声声不息更新 $it" }
     }
 }

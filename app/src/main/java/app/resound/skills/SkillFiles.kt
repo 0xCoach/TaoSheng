@@ -33,9 +33,7 @@ class SkillFiles(private val root: File, private val official: () -> List<Pair<S
     }
     private fun write(file: File, text: String) {
         check(file.parentFile!!.isDirectory || file.parentFile!!.mkdirs())
-        val a = AtomicFile(file); val out = a.startWrite()
-        try { out.write(text.toByteArray(Charsets.UTF_8)); a.finishWrite(out) }
-        catch (e: Exception) { a.failWrite(out); throw e }
+        app.resound.util.atomicWriteFile(file) { it.write(text.toByteArray(Charsets.UTF_8)) }
     }
     private fun overrides() = read(File(root, "overrides.json"))?.let(::JSONObject) ?: JSONObject()
     fun reload() = synchronized(fileLock) {

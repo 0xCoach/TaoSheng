@@ -7,19 +7,24 @@ import java.security.MessageDigest
 
 /** 所有发布地址只在此处维护；正式和预览文件独立回退。 */
 internal object UpdateSources {
+    // 设备参数表仍读上游仓库的公开数据文件（与版本更新无关）。
     const val MODELSCOPE = "https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/"
-    const val GITHUB_LATEST = "https://github.com/0xCoach/TaoSheng/releases/latest/download/update.json"
-    const val GITHUB_RELEASE = "https://github.com/0xCoach/TaoSheng/releases/download/"
-    const val MODELSCOPE_PREVIEW = MODELSCOPE + "preview/"
-    const val GITHUB_PREVIEW = GITHUB_RELEASE + "preview-channel/update-preview.json"
-    val preview = listOf(
-        UpdateSource("modelscope-preview", MODELSCOPE_PREVIEW + "update-preview.json") { _, file -> MODELSCOPE_PREVIEW + file },
-        UpdateSource("github-preview", GITHUB_PREVIEW) { version, file -> "${GITHUB_RELEASE}v$version/$file" },
-    )
-    val official = listOf(
-        UpdateSource("modelscope", MODELSCOPE + "update.json") { _, file -> MODELSCOPE + file },
-        UpdateSource("github", GITHUB_LATEST) { version, file -> "${GITHUB_RELEASE}v$version/$file" },
-    )
+
+    /** 更新检查固定走自有域名；manifest 由 Worker 从 app_release 表下发，安装包经 /release/<file> 302 到真实托管地址。 */
+    const val RELEASE_BASE = "https://soundsound.gdfactory.cn/release"
+
+    /** manifestUrl 偏好保留为隐藏覆盖入口（界面不再暴露）；为空时查正式通道。 */
+    fun configured(url: String?): List<UpdateSource> {
+        val clean = url?.trim().orEmpty()
+        if (clean.startsWith("https://") || clean.startsWith("http://")) {
+            val base = clean.substringBeforeLast('/')
+            return listOf(UpdateSource("custom", clean) { _, file -> "$base/$file" })
+        }
+        return listOf(UpdateSource("release", "$RELEASE_BASE/update.json") { _, file -> "$RELEASE_BASE/$file" })
+    }
+
+    fun preview(): List<UpdateSource> =
+        listOf(UpdateSource("preview", "$RELEASE_BASE/preview.json") { _, file -> "$RELEASE_BASE/$file" })
 }
 
 internal data class UpdateSource(val name: String, val manifestUrl: String, val artifactUrl: (String, String) -> String)

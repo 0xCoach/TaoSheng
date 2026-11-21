@@ -65,10 +65,10 @@ class LlmProviders076Test {
         prefs("llm-balance").edit().putString("customUrl", "https://local.example/balance").putString("customPath", "data.balance").commit()
         val before = secrets.all.toMap()
         val p = AndroidLlmProviders(context, LlmClient())
-        assertEquals(listOf("deepseek", "custom"), p.saved.value.map { it.id })
+        assertEquals(listOf("deepseek", "custom", OFFICIAL_PROVIDER_ID), p.saved.value.map { it.id })
         assertEquals("custom", p.activeId.value)
         assertEquals("https://local.example/balance", p.selected().balanceUrl)
-        assertTrue(p.saved.value.all { it.hasKey }); assertEquals(before, secrets.all)
+        assertTrue(p.saved.value.filterNot { it.id == OFFICIAL_PROVIDER_ID }.all { it.hasKey }); assertEquals(before, secrets.all)
         assertEquals(p.saved.value, AndroidLlmProviders(context, LlmClient()).saved.value)
         assertEquals(before, secrets.all)
     }
@@ -77,14 +77,42 @@ class LlmProviders076Test {
         keys.values["custom"] = "original-key"
         prefs("digest").edit().putString("preset", "custom").putString("customEndpoint", "https://example.com/v1").putString("customModel", "old").commit()
         val p = providers()
-        assertEquals(listOf("custom"), p.saved.value.map { it.id }); assertEquals("custom", p.activeId.value)
+        assertEquals(listOf("custom", OFFICIAL_PROVIDER_ID), p.saved.value.map { it.id }); assertEquals("custom", p.activeId.value)
         assertEquals(0, keys.reads); assertEquals(0, keys.writes)
         assertEquals("original-key", AndroidDigestSettings(context, LlmClient(), p).readKey())
     }
 
+    @Test fun officialReadyTransitionAutoSelectsOfficialOnlyWhenCurrentProviderUnusable() {
+        var ready = false
+        val p = providers().also { it.officialReady = { ready } }
+        // 初始迁移：deepseek 占位（无密钥）+ 官方条目（未就绪）
+        assertEquals("deepseek", p.activeId.value)
+        assertEquals(OFFICIAL_PROVIDER_ID, p.saved.value.last().id)
+        assertFalse(p.saved.value.last().hasKey)
+        p.refreshOfficial(); assertEquals("deepseek", p.activeId.value)
+        // 登录授权就绪瞬间：当前服务商不可用 → 自动切到官方 AI
+        ready = true
+        p.refreshOfficial()
+        assertEquals(OFFICIAL_PROVIDER_ID, p.activeId.value)
+        assertTrue(p.saved.value.first { it.id == OFFICIAL_PROVIDER_ID }.hasKey)
+    }
+
+    @Test fun officialReadyDoesNotOverrideUsableSelection() = runBlocking {
+        var ready = false
+        val p = providers().also { it.officialReady = { ready } }
+        val id = add(p, name = "自有", key = "own-key")
+        assertEquals(id, p.activeId.value)
+        ready = true
+        p.refreshOfficial()
+        assertEquals(id, p.activeId.value)
+        // 用户手动切到官方后再刷：就绪不翻转也不重复切换
+        p.activate(OFFICIAL_PROVIDER_ID); ready = false
+        p.refreshOfficial(); assertEquals(OFFICIAL_PROVIDER_ID, p.activeId.value)
+    }
+
     @Test fun emptyMigrationCreatesDefaultAndFirstSaveBecomesActive() = runBlocking {
         val p = providers()
-        assertEquals("deepseek", p.activeId.value); assertFalse(p.saved.value.single().hasKey)
+        assertEquals("deepseek", p.activeId.value); assertFalse(p.saved.value.first { it.id == "deepseek" }.hasKey)
         val id = add(p, "http://127.0.0.1:11434", key = "")
         val settings = AndroidDigestSettings(context, LlmClient(), p)
         assertEquals(id, settings.presetId.value); assertTrue(settings.hasKey.value)
@@ -265,5 +293,26 @@ class LlmProviders076Test {
             assertEquals("call-1", reply.calls.single().id)
             assertEquals("/v1/chat/completions", server.takeRequest().path)
         }
+    }
+
+    /** 官方条目免本地密钥：各密钥门放行、由官方桥报真因（未登录/未同意/点数），
+     *  否则 review/技能/待办等共享路径会误报"还没填写大模型密钥"。 */
+    @Test fun officialAllowsEmptyKey() {
+        assertTrue(LlmPreset(OFFICIAL_PROVIDER_ID, "声声不息官方 AI", "official", "official").allowsEmptyKey())
+        assertTrue(LlmPreset("custom", "自定义", "http://192.168.1.5:11434/v1", "m").allowsEmptyKey())
+        assertFalse(LlmPreset("deepseek", "DeepSeek", "https://api.deepseek.com", "deepseek-flash").allowsEmptyKey())
+    }
+
+    @Test fun explicitOfficialSelectionSurvivesNotReadyAndRestart() = runBlocking {
+        val p = providers()
+        val custom = add(p)
+        p.activate(custom)
+        p.activate(OFFICIAL_PROVIDER_ID)
+        assertEquals(OFFICIAL_PROVIDER_ID, p.activeId.value)
+        assertEquals(OFFICIAL_PROVIDER_ID, providers().activeId.value)
+        val settings = AndroidDigestSettings(context, LlmClient(), p)
+        assertTrue("官方选中后免本地密钥，未就绪原因由官方服务裁决", settings.hasKey.value)
+        assertEquals("", settings.readKey())
+        assertEquals(OFFICIAL_PROVIDER_ID, settings.preset.id)
     }
 }

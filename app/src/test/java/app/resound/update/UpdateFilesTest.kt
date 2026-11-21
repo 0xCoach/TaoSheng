@@ -13,7 +13,7 @@ class UpdateFilesTest {
     @Test fun readsManifestAndUsesOnlyHigherVersionAndMatchingInstalledHash() {
         val release = UpdateManifest.parse(fixtureManifest().json())
         assertEquals("0.2.11", release.versionName)
-        assertEquals("涛声更新\n支持应用内更新", release.notes)
+        assertEquals("声声不息更新\n支持应用内更新", release.notes)
         assertTrue(release.newerThan(25))
         assertFalse(release.newerThan(26))
         assertFalse(release.newerThan(27))
@@ -52,7 +52,7 @@ class UpdateFilesTest {
 
 internal fun fixture(name: String) = File(requireNotNull(UpdateFilesTest::class.java.getResource("/update/$name")).toURI())
 internal fun fixtureManifest(patchFile: File? = fixture("update.patch"), newFile: File = fixture("new.bin")) = UpdateManifest(
-    26, "0.2.11", "涛声更新\n支持应用内更新",
+    26, "0.2.11", "声声不息更新\n支持应用内更新",
     UpdateAsset("TaoSheng-v0.2.11-arm64.apk", newFile.updateSha256(), newFile.length()),
     patchFile?.let { listOf(UpdatePatch(fixture("old.bin").updateSha256(), UpdateAsset("update.patch", it.updateSha256(), it.length()))) }.orEmpty(),
 )

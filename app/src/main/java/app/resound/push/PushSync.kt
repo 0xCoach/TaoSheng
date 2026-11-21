@@ -46,7 +46,7 @@ internal class PushSyncState(private val file: File) {
         file.parentFile!!.mkdirs()
         val tmp = File(file.parentFile, "${file.name}.tmp")
         tmp.outputStream().use { out -> out.write(json.toString().toByteArray(Charsets.UTF_8)); out.fd.sync() }
-        check(tmp.renameTo(file)) { "同步状态保存失败" }
+        app.resound.util.atomicReplace(tmp, file)
     }
     fun since(subscription: PushSubscription, today: LocalDate, rebuild: Boolean = false): LocalDate? {
         if (rebuild || !json.has("since")) {

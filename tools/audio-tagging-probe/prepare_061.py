@@ -4,7 +4,7 @@ import argparse,csv,hashlib,io,json,math,pathlib,re,subprocess,zipfile
 import numpy as np, soundfile as sf
 from scipy.signal import resample_poly,butter,sosfilt,fftconvolve
 import pyarrow.parquet as pq
-P=argparse.ArgumentParser();P.add_argument('--root',type=pathlib.Path,default=pathlib.Path.home()/'Datasets/taosheng-audio');a=P.parse_args();R=a.root;SR=16000
+P=argparse.ArgumentParser();P.add_argument('--root',type=pathlib.Path,default=pathlib.Path.home()/'Datasets/soundsound-audio');a=P.parse_args();R=a.root;SR=16000
 
 def read(path):
  try: x,s=sf.read(path,dtype='float32',always_2d=True);x=x.mean(axis=1)

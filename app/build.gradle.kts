@@ -23,8 +23,8 @@ android {
         minSdk = 29
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 96
-        versionName = "0.5.5" + (providers.gradleProperty("previewNumber").orNull?.let {
+        versionCode = 97
+        versionName = "1.0.13" + (providers.gradleProperty("previewNumber").orNull?.let {
             require(it.matches(Regex("[1-9][0-9]*"))) { "previewNumber 必须为正整数" }
             "-preview.$it"
         } ?: "")
@@ -36,9 +36,9 @@ android {
         jniLibs { useLegacyPackaging = true }
     }
 
-    // 正式签名只放在负责人电脑上（~/.config/taosheng/signing.properties），不进仓库；
+    // 正式签名只放在负责人电脑上（~/.config/soundsound/signing.properties），不进仓库；
     // 其他人编译时找不到就退回调试签名，不影响编译
-    val releaseSigning = File(System.getProperty("user.home"), ".config/taosheng/signing.properties")
+    val releaseSigning = File(System.getProperty("user.home"), ".config/soundsound/signing.properties")
         .takeIf { !providers.gradleProperty("skipSigningSecrets").map(String::toBoolean).getOrElse(false) && it.isFile }
         ?.let { file -> Properties().apply { file.inputStream().use { load(it) } } }
     signingConfigs {

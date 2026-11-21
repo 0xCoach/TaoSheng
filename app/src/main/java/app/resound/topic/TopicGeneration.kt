@@ -17,18 +17,20 @@ import kotlinx.coroutines.sync.withLock
 import java.time.ZoneId
 import app.resound.digest.snapshot
 import app.resound.skills.android
+import app.resound.topic.core.MeetingOpenItem
+import app.resound.topic.core.MeetingSeriesRules
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 
 internal data class TopicOutput(val event: MemoryEventEntity, val items: List<DigestPrompt.ParsedItem>, val card: SkillCardRow?)
 
 internal class TopicGenerator(
-    template: () -> String,
-    importTemplate: (ImportKind) -> Pair<Skill, String>,
-    request: suspend (String, String) -> LlmReply,
-    hotwords: () -> List<String> = { emptyList() },
-    now: () -> Long = System::currentTimeMillis,
-    appName: String = "涛声",
+    private val template: () -> String,
+    private val importTemplate: (ImportKind) -> Pair<Skill, String>,
+    private val request: suspend (String, String) -> LlmReply,
+    private val hotwords: () -> List<String> = { emptyList() },
+    private val now: () -> Long = System::currentTimeMillis,
+    private val appName: String = "声声不息",
     private val marks: (suspend (Long, Long) -> List<app.resound.marks.MarkRow>)? = null,
 ) {
     val blocks = app.resound.topic.core.TopicBlockGenerator(template, { importTemplate(ImportKind.valueOf(it.name)) },
@@ -92,6 +94,18 @@ internal class TopicEngine(
                 processor = app.resound.topic.core.TopicBlockProcessor(g.row.id, checkpoints, generator.blocks, ::topicHash, ::topicFailure, ::delay, now,
                     { java.time.Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")) })
                 var announced = false
+                // 同系列上一次纪要：结论/决定/行动项 + 仍未闭环的待办与约定，注入本场资料区。
+                val previousBlock = g.row.takeIf { it.kind != "Normal" && it.kind != "Script" && (it.seriesId != null || it.seriesKey != null) }
+                    ?.let { dao.previousDone(g.row.kind, g.row.seriesKey ?: "", g.row.id, g.row.seriesId) }
+                    ?.let { prev ->
+                        val card = prev.cardId?.let { db.skills().card(it).first() }
+                        val open = prev.eventId?.let { eid -> dao.eventItems(listOf(eid)) }.orEmpty()
+                            .filter { !it.deleted && it.category in setOf("待办", "约定") && it.status in setOf("Pending", "Accepted") }
+                            .map { MeetingOpenItem(it.kind ?: it.category, it.who, it.content, it.dueText) }
+                        val prevStart = dao.get(prev.id)?.spans?.minOfOrNull { it.startAt } ?: prev.createdAt
+                        val date = java.time.Instant.ofEpochMilli(prevStart).atZone(ZoneId.systemDefault()).toLocalDate().toString()
+                        MeetingSeriesRules.previousContext(prev.name, date, card?.valuesJson, open)
+                    } ?: ""
                 val outcome = processor.run(g.snapshot(), lines.map { it.snapshot() }, segmentStates,
                     { block -> block.ranges.any { recordingPending(it.startAt, it.endAt) } }, network,
                     {
@@ -100,7 +114,7 @@ internal class TopicEngine(
                         val latestIgnored = (db.memory().ignoredForDigest(now() - 60L * 86_400_000) + latestRetained.filter { it.status in setOf("Done", "Ignored") }).distinctBy { it.id }
                         DigestPrompt.withTodoContext("", latestUnfinished, latestIgnored)
                     },
-                    { block, _ -> contexts.getValue(block.index) },
+                    { block, _ -> listOf(contexts.getValue(block.index), previousBlock).filter { it.isNotBlank() }.joinToString("\n\n") },
                     db.transcribe().unseparated(lines.map { it.segmentId }.distinct()).toSet(), onWork = {
                         if (!active && !announced) {
                             db.writeTransaction {
@@ -141,8 +155,16 @@ internal class TopicEngine(
                     val items = result.items.filterNot { item -> existing.any { old ->
                         old.category in setOf(item.category, "待办", "约定", "备忘") &&
                             (item.lineId != null && old.lineId == item.lineId || ImportTodoMerge.same(old.content, item.content))
-                    } }.map { item -> MemoryItemEntity(eventId = eventId, category = item.category, kind = item.kind, content = item.content,
-                        dueText = item.dueText, dueAt = item.dueAt, who = item.who, lineId = item.lineId, status = "Pending", createdAt = now()) }
+                    } }.map { item ->
+                        val recordedAt = lines.firstOrNull { it.id == item.lineId }?.startAt
+                        if (app.resound.data.TemporalGuard.dueViolated(item.dueAt, recordedAt))
+                            app.resound.diagnostics.FailureNotes.record("topic/TopicGeneration.kt:dueAt",
+                                IllegalStateException("dueAt=${item.dueAt} vs recordedAt=$recordedAt"))
+                        val dueAt = app.resound.data.TemporalGuard.sanitizeDue(item.dueAt, recordedAt)
+                        MemoryItemEntity(eventId = eventId, category = item.category, kind = item.kind, content = item.content,
+                        dueText = item.dueText, dueAt = dueAt, who = item.who, lineId = item.lineId, status = "Pending", createdAt = now(),
+                        recordedAt = recordedAt,
+                        valueScore = app.resound.data.MemoryValueRules.itemScore(item.category, item.kind, dueAt, item.who, "digest")) }
                     db.memory().insertItems(items)
                     db.memory().assignLines(acceptedIds, eventId)
                     db.memory().markDigested(acceptedIds, now())

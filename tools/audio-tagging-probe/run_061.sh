@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 PYTHON_BIN="${AUDIO_TAG_PYTHON:-$HOME/.venvs/audiotag/bin/python}"
-DATA_ROOT="${AUDIO_TAG_DATA:-$HOME/Datasets/taosheng-audio}"
+DATA_ROOT="${AUDIO_TAG_DATA:-$HOME/Datasets/soundsound-audio}"
 MODEL_ROOT="${AUDIO_TAG_MODELS:-$HOME/.claude/jobs/3b8dcfaa/tmp/at}"
 if [[ "${1:-}" != "--offline" ]]; then "$PYTHON_BIN" download_061.py --root "$DATA_ROOT"; fi
 if [[ ! -f "$DATA_ROOT/manifest.json" ]]; then "$PYTHON_BIN" prepare_061.py --root "$DATA_ROOT"; fi

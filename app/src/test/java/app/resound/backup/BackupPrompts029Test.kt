@@ -48,7 +48,7 @@ class BackupPrompts029Test {
         listOf("before-restore", "backup-restore", "backup-restore-done").forEach { File(context.noBackupFilesDir, it).deleteRecursively() }
         File(context.filesDir, "prompts").deleteRecursively()
         server = MockWebServer().apply { start() }
-        client = WebDavClient(BackupConfig(server.url("/dav/").toString()), "回响", "test@example.com", "test-only")
+        client = WebDavClient(BackupConfig(server.url("/dav/").toString()), "声声不息", "test@example.com", "test-only")
     }
     @After fun cleanup() { server.shutdown(); db.close(); root.deleteRecursively() }
     private fun listing(names: List<String>, bytes: Long = 1234) = MockResponse().setResponseCode(207).setBody(
@@ -110,7 +110,7 @@ class BackupPrompts029Test {
         val encrypted = BackupEncryption.prepare(zip, "test-restore")
         server.enqueue(MockResponse().setBody(okio.Buffer().write(encrypted.readBytes())))
         val calls = mutableListOf<String>()
-        BackupRestore.restore(context, client, "回响-2026-10-23-0310.zip.enc", db,
+        BackupRestore.restore(context, client, "声声不息-2026-10-23-0310.zip.enc", db,
             storedPassphrase = "outdated-test", suppliedPassphrase = "test-restore", closeDatabase = {
                 val snapshot = File(context.noBackupFilesDir, "before-restore").listFiles()!!.single()
                 val bundle = File(root, "snapshot-bundle")
@@ -137,7 +137,7 @@ class BackupPrompts029Test {
         BackupArchive.pack(stage, zip, 123, "future", db.testSql.version + 1)
         server.enqueue(MockResponse().setBody(okio.Buffer().write(zip.readBytes())))
         assertEquals("备份数据库版本比 App 新，请先升级 App", failure {
-            BackupRestore.restore(context, client, "回响-2026-10-24-0310.zip", db,
+            BackupRestore.restore(context, client, "声声不息-2026-10-24-0310.zip", db,
                 closeDatabase = { fail("不应关闭") }, restartProcess = { fail("不应重启") })
         })
         assertEquals(CaptureDatabase.VERSION, db.testSql.version)

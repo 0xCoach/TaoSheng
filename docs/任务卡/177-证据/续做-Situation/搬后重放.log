@@ -104,14 +104,14 @@ Warning: SDK processing. This version only understands SDK XML versions up to 3 
 > Task :shared:kspReleaseKotlinAndroid
 
 > Task :shared:compileCommonMainKotlinMetadata
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/context/SituationStore.kt:76:30 Unresolved reference 'names'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/context/SituationStore.kt:76:60 Unresolved reference 'it'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/context/SituationStore.kt:76:73 Unresolved reference 'names'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/context/SituationStore.kt:76:111 Unresolved reference 'it'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/context/SituationStore.kt:77:60 Argument type mismatch: actual type is 'Char', but 'String' was expected.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/context/SituationStore.kt:77:79 Cannot infer type for type parameter 'R'. Specify it explicitly.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/context/SituationStore.kt:77:79 Cannot infer type for type parameter 'T'. Specify it explicitly.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/context/SituationStore.kt:77:99 Too many arguments for 'fun <R, T : R> Result<T>.getOrDefault(defaultValue: R): R'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/context/SituationStore.kt:76:30 Unresolved reference 'names'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/context/SituationStore.kt:76:60 Unresolved reference 'it'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/context/SituationStore.kt:76:73 Unresolved reference 'names'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/context/SituationStore.kt:76:111 Unresolved reference 'it'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/context/SituationStore.kt:77:60 Argument type mismatch: actual type is 'Char', but 'String' was expected.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/context/SituationStore.kt:77:79 Cannot infer type for type parameter 'R'. Specify it explicitly.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/context/SituationStore.kt:77:79 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/context/SituationStore.kt:77:99 Too many arguments for 'fun <R, T : R> Result<T>.getOrDefault(defaultValue: R): R'.
 
 > Task :shared:compileCommonMainKotlinMetadata FAILED
 > Task :shared:copyRoomSchemas NO-SOURCE

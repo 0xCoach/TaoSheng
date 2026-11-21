@@ -45,10 +45,8 @@ class LocalPromptTemplates(context: Context) : PromptTemplates {
             val purpose = when (id) { "digest" -> "整理"; "review" -> "回顾"; "things" -> "寻物"; "merge" -> "合并"; else -> "问答" }
             required(id).firstOrNull { it !in text }?.let { error("缺少 $it，${purpose}时会用到") }
             check(directory.isDirectory || directory.mkdirs()) { "模板保存失败，请重试" }
-            val atomic = AtomicFile(target)
-            val stream = atomic.startWrite()
-            try { stream.write(text.toByteArray(Charsets.UTF_8)); atomic.finishWrite(stream) }
-            catch (e: Exception) { atomic.failWrite(stream); throw IllegalStateException("模板保存失败，请重试") }
+            try { app.resound.util.atomicWriteFile(target) { it.write(text.toByteArray(Charsets.UTF_8)) } }
+            catch (e: Exception) { throw IllegalStateException("模板保存失败，请重试") }
             mutable.value = infos()
         }.onFailure {
             FailureNotes.record("prompts/LocalPromptTemplates.kt:39", it)

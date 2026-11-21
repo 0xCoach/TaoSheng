@@ -1,6 +1,6 @@
 [
   "./gradlew",
-  "-Dorg.gradle.daemon.registry.base=/tmp/taosheng-176-gradle",
+  "-Dorg.gradle.daemon.registry.base=/tmp/soundsound-176-gradle",
   "-PskipSigningSecrets=true",
   "--no-daemon",
   "--console=plain",

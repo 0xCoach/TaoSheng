@@ -10,7 +10,7 @@ internal class VoiceInputStore(private val db: CaptureDatabase) {
         val dao = db.voiceInput()
         val path = "voice-input:${record.token}"
         dao.byToken(path)?.let { return@writeTransaction it.id }
-        // 回响自己也录到这句时照样存：语音输入这条原文准、带上下文，不能被录音转写顶掉
+        // 声声不息自己也录到这句时照样存：语音输入这条原文准、带上下文，不能被录音转写顶掉
         val recent = dao.recent(record.at).mapNotNull { row ->
             VoiceInputMetadata.read(row.voiceInputJson)?.let { row to it }
         }.filter { it.second.packageName == record.meta.packageName }
@@ -45,7 +45,7 @@ internal class VoiceInputStore(private val db: CaptureDatabase) {
             speakerManual = true, voiceInputJson = VoiceInputMetadata.json(meta).toString(),
             voiceInputPendingUntil = null))
     }
-    /** 回响自己也录到了这句：录音转写里那几句不再单独记，留带上下文的语音输入这条 */
+    /** 声声不息自己也录到了这句：录音转写里那几句不再单独记，留带上下文的语音输入这条 */
     private suspend fun dropHeard(at: Long, text: String) {
         val dao = db.voiceInput()
         val heard = dao.micLines(at - VoiceInputDedup.MIC_BEFORE_MS, at + VoiceInputDedup.MIC_AFTER_MS)

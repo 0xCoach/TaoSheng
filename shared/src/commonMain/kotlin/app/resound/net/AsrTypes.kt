@@ -7,7 +7,9 @@ enum class AsrError(val human: String, val retryable: Boolean = false) {
     Speakers("说话人分段失败，请重新下载分段模型或在人物与声纹中关闭多人分段"),
     ModelMissing("请在转写设置中下载所需的本地模型"), LocalEngine("本机识别失败，可改用 CPU 识别或重新下载模型"), Auth("密钥无效或未开通"), Network("网络连接失败，等待重试", true), Timeout("转写超时，等待重试", true),
     Server("服务暂时不可用，等待重试", true), Protocol("识别响应不完整或格式异常"), Audio("录音文件不可读取或解码失败"),
-    Interrupted("任务中断，等待重试", true), Storage("本地存储失败，等待重试", true)
+    Interrupted("任务中断，等待重试", true), Storage("本地存储失败，等待重试", true),
+    /** 免费转写额度用完：暂停新转写但不丢录音；Pro 或下月恢复 */
+    Quota("本月免费转写额度已用完，录音与保存不受影响")
 }
 /** 仅使用固定文案，禁止将 Throwable、服务端消息或请求对象作为 cause/日志保存。 */
 class AsrException(val type: AsrError, val logId: String? = null, val detail: String = type.human, val concurrencyLimited: Boolean = false) : Exception(detail)

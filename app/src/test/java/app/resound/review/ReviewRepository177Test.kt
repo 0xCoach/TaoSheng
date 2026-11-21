@@ -32,7 +32,7 @@ class ReviewRepository177Test {
             val calls = mutableListOf<String>()
             val repo = RoomReviewRepository(db.review(), db.memory(), prefs, scope,
                 { LlmPreset("test", "test", "https://example.invalid", "test") to "synthetic" },
-                { _, _, _, _ -> calls += "chat"; LlmReply("""{"brief":"合成回顾","sections":[]}""", 10, 3) }, { "模板" }, "回响",
+                { _, _, _, _ -> calls += "chat"; LlmReply("""{"brief":"合成回顾","sections":[]}""", 10, 3) }, { "模板" }, "声声不息",
                 object : Notifier { override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) { calls += "$title|$body|$deepLink|$topic" } },
                 { calls += "reschedule=$it" }, now = { at + 90_000_000 }, zone = { zone }, dailyMemory = { calls += "daily=$it" }, io = kotlinx.coroutines.Dispatchers.IO)
             val text = StringBuilder(); fun save(key: String, value: Any?) { text.appendLine("$key=$value") }
@@ -43,7 +43,8 @@ class ReviewRepository177Test {
             save("material", repo.hasMaterial(date).first()); save("manual.retry", repo.run(date, false)); save("daily", repo.daily(date).first()); save("recent", repo.recent().first()); save("state", repo.state.value)
             repo.setPushEnabled(true); save("scheduled.retry", repo.run(date, true)); save("calls", calls); save("usage", db.memory().observeUsage().first()); save("prefs.final", prefs.all.toSortedMap())
             val fixture = File("src/test/resources/repo177/RoomReviewRepository/all.txt")
-            assertEquals(fixture.readText(), text.toString())
+            // Windows 检出行尾可能被转成 CRLF，比较前归一化。
+            assertEquals(fixture.readText().replace("\r\n", "\n"), text.toString())
         } finally { scope.coroutineContext[Job]!!.cancelAndJoin(); db.close() }
     }
 }

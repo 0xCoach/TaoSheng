@@ -32,7 +32,7 @@ class UpdateAndroidTest {
             val sql = database.testSql
             sql.execSQL("CREATE TABLE update_backup_probe(value TEXT)")
             sql.execSQL("INSERT INTO update_backup_probe VALUES('before')")
-            context.getSharedPreferences("voice-input", 0).edit().putBoolean("enabled", true).putString("probe", "涛声<&").commit()
+            context.getSharedPreferences("voice-input", 0).edit().putBoolean("enabled", true).putString("probe", "声声不息<&").commit()
             val backup = PreUpdateBackup(context, database, EmptyBackup(), {})
             backup.snapshot()
             // 模拟卡 051 的单份布局，后续快照应先迁移旧数据，再按时间保留三份。
@@ -54,19 +54,25 @@ class UpdateAndroidTest {
                 copy.rawQuery("PRAGMA quick_check", null).use { cursor -> assertTrue(cursor.moveToFirst()); assertEquals("ok", cursor.getString(0)) }
             }
             val prefs = File(latest, "shared_prefs/voice-input.xml").readText()
-            assertTrue(prefs.contains("enabled")); assertTrue(prefs.contains("涛声&lt;&amp;"))
+            assertTrue(prefs.contains("enabled")); assertTrue(prefs.contains("声声不息&lt;&amp;"))
             assertFalse(File(context.filesDir, "pre-update-previous").exists())
             assertFalse(File(context.filesDir, "pre-update-staging").exists())
         } finally { database.close(); context.deleteDatabase("capture.db"); target.deleteRecursively() }
     }
 
     @Test fun validatesPackageVersionAndCurrentSigningCertificates() {
-        fun verify(name: String = "app.resound", version: Long = 26, signers: Set<String> = setOf("current")) =
-            AndroidUpdatePlatform.validateIdentity(name, version, 25, 26, signers, setOf("current"))
+        fun verify(name: String = "app.resound", version: Long = 26, signers: Set<String> = setOf("current"),
+            newHistory: Set<String> = emptySet()) =
+            AndroidUpdatePlatform.validateIdentity(name, version, 25, 26, signers, setOf("current"), newHistory)
         verify()
         assertEquals("安装包签名不对，已删除", assertThrows(UpdateFailure::class.java) { verify(signers = setOf("other")) }.human)
         assertThrows(UpdateFailure::class.java) { verify(name = "app.other") }
         assertThrows(UpdateFailure::class.java) { verify(version = 25) }
+        // v3 签名轮换：新 signer ≠ 旧 signer 但 lineage 含旧证书 → 放行；无 lineage 或链中无旧证书 → 拒绝
+        verify(signers = setOf("release"), newHistory = setOf("current", "release"))
+        assertEquals("安装包签名不对，已删除", assertThrows(UpdateFailure::class.java) {
+            verify(signers = setOf("release"), newHistory = setOf("release")) }.human)
+        assertThrows(UpdateFailure::class.java) { verify(signers = setOf("release"), newHistory = setOf("unrelated")) }
     }
 }
 

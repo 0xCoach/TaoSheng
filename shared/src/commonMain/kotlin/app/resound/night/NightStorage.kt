@@ -112,23 +112,23 @@ data class ExcludedCount(val kind: String, val count: Int)
 /** SQL 和 Room schema 的列、约束及索引保持一致。 */
 object NightSchema {
     fun create(db: SQLiteConnection) {
-        db.execSQL("CREATE TABLE IF NOT EXISTS `nights` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `date` TEXT NOT NULL, `start` INTEGER NOT NULL, `end` INTEGER NOT NULL, `state` TEXT NOT NULL, `payload` TEXT NOT NULL, `signals` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)")
-        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_nights_date` ON `nights` (`date`)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `nights` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `date` TEXT NOT NULL, `start` INTEGER NOT NULL, `end` INTEGER NOT NULL, `state` TEXT NOT NULL, `payload` TEXT NOT NULL, `signals` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `kind` TEXT NOT NULL DEFAULT 'night', `windowId` TEXT NOT NULL DEFAULT 'night')")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_nights_date_kind` ON `nights` (`date`, `kind`)")
         fun child(name: String, columns: String, key: String = "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, ") {
             db.execSQL("CREATE TABLE IF NOT EXISTS `$name` ($key`nightId` INTEGER NOT NULL, $columns, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)")
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_${name}_nightId` ON `$name` (`nightId`)")
         }
         child("night_events", "`start` INTEGER NOT NULL, `end` INTEGER NOT NULL, `kind` TEXT NOT NULL, `payload` TEXT NOT NULL, `certainty` REAL NOT NULL, `vetoed` INTEGER NOT NULL")
         child("night_clips", "`start` INTEGER NOT NULL, `end` INTEGER NOT NULL, `path` TEXT, `scores` BLOB NOT NULL, `features` TEXT NOT NULL, `confirmed` INTEGER NOT NULL, `expiresAt` INTEGER NOT NULL, `candidate` INTEGER NOT NULL")
-        db.execSQL("CREATE TABLE IF NOT EXISTS `night_envelope` (`nightId` INTEGER NOT NULL PRIMARY KEY, `start` INTEGER NOT NULL, `points` BLOB NOT NULL, FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `night_envelope` (`nightId` INTEGER NOT NULL, `start` INTEGER NOT NULL, `points` BLOB NOT NULL, PRIMARY KEY(`nightId`), FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
         child("night_feedback", "`eventId` INTEGER NOT NULL, `kind` TEXT NOT NULL, `yes` INTEGER NOT NULL, `scores` BLOB NOT NULL, `features` TEXT NOT NULL, `at` INTEGER NOT NULL")
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_night_feedback_eventId` ON `night_feedback` (`eventId`)")
         db.execSQL("CREATE TABLE IF NOT EXISTS `night_tags` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `preset` INTEGER NOT NULL)")
-        db.execSQL("CREATE TABLE IF NOT EXISTS `night_tag_links` (`nightId` INTEGER NOT NULL, `tagId` INTEGER NOT NULL, `state` TEXT NOT NULL, PRIMARY KEY(`nightId`,`tagId`), FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`tagId`) REFERENCES `night_tags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `night_tag_links` (`nightId` INTEGER NOT NULL, `tagId` INTEGER NOT NULL, `state` TEXT NOT NULL, PRIMARY KEY(`nightId`, `tagId`), FOREIGN KEY(`nightId`) REFERENCES `nights`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`tagId`) REFERENCES `night_tags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_night_tag_links_tagId` ON `night_tag_links` (`tagId`)")
         child("night_dreams", "`at` INTEGER NOT NULL, `until` INTEGER NOT NULL, `payload` TEXT NOT NULL")
-        db.execSQL("CREATE TABLE IF NOT EXISTS `night_personal` (`kind` TEXT NOT NULL PRIMARY KEY, `payload` TEXT NOT NULL, `trainedAt` INTEGER NOT NULL, `feedbackCount` INTEGER NOT NULL)")
-        db.execSQL("CREATE TABLE IF NOT EXISTS `night_weeks` (`weekStart` TEXT NOT NULL PRIMARY KEY, `payload` TEXT NOT NULL, `pushState` TEXT NOT NULL)")
-        db.execSQL("CREATE TABLE IF NOT EXISTS `night_notice` (`key` TEXT NOT NULL PRIMARY KEY, `at` INTEGER NOT NULL, `muted` INTEGER NOT NULL)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `night_personal` (`kind` TEXT NOT NULL, `payload` TEXT NOT NULL, `trainedAt` INTEGER NOT NULL, `feedbackCount` INTEGER NOT NULL, PRIMARY KEY(`kind`))")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `night_weeks` (`weekStart` TEXT NOT NULL, `payload` TEXT NOT NULL, `pushState` TEXT NOT NULL, PRIMARY KEY(`weekStart`))")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `night_notice` (`key` TEXT NOT NULL, `at` INTEGER NOT NULL, `muted` INTEGER NOT NULL, PRIMARY KEY(`key`))")
     }
 }

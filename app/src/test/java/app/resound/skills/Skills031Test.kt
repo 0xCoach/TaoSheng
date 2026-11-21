@@ -56,7 +56,7 @@ class Skills031Test {
     @After fun teardown() { scope.cancel(); db.close(); root.deleteRecursively() }
     private fun repo() = LocalSkillRepository(files, db.skills(), db.memory(), scope,
         { LlmPreset(it ?: "deepseek", "test", "https://example.invalid", "test") to key },
-        { _, _, system, input -> requests += system; response(system, input) }, { listOf("回响") }, object : Notifier {
+        { _, _, system, input -> requests += system; response(system, input) }, { listOf("声声不息") }, object : Notifier {
             override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) {
                 assertEquals(PushTopic.SkillCard, topic); assertTrue(deepLink!!.startsWith("resound://card?open=card&id=")); sent += title
             }

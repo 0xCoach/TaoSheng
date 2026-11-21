@@ -54,7 +54,7 @@ class DiaryBackupTest {
             context.getSharedPreferences("diary", 0).edit().putBoolean("cloudSync", true).commit()
             webDavPause = {}
             val repository = AndroidBackupRepository(context, db, config, diary) {
-                WebDavClient(config, "回响", "test@example.com", "test-password")
+                WebDavClient(config, "声声不息", "test@example.com", "test-password")
             }
             repository.setEnabled(true)
             // 默认关：成功备份不应触发日记生成。

@@ -3,7 +3,6 @@ package app.resound.ui.onboarding
 import kotlinx.datetime.toKotlinLocalDate
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.Manifest
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
@@ -15,7 +14,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -23,6 +21,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -36,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -54,13 +54,12 @@ import app.resound.ui.theme.RsType
 import app.resound.ui.verify.ActionButton
 import app.resound.ui.verify.ActionKind
 import app.resound.ui.verify.RsCard
-import app.resound.ui.verify.SheetInput
 import app.resound.ui.verify.springClick
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 /*
- * 0.2.21 开箱向导：第一次打开 4 页走完 —— 欢迎 → 必要权限（同时后台准备本机转写）→ 配置 DeepSeek → 说一句试试。
+ * 0.2.21 开箱向导：欢迎 → 必要权限（同时后台准备本机转写）→ 说一句试试 → 可选完善 → 保活说明。
+ * 不在引导里要求填大模型密钥、不跳浏览器：整理模型与官方 AI 都在进 App 后的设置里按需配置。
  * 借鉴成熟引导：先说明再要权限、一页一件事、默认替用户选好、慢的事并行、尽快看到结果。
  * 区分说话人、后台保活细项、备份、推送、足迹都放到进 App 后的“继续完善”和按需提示里。
  */
@@ -81,9 +80,6 @@ private fun markOnboarded(context: Context) {
 }
 
 private fun record(event: String) { if (AppGraph.isOnboardingReady) AppGraph.onboarding.record(event) }
-
-/** DeepSeek 密钥的样子：sk- 开头加一串字母数字 */
-internal val deepseekKey = Regex("""\bsk-[A-Za-z0-9]{20,}\b""")
 
 @Composable
 fun OnboardingWizard(capture: CaptureController, transcripts: TranscriptRepository, memory: MemoryRepository, onDone: () -> Unit) {
@@ -106,9 +102,8 @@ fun OnboardingWizard(capture: CaptureController, transcripts: TranscriptReposito
                         app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Backup)
                     })
                     1 -> Permissions(capture) { page = 2 }
-                    2 -> DeepSeek(onNext = { page = 3 }, onLater = { record("key_skipped"); page = 3 })
-                    3 -> TryIt(capture, transcripts, memory, startedAt) { page = 4 }
-                    4 -> Extras(onNow = { record("extras_now"); page = 5 }, onSkip = {
+                    2 -> TryIt(capture, transcripts, memory, startedAt) { page = 3 }
+                    3 -> Extras(onNow = { record("extras_now"); page = 4 }, onSkip = {
                         // 直接开始：今天页不再显示“继续完善”清单
                         context.getSharedPreferences("ui", Context.MODE_PRIVATE).edit().putBoolean("startChecklistDismissed", true).apply()
                         finish("wizard_done_skip_extras")
@@ -133,11 +128,8 @@ private fun Dots(current: Int, total: Int, modifier: Modifier) {
 
 @Composable
 private fun Logo() {
-    val heights = listOf(14, 26, 38, 22, 32, 16)
-    Box(Modifier.size(84.dp).clip(RoundedCornerShape(24.dp)).background(Rs.colors.accent), contentAlignment = Alignment.Center) {
-        Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-            heights.forEach { Box(Modifier.width(5.dp).height(it.dp).clip(CircleShape).background(androidx.compose.ui.graphics.Color.White)) }
-        }
+    Box(Modifier.size(84.dp).clip(RoundedCornerShape(24.dp))) {
+        Image(painterResource(app.resound.R.drawable.ic_fg), null, Modifier.fillMaxSize())
     }
 }
 
@@ -147,7 +139,7 @@ private fun ColumnScope.Welcome(onStart: () -> Unit, onRestore: () -> Unit) {
     Spacer(Modifier.height(48.dp))
     Logo()
     Spacer(Modifier.height(28.dp))
-    Text("涛声", style = RsType.title.copy(fontSize = 34.sp), color = c.text)
+    Text("声声不息", style = RsType.title.copy(fontSize = 34.sp), color = c.text)
     Spacer(Modifier.height(10.dp))
     Text("全天听你说的话，整理成一件件事和待办。", style = RsType.headline, color = c.text)
     Spacer(Modifier.height(28.dp))
@@ -186,7 +178,7 @@ private fun ColumnScope.Permissions(capture: CaptureController, onNext: () -> Un
         if (r[Manifest.permission.RECORD_AUDIO] == true) {
             denied = false; record("mic_granted")
             capture.start()
-            // 本机转写默认就用：现在开始下，用户配 DeepSeek 的工夫模型就下好了（用流量也下，下面提醒）
+            // 本机转写默认就用：现在开始下，用户走完向导的工夫模型就下好了（用流量也下，下面提醒）
             app.resound.ui.today.prepareLocalAsr(context, settings)
             askBattery()
         } else { denied = true; record("mic_denied") }
@@ -209,14 +201,16 @@ private fun ColumnScope.Permissions(capture: CaptureController, onNext: () -> Un
         style = RsType.caption, color = if (metered(context)) c.warning else c.textTertiary)
     if (denied) {
         Spacer(Modifier.height(16.dp))
-        Text("没有麦克风权限，涛声就录不了音。可以再试一次；如果系统不再弹窗，请到系统设置里手动打开。", style = RsType.subhead, color = c.warning)
+        Text("没有麦克风权限，声声不息就录不了音。可以再试一次；如果系统不再弹窗，请到系统设置里手动打开。", style = RsType.subhead, color = c.warning)
         Text("去系统设置", style = RsType.subhead, color = c.accent, modifier = Modifier.padding(top = 8.dp).springClick {
             context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         })
     }
     Spacer(Modifier.weight(1f).heightIn(min = 32.dp))
-    ActionButton(if (denied) "再试一次" else "允许并继续", ActionKind.Primary, Modifier.fillMaxWidth()) {
+    Text("授权后立刻开始全天聆听；通知栏常驻录音状态，主页和通知里随时能暂停、删除。", style = RsType.caption, color = c.textTertiary)
+    Spacer(Modifier.height(12.dp))
+    ActionButton(if (denied) "再试一次" else "允许并开始聆听", ActionKind.Primary, Modifier.fillMaxWidth()) {
         if (micGranted() && capture.status.value.state != CaptureState.NoPermission) {
             capture.start(); app.resound.ui.today.prepareLocalAsr(context, settings); askBattery()
             if (batteryOk()) onNext()
@@ -287,84 +281,6 @@ private fun ModelProgress(big: Boolean = false) {
 }
 
 @Composable
-private fun ColumnScope.DeepSeek(onNext: () -> Unit, onLater: () -> Unit) {
-    val c = Rs.colors
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val providers = if (AppGraph.isLlmProvidersReady) AppGraph.llmProviders else null
-    val template = providers?.templates?.firstOrNull { it.id == "deepseek" }
-    var key by remember { mutableStateOf("") }
-    var found by remember { mutableStateOf<String?>(null) }
-    var busy by remember { mutableStateOf(false) }
-    var result by remember { mutableStateOf<Result<String>?>(null) }
-    // 从 DeepSeek 网页复制好密钥回来：看一眼剪贴板，像密钥就问一句要不要填入
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        val clip = runCatching { context.getSystemService(ClipboardManager::class.java).primaryClip?.getItemAt(0)?.coerceToText(context)?.toString() }.getOrNull()
-        found = clip?.let { deepseekKey.find(it)?.value }?.takeIf { it != key }
-    }
-    fun save(k: String) {
-        if (providers == null || template == null || busy) return
-        busy = true; result = null
-        scope.launch {
-            result = runCatching {
-                val model = template.models.first()
-                val r = providers.test(null, template.baseUrl, model, k)
-                r.getOrThrow()
-                val id = providers.save(null, template.id, template.name, template.baseUrl, model, k,
-                    template.balance?.url.orEmpty(), template.balance?.path.orEmpty())
-                providers.activate(id)
-                record("key_saved")
-                "可以用了"
-            }
-            busy = false
-        }
-    }
-    Spacer(Modifier.height(20.dp))
-    ModelProgress()
-    Spacer(Modifier.height(20.dp))
-    Text("配置整理模型", style = RsType.title, color = c.text)
-    Spacer(Modifier.height(8.dp))
-    Text("填一个 DeepSeek 密钥，涛声就能把原话整理成一件件事、待办和每日回顾。按用量付费，日常一天大约几毛钱（以 DeepSeek 官网为准）。",
-        style = RsType.body, color = c.textSecondary)
-    Spacer(Modifier.height(20.dp))
-    RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
-        listOf("注册并登录 DeepSeek 开放平台，按提示充值少量余额", "在“API keys”里点“创建 API key”", "复制密钥，回到涛声").forEachIndexed { i, t ->
-            Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(24.dp).clip(CircleShape).background(c.accentSoft), contentAlignment = Alignment.Center) {
-                    Text("${i + 1}", style = RsType.caption.copy(fontWeight = FontWeight.Bold), color = c.accent)
-                }
-                Spacer(Modifier.width(12.dp))
-                Text(t, style = RsType.subhead, color = c.text)
-            }
-        }
-    }
-    Spacer(Modifier.height(14.dp))
-    ActionButton("去 DeepSeek 获取密钥", ActionKind.Secondary, Modifier.fillMaxWidth()) {
-        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(template?.keyUrl ?: "https://platform.deepseek.com/api_keys")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-    }
-    AnimatedVisibility(found != null) {
-        val f = found.orEmpty()
-        Row(Modifier.fillMaxWidth().padding(top = 14.dp).clip(RoundedCornerShape(14.dp)).background(c.accentSoft).springClick {
-            key = f; found = null; record("key_from_clipboard"); save(f)
-        }.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("检测到密钥 ${f.take(5)}…${f.takeLast(4)}", style = RsType.subhead, color = c.text, modifier = Modifier.weight(1f))
-            Text("填入", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent)
-        }
-    }
-    Spacer(Modifier.height(14.dp))
-    SheetInput(key, "或者在这里粘贴密钥（sk- 开头）") { key = it.trim(); result = null }
-    result?.let { r ->
-        Text(r.fold({ "✓ $it" }, { it.message ?: "没连上，请检查密钥和余额" }), style = RsType.subhead,
-            color = if (r.isSuccess) c.good else c.critical, modifier = Modifier.padding(top = 10.dp))
-    }
-    Spacer(Modifier.weight(1f).heightIn(min = 28.dp))
-    if (result?.isSuccess == true) ActionButton("继续", ActionKind.Primary, Modifier.fillMaxWidth(), onClick = onNext)
-    else ActionButton(if (busy) "正在测试…" else "保存并测试", ActionKind.Primary, Modifier.fillMaxWidth(), enabled = !busy && key.isNotBlank()) { save(key) }
-    Text("以后再说", style = RsType.caption, color = c.textTertiary, textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().padding(top = 14.dp).springClick(onLater))
-}
-
-@Composable
 private fun ColumnScope.TryIt(capture: CaptureController, transcripts: TranscriptRepository, memory: MemoryRepository, since: Long, onDone: () -> Unit) {
     val c = Rs.colors
     val status by capture.status.collectAsStateWithLifecycle()
@@ -394,7 +310,7 @@ private fun ColumnScope.TryIt(capture: CaptureController, transcripts: Transcrip
     Spacer(Modifier.height(8.dp))
     Text("比如：“明天下午三点和老王开会。”说完停一两秒。", style = RsType.body, color = c.textSecondary)
     Spacer(Modifier.height(28.dp))
-    // 实时音量：说话时柱子跟着跳，让人知道涛声在听
+    // 实时音量：说话时柱子跟着跳，让人知道声声不息在听
     val level by animateFloatAsState(micLevel.coerceIn(0f, 1f), tween(80), label = "level")
     Row(Modifier.fillMaxWidth().height(72.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically) {
@@ -437,7 +353,7 @@ private fun ColumnScope.Extras(onNow: () -> Unit, onSkip: () -> Unit) {
     Spacer(Modifier.height(32.dp))
     Text("基本设置好了 🎉", style = RsType.title, color = c.text)
     Spacer(Modifier.height(8.dp))
-    Text("还有几项可以让涛声更好用，要现在设置吗？以后也能在设置里找到。", style = RsType.body, color = c.textSecondary)
+    Text("还有几项可以让声声不息更好用，要现在设置吗？以后也能在设置里找到。", style = RsType.body, color = c.textSecondary)
     Spacer(Modifier.height(24.dp))
     RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 6.dp)) {
         Reason("🔋", "后台保活", "小米等手机还要打开自启动，全天收音才不会断。")
@@ -459,7 +375,7 @@ private fun ColumnScope.KeepAlive(onDone: () -> Unit) {
     var items by remember { mutableStateOf(setup?.items().orEmpty()) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { items = setup?.items().orEmpty() }
     Spacer(Modifier.height(24.dp))
-    Text("让涛声在后台不被关掉", style = RsType.title, color = c.text)
+    Text("让声声不息在后台不被关掉", style = RsType.title, color = c.text)
     Spacer(Modifier.height(8.dp))
     Text("逐项点“去设置”，按系统页面打开后返回这里。手机型号不同，项目会略有不同。", style = RsType.body, color = c.textSecondary)
     Spacer(Modifier.height(20.dp))
@@ -483,5 +399,5 @@ private fun ColumnScope.KeepAlive(onDone: () -> Unit) {
     Spacer(Modifier.height(12.dp))
     Text("备份、推送、足迹在今天页顶部的“继续完善”里，接着点就能设置。", style = RsType.caption, color = c.textTertiary)
     Spacer(Modifier.weight(1f).heightIn(min = 28.dp))
-    ActionButton("进入涛声", ActionKind.Primary, Modifier.fillMaxWidth(), onClick = onDone)
+    ActionButton("进入声声不息", ActionKind.Primary, Modifier.fillMaxWidth(), onClick = onDone)
 }

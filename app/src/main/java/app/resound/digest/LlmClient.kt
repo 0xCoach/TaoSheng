@@ -32,7 +32,9 @@ enum class LlmError(val human: String, val retryable: Boolean) {
 }
 
 /** 只用固定文案，不带服务端原文或请求内容，避免密钥、原话进日志。status 是 HTTP 状态码（0 = 没拿到），供模型检测分辨原因。 */
-class LlmException(val type: LlmError, val status: Int = 0, val detail: String = type.human, val usage: LlmReply? = null, val truncated: Boolean = false) : Exception(detail) {
+class LlmException(val type: LlmError, val status: Int = 0, val detail: String = type.human, val usage: LlmReply? = null, val truncated: Boolean = false,
+    /** 终态错误：failover 不切换 BYOK 备用（官方 AI 点数/同意/服务类错误由用户处理）。 */
+    val terminal: Boolean = false) : Exception(detail) {
     companion object {
         const val TRUNCATED = "回答没写完就被截断了：模型思考太久，可在设置里关掉深度思考或换个模型"
     }
@@ -44,11 +46,15 @@ val LlmException.rejected: Boolean get() = type == LlmError.Server && status in 
 
 
 /** 安卓兼容入口；业务 JSON、SSE 与 HTTP 规则在 shared。 */
+/** 官方 AI 桥：preset 为 OFFICIAL 条目时改走服务端网关（账号令牌计费）；(任务类别, system, user) → 回复。 */
+typealias OfficialBridge = suspend (taskKind: String, system: String, user: String) -> LlmReply
+
 class LlmClient(
     private val http: OkHttpClient = defaultAndroidHttp.newBuilder()
         .connectTimeout(15, TimeUnit.SECONDS).readTimeout(180, TimeUnit.SECONDS).callTimeout(200, TimeUnit.SECONDS).build(),
     private val requestHeaders: (LlmPreset) -> List<HeaderEntry> = { emptyList() },
     private val diagnostics: LlmDiagnostics? = null,
+    private val official: OfficialBridge? = null,
     private val streamSupport: app.resound.net.JsonStreamSupport? = null,
 ) {
     private suspend fun network(preset: LlmPreset, json: Boolean = false): io.ktor.client.HttpClient {
@@ -83,6 +89,13 @@ class LlmClient(
                 FailureNotes.record("digest/LlmClient.kt:72", it)
             }.getOrNull()
         try {
+            if (preset.id == OFFICIAL_PROVIDER_ID) {
+                val bridge = official ?: throw LlmException(LlmError.Auth, detail = "官方 AI 未接入", terminal = true)
+                val kind = kotlin.coroutines.coroutineContext[LlmTaskKind]?.kind ?: "digest"
+                val reply = bridge(kind, system, user)
+                t?.complete()
+                return@withContext LlmReply(reply.content, reply.promptTokens, reply.completionTokens, reply.actualModel, diagnostics = t)
+            }
             if (system.length.toLong() + user.length > LlmInputBudget.inputChars(preset)) throw LlmInputLimitException()
             val client = network(preset, json = !probe)
             var reasoningChars = 0
@@ -107,6 +120,29 @@ class LlmClient(
                 FailureNotes.record("digest/LlmClient.kt:87", it)
             }.getOrNull()
         try {
+            if (preset.id == OFFICIAL_PROVIDER_ID) {
+                // 官方网关 v1 不做工具流：工具类调用（问问）按 Format 终态，交由兼容性降级走预取模式
+                if (allowTools && tools.length() > 0) throw LlmException(LlmError.Format, detail = "官方 AI 暂不支持工具调用", terminal = true)
+                val bridge = official ?: throw LlmException(LlmError.Auth, detail = "官方 AI 未接入", terminal = true)
+                // 网关是单轮 system+user：多轮消息按序拼进 user，保住对话上下文
+                var systemText = ""; val sb = StringBuilder()
+                for (i in 0 until messages.length()) {
+                    val m = messages.optJSONObject(i) ?: continue
+                    val c = m.optString("content"); if (c.isEmpty()) continue
+                    when (m.optString("role")) {
+                        "system" -> systemText = (systemText + "\n" + c).trim()
+                        "user" -> sb.append(c).append("\n\n")
+                        else -> sb.append("【" + m.optString("role") + "】").append(c).append("\n\n")
+                    }
+                }
+                val userText = sb.toString().trim()
+                val kind = kotlin.coroutines.coroutineContext[LlmTaskKind]?.kind ?: "ask"
+                val reply = bridge(kind, systemText, userText)
+                onText(reply.content)
+                onUsage(reply.promptTokens, reply.completionTokens)
+                t?.content(reply.content); t?.complete()
+                return LlmStreamReply(reply.content, emptyList(), null, t)
+            }
             val client = network(preset)
             val r = core(client, preset).stream(preset, key, requestHeaders(preset), messages.toString(), tools.toString(), onText, onUsage, allowTools, trace(t))
             t?.content(r.content); t?.complete()

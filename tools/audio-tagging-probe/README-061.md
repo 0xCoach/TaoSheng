@@ -11,7 +11,7 @@ bash tools/audio-tagging-probe/run_061.sh --offline
 ~/.venvs/audiotag/bin/python tools/audio-tagging-probe/verify_061.py
 ```
 
-默认数据目录 `~/Datasets/taosheng-audio/`；模型只读 `~/.claude/jobs/3b8dcfaa/tmp/at/` 的三套 int8 文件。可通过 `AUDIO_TAG_DATA`、`AUDIO_TAG_MODELS`、`AUDIO_TAG_PYTHON` 指定位置。需要允许写数据目录；在受限会话按单次审批执行。新环境需安装 ffmpeg。当前 Python 3.14，依赖版本见 requirements 文件。
+默认数据目录 `~/Datasets/soundsound-audio/`；模型只读 `~/.claude/jobs/3b8dcfaa/tmp/at/` 的三套 int8 文件。可通过 `AUDIO_TAG_DATA`、`AUDIO_TAG_MODELS`、`AUDIO_TAG_PYTHON` 指定位置。需要允许写数据目录；在受限会话按单次审批执行。新环境需安装 ffmpeg。当前 Python 3.14，依赖版本见 requirements 文件。
 
 顺序：download（仅下载、锁版本、保存许可与哈希，8 GB 累计上限）→ prepare（划分后生成模拟素材）→ evaluate（完整 527 类、2 线程、缓存同一窗口）→ tune（只看调参）→ validate（冻结后验证）→ report。任何下载失败都会报错并保留已完成文件；不把错误页当音频。当前下载来源已成功，无需全量重下。
 

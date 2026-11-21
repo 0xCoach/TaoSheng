@@ -56,12 +56,13 @@ class LlmFailover(
     }
     @Synchronized fun clear(id: String) { cooling.remove(id); generations[id] = (generations[id] ?: 0) + 1 }
     fun hasBackup(primary: LlmPreset): Boolean = enabled.value && synchronized(providers.guard) {
-        providers.saved.value.any { it.id != primary.id && (it.hasKey || it.preset().allowsEmptyKey() || providers.hasHeaderAuth(it.id)) }
+        // 官方点数服务不互为 BYOK 备用：跨模式静默切换会绕过用户对计费方式的明确选择
+        providers.saved.value.any { it.id != primary.id && it.id != OFFICIAL_PROVIDER_ID && (it.hasKey || it.preset().allowsEmptyKey() || providers.hasHeaderAuth(it.id)) }
     }
     private fun candidates(primary: LlmPreset, key: String, enabled: Boolean): List<FailoverCandidate> {
         val credentials = synchronized(providers.guard) {
             listOf(primary to key) + if (!enabled) emptyList() else providers.saved.value
-                .filter { it.id != primary.id && (it.hasKey || it.preset().allowsEmptyKey() || providers.hasHeaderAuth(it.id)) }
+                .filter { it.id != primary.id && it.id != OFFICIAL_PROVIDER_ID && (it.hasKey || it.preset().allowsEmptyKey() || providers.hasHeaderAuth(it.id)) }
                 .map { it.preset() to providers.readKey(it.id) }
         }
         return synchronized(this) {
@@ -116,6 +117,9 @@ class LlmFailover(
         val on = enabled.value && canSwitch()
         val context = kotlin.coroutines.coroutineContext
         val splits = context[LlmSplitsOnSlow.Key] != null || context[app.resound.topic.core.TopicRequestContext] != null
+        // 官方 AI 计费任务类别：外层显式指定（安静自动整理=auto_digest）优先，否则按功能名归类
+        val kind = context[LlmTaskKind] ?: LlmTaskKind(officialTaskKind(feature))
+        val kindedCall: suspend (LlmPreset, String) -> T = { p, k -> withContext(kind) { call(p, k) } }
         return rules.execute(primary, candidates(primary, key, on), on, canSwitch, switched = { p, reason ->
             recent.value = LlmSwitch(now(), feature, primary.name + " / " + primary.model, p.name + " / " + p.model, reason)
             recent.value?.let { diagnostics.switched(it.at, it.originalModel, it.actualModel, it.reason) }
@@ -125,10 +129,10 @@ class LlmFailover(
                 FailureNotes.record("digest/LlmFailover.kt:108", it)
             }.getOrNull()
             kotlin.coroutines.coroutineContext[TopicRequestContext]?.let { t -> trace?.topic(t.id, t.phase, t.block, t.total) }
-            if (trace == null) call(p, candidate.key) else {
+            if (trace == null) kindedCall(p, candidate.key) else {
                 // 保持取消异常原对象，不让 withContext 复制异常。
                 var thrown: Throwable? = null
-                val value = withContext(trace) { try { call(p, candidate.key) } catch (e: Throwable) { thrown = e; null } }
+                val value = withContext(trace) { try { kindedCall(p, candidate.key) } catch (e: Throwable) { thrown = e; null } }
                 thrown?.let { trace.complete(it); throw it }
                 @Suppress("UNCHECKED_CAST") (value as T)
             }
@@ -142,8 +146,8 @@ class LlmFailover(
     ): LlmReply {
         val (reply, actual) = execute(feature, primary, key) { p, secret ->
             try {
-                if (secret.isBlank() && !p.allowsEmptyKey() && !providers.hasHeaderAuth(p.id)) throw LlmException(LlmError.Auth)
-                if (system.length.toLong() + user.length > LlmInputBudget.inputChars(p)) throw LlmInputLimitException()
+                if (p.id != OFFICIAL_PROVIDER_ID && secret.isBlank() && !p.allowsEmptyKey() && !providers.hasHeaderAuth(p.id)) throw LlmException(LlmError.Auth)
+                if (p.id != OFFICIAL_PROVIDER_ID && system.length.toLong() + user.length > LlmInputBudget.inputChars(p)) throw LlmInputLimitException()
                 request(p, secret, system, user)
             } catch (e: LlmException) {
                 e.usage?.let { withContext(NonCancellable) { failedUsage(it.copy(actualModel = p.model)) } }
@@ -175,7 +179,7 @@ class LlmFailover(
             }
             var prompt = 0L; var completion = 0L
             try {
-                if (secret.isBlank() && !p.allowsEmptyKey() && !providers.hasHeaderAuth(p.id)) throw LlmException(LlmError.Auth)
+                if (p.id != OFFICIAL_PROVIDER_ID && secret.isBlank() && !p.allowsEmptyKey() && !providers.hasHeaderAuth(p.id)) throw LlmException(LlmError.Auth)
                 val result = client.streamChat(p, secret, messages, tools, { delta ->
                     if (delta.isNotEmpty()) session.emitted = true
                     onText(delta)

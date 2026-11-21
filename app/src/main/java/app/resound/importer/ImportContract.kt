@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 /*
  * 导入录音与界面之间的约定。界面（Claude）只依赖这里；底层（Codex）实现。
  *
- * 最常见的用法：在录音机等 App 里点“分享 → 回响”，把音频推过来转写和整理。
+ * 最常见的用法：在录音机等 App 里点“分享 → 声声不息”，把音频推过来转写和整理。
  * 导入的录音和平时录的一样，按“原声保留天数”保存（卡 077 起），可以回放。
  */
 
@@ -36,7 +36,7 @@ data class ImportProgress(
 
 interface AudioImporter {
     /**
-     * 收到文件（别的 App 分享过来，或在回响里选的）：立刻复制到缓存（分享来的读权限是临时的），读出信息，
+     * 收到文件（别的 App 分享过来，或在声声不息里选的）：立刻复制到缓存（分享来的读权限是临时的），读出信息，
      * 放进 [pending] 等用户确认。读不出声音的返回失败（给人看的原因），不进 pending。
      */
     suspend fun receive(uris: List<Uri>): List<Result<PendingImport>>

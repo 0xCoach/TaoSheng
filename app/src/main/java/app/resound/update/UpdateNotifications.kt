@@ -19,13 +19,13 @@ internal object UpdateNotifications {
     private const val CONFIRM = 511
     private const val VOICE = 512
     fun available(context: Context, info: UpdateInfo, ready: Boolean = false): Boolean = post(context, AVAILABLE,
-        "涛声 ${info.versionName.replace("-preview.", " 预览版 ")} " + if (ready) "已准备好" else "可以更新",
+        "声声不息 ${info.versionName.replace("-preview.", " 预览版 ")} " + if (ready) "已准备好" else "可以更新",
         if (ready) "已下载并备份好数据，点一下安装" else info.notes.lineSequence().firstOrNull().orEmpty(),
         Intent(context, MainActivity::class.java).putExtra(EXTRA_OPEN_UPDATE, true)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
 
-    fun confirmation(context: Context, intent: Intent) = post(context, CONFIRM, "涛声更新等待确认", "点这里完成安装", intent)
-    fun voice(context: Context) = post(context, VOICE, "语音输入记录没在运行，点这里重新打开", "涛声需要重新连接语音输入服务",
+    fun confirmation(context: Context, intent: Intent) = post(context, CONFIRM, "声声不息更新等待确认", "点这里完成安装", intent)
+    fun voice(context: Context) = post(context, VOICE, "语音输入记录没在运行，点这里重新打开", "声声不息需要重新连接语音输入服务",
         Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     fun dismiss(context: Context) = context.getSystemService(NotificationManager::class.java).cancel(AVAILABLE)
     fun dismissConfirmation(context: Context) = context.getSystemService(NotificationManager::class.java).cancel(CONFIRM)

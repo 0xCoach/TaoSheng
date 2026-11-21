@@ -12,7 +12,7 @@ internal class MissingLocalAudioException : IOException()
 internal suspend fun readLocalAudio(path: String?, filesDir: File, cacheDir: File,
     decode: suspend (File) -> ShortArray): ShortArray {
     val audio = File(requireNotNull(path)).canonicalFile
-    require(audio.path.startsWith(filesDir.canonicalPath + "/") || audio.path.startsWith(cacheDir.canonicalPath + "/"))
+    require(audio.path.startsWith(filesDir.canonicalPath + File.separator) || audio.path.startsWith(cacheDir.canonicalPath + File.separator))
     if (!audio.exists()) throw MissingLocalAudioException()
     return decode(audio)
 }

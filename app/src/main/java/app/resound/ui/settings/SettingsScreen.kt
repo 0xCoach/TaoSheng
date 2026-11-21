@@ -63,11 +63,10 @@ data class InnerPage(val title: String, val backLabel: String, val onBack: () ->
 val LocalSettingsInner = androidx.compose.runtime.staticCompositionLocalOf<(InnerPage?) -> Unit> { {} }
 
 enum class SettingsPage(val title: String) {
-    // 设置首页统一四字名：记录 / 线索 / 整理 / 通用 四组，名字只说是什么，状态写在小字里
-    Skills("整理技能"), Capture("录音管理"), Devices("外接设备"), Advanced("高级诊断"),
-    Transcript("语音转写"), Model("整理模型"), Voiceprint("人物声纹"), Review("每日回顾"),
-    Push("推送通道"), Prompts("整理指令"), Hotwords("热词识别"), EnvSound("环境声音"), Location("位置足迹"),
-    ScreenTime("屏幕时间"), Night("夜间睡眠"), Backup("备份恢复"), Update("版本更新"), About("关于涛声")
+    Account("账号与会员"), Skills("整理技能"), Capture("录音与后台"), Devices("外接设备"), Advanced("高级与诊断"),
+    Transcript("原话与转写"), Model("模型与整理时间"), Voiceprint("声纹与人物"), Review("每日回顾"),
+    Push("推送通道"), Prompts("整理指令"), Hotwords("热词识别"), EnvSound("环境音识别"), Location("足迹"),
+    ScreenTime("屏幕时间"), Night("夜间睡眠"), Backup("数据备份"), Update("版本更新"), About("关于声声不息")
 }
 
 /**
@@ -120,7 +119,16 @@ private fun SubPageBar(title: String, backLabel: String, onBack: () -> Unit) {
             .padding(start = 8.dp, end = 16.dp, top = 6.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("‹ $backLabel", style = RsType.headline, color = c.accent, modifier = Modifier.springClick(onBack).padding(horizontal = 8.dp, vertical = 8.dp))
+        Row(
+            Modifier.clip(RoundedCornerShape(12.dp)).springClick(onBack)
+                .padding(start = 6.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("‹", style = RsType.largeTitle, color = c.accent,
+                modifier = Modifier.padding(bottom = 4.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(backLabel, style = RsType.headline, color = c.accent)
+        }
         Spacer(Modifier.weight(1f))
         Text(title, style = RsType.headline, color = c.text)
         Spacer(Modifier.weight(1f))

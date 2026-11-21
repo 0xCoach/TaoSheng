@@ -104,8 +104,8 @@ Warning: SDK processing. This version only understands SDK XML versions up to 3 
 > Task :shared:kspDebugKotlinAndroid
 
 > Task :shared:compileCommonMainKotlinMetadata FAILED
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/review/ReviewStoreRepository.kt:163:80 Syntax error: Expecting ')'.
-e: file:///Users/coach/Developer/TaoSheng-177/shared/src/commonMain/kotlin/app/resound/review/ReviewStoreRepository.kt:163:81 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/review/ReviewStoreRepository.kt:163:80 Syntax error: Expecting ')'.
+e: file:///Users/coach/Developer/soundsound-177/shared/src/commonMain/kotlin/app/resound/review/ReviewStoreRepository.kt:163:81 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
 
 > Task :shared:copyRoomSchemas NO-SOURCE
 

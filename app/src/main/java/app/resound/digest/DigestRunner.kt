@@ -11,6 +11,9 @@ import app.resound.appName
 import app.resound.data.MemoryDao
 import app.resound.data.MemoryEventEntity
 import app.resound.data.MemoryItemEntity
+import app.resound.data.MemoryValueRules
+import app.resound.data.TemporalGuard
+import app.resound.diagnostics.FailureNotes
 import app.resound.data.TranscriptLineEntity
 import app.resound.data.PendingDigest
 import app.resound.data.SegmentPlayback
@@ -89,7 +92,12 @@ class DigestRunner(
         probe = null
         try {
             val (preset, key) = synchronized(settings.providers.guard) { settings.preset to readKey() }
-            if (key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset))
+            // 官方条目不持本地密钥：其就绪态经 providers 条目的 hasKey 下发（登录+开启+已同意）
+            val officialReadyNow = preset.id == OFFICIAL_PROVIDER_ID &&
+                settings.providers.saved.value.firstOrNull { it.id == OFFICIAL_PROVIDER_ID }?.hasKey == true
+            if (preset.id == OFFICIAL_PROVIDER_ID && !officialReadyNow && !settings.failover.hasBackup(preset))
+                return needsUser("声声不息官方 AI 未就绪，请先登录并完成同意，或检查官方点数", null)
+            if (preset.id != OFFICIAL_PROVIDER_ID && key.isBlank() && !settings.canUseWithoutKey(preset) && !settings.failover.hasBackup(preset))
                 return needsUser("还没填写大模型密钥", null)
             replayUnsavedReply()
             val undigested = dao.undigestedLines()
@@ -98,7 +106,16 @@ class DigestRunner(
                 return needsUser("上次整理结果未能保存，已暂停自动请求；请检查存储后点“现在整理”重试")
             appendReadyChunks(chunks, undigested, forceNow, preset)
             _progress.value = _progress.value.copy(total = chunks.sumOf { it.size }, batches = chunks.size)
-            val result = runBatches(chunks, preset, key) { madeEvents = true }
+            // 安静后自动整理走 auto_digest：服务端仅 Pro 放行且有独立周期/每日点数上限（计入总池）
+            val autoQuiet = !manual && prefs.getLong("quietPendingAt", 0L) > 0L
+            // Free+官方：auto_digest 必被服务端 402 拦下——提前给明确文案而不是每个重试周期报"点数已用完"；
+            // 有 BYOK 备用时放行（失败可切换），手动「现在整理」不受影响（digest 类 Free 也可用）。
+            if (preset.id == OFFICIAL_PROVIDER_ID && autoQuiet &&
+                settings.providers.officialPlan() != "pro" && !settings.failover.hasBackup(preset))
+                return needsUser("官方 AI 的安静自动整理需要 Pro 会员；可先点「现在整理」，或升级 Pro 后自动整理")
+            val result = if (autoQuiet) kotlinx.coroutines.withContext(LlmTaskKind("auto_digest")) {
+                runBatches(chunks, preset, key) { madeEvents = true }
+            } else runBatches(chunks, preset, key) { madeEvents = true }
             currentCoroutineContext().ensureActive()
             if (result == DigestOutcome.Done || result == DigestOutcome.NothingToDo) record(now(), null)
             return result
@@ -118,6 +135,15 @@ class DigestRunner(
                 catch (_: Exception) { /* 技能调度失败不影响已完成的整理。 */ }
             }
         }
+    }
+
+    /** 与 runOutcome 入口同一口径：大模型/密钥配置是否能发起整理。安静自动整理据此判断 AI_NOT_CONFIGURED。 */
+    fun ready(): Boolean {
+        val (preset, key) = synchronized(settings.providers.guard) { settings.preset to readKey() }
+        if (preset.id == OFFICIAL_PROVIDER_ID)
+            return settings.providers.saved.value.firstOrNull { it.id == OFFICIAL_PROVIDER_ID }?.hasKey == true ||
+                settings.failover.hasBackup(preset)
+        return key.isNotBlank() || settings.canUseWithoutKey(preset) || settings.failover.hasBackup(preset)
     }
 
     private fun needsUser(reason: String, at: Long? = now()): DigestOutcome.NeedsUser {
@@ -300,10 +326,20 @@ class DigestRunner(
                 },
                 items = { ids ->
                     items.map { i ->
+                        // 录音时间取原话行；没有挂行的条目退到所属事件起点，最后才是整理时刻
+                        val recordedAt = lines.firstOrNull { it.id == i.lineId }?.startAt
+                            ?: i.eventIndex?.let { events[it].startAt } ?: at
+                        // 时间守卫：期限解析明显不可能（远早于/远晚于说话时刻）时作废 dueAt，dueText 保留。
+                        if (TemporalGuard.dueViolated(i.dueAt, recordedAt))
+                            FailureNotes.record("digest/DigestRunner.kt:dueAt",
+                                IllegalStateException("dueAt=${i.dueAt} vs recordedAt=$recordedAt content=${i.content.take(20)}"))
+                        val dueAt = TemporalGuard.sanitizeDue(i.dueAt, recordedAt)
                         MemoryItemEntity(
                             eventId = ids[i.eventIndex], category = i.category, kind = i.kind, content = i.content,
-                            dueText = i.dueText, dueAt = i.dueAt, who = i.who, lineId = i.lineId,
+                            dueText = i.dueText, dueAt = dueAt, who = i.who, lineId = i.lineId,
+                            recordedAt = recordedAt,
                             status = ItemStatus.Pending.name, createdAt = at,
+                            valueScore = MemoryValueRules.itemScore(i.category, i.kind, dueAt, i.who, "digest"),
                         )
                     }
                 },
@@ -407,7 +443,10 @@ class DigestRunner(
     private fun clearFailures(firstLineId: Long) = prefs.edit().remove("fail-$firstLineId").apply()
 
     private fun record(at: Long?, error: String?) {
-        prefs.edit().putLong("lastRunAt", at ?: prefs.getLong("lastRunAt", 0)).putString("lastError", error).apply()
+        // lastSuccessAt 只在真正收尾（error=null）写：失败/中断不能推进成功水位，
+        // 否则安静整理的 pending 会被误判为已消费 → 漏整理。
+        prefs.edit().putLong("lastRunAt", at ?: prefs.getLong("lastRunAt", 0)).putString("lastError", error)
+            .apply { if (error == null && at != null) putLong("lastSuccessAt", at) }.apply()
         _last.value = (at ?: _last.value.first) to error
     }
 

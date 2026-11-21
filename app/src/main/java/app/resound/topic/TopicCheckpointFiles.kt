@@ -40,9 +40,7 @@ internal class TopicCheckpointFiles(context: Context, private val currentRevisio
         if ((epochs[id] ?: 0L) != epoch || (readFile(id)?.revision ?: value.revision) > value.revision)
             throw TopicException("专题已重新生成或删除，停止旧任务写入")
         check(dir.isDirectory || dir.mkdirs())
-        val atom = AtomicFile(file(id)); val out = atom.startWrite()
-        try { out.write(json.encodeToString(TopicCheckpoint.serializer(), value).toByteArray()); atom.finishWrite(out) }
-        catch (e: Throwable) { atom.failWrite(out); throw e }
+        app.resound.util.atomicWriteFile(file(id)) { out -> out.write(json.encodeToString(TopicCheckpoint.serializer(), value).toByteArray()) }
         changes.value = changes.value + 1
     } }
     override suspend fun remove(id: Long) = withContext(Dispatchers.IO) { mutex.withLock { epochs[id] = (epochs[id] ?: 0L) + 1; AtomicFile(file(id)).delete(); changes.value = changes.value + 1 } }

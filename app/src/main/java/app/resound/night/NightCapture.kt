@@ -141,7 +141,7 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
         frames.accept(pcm,speech,at)
     }
     private suspend fun pulse(at: Long) {
-        // #59：部分系统（如魅族）不把亮屏/熄屏广播送到，涛声就一直以为屏幕亮着、夜里不开始。每次直接问一下系统兜底。
+        // #59：部分系统（如魅族）不把亮屏/熄屏广播送到，声声不息就一直以为屏幕亮着、夜里不开始。每次直接问一下系统兜底。
         val interactive=power.isInteractive
         if(!interactive && screenOff==null) { screenOn?.let { points.trySend(NightSignal(it, at, "screen")) }; screenOff=at; screenOn=null; NightCaptureState.update { it.copy(polledScreenOff = it.polledScreenOff + 1) } }
         else if(interactive && screenOff!=null) { screenOn=at; screenOff=null }

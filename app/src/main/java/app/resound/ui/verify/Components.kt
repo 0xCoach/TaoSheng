@@ -125,7 +125,7 @@ fun BreathingWave(level: Float, active: Boolean, recording: Boolean, modifier: M
     var frameTime by remember { mutableLongStateOf(0L) }
     val currentRecording by rememberUpdatedState(recording)
     // 只在检测到人声（正在录音）时滚动；说完再滚约 2 秒让柱子退出画面，然后静止、不再刷新。
-    // 风扇、空调、键盘等非人声不会让波形动，省电；波形动 = 回响正在录你的话。
+    // 风扇、空调、键盘等非人声不会让波形动，省电；波形动 = 声声不息正在录你的话。
     LaunchedEffect(Unit) {
         while (true) {
             snapshotFlow { currentRecording }.first { it }

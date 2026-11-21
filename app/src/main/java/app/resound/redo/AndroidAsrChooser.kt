@@ -56,6 +56,7 @@ internal class AndroidAsrChooser(context: Context, private val settings: Android
 
 internal fun llmOptions(settings: AndroidDigestSettings) = settings.presets.map { preset ->
     val key = settings.skillCredentials(preset.id).second
-    val ready = (key.isNotBlank() || settings.canUseWithoutKey(preset)) && preset.model.isNotBlank() && OpenAiEndpoint.kind(preset.baseUrl) != EndpointKind.Invalid
+    val ready = (key.isNotBlank() || settings.canUseWithoutKey(preset)) && preset.model.isNotBlank() &&
+        (preset.id == app.resound.digest.OFFICIAL_PROVIDER_ID || OpenAiEndpoint.kind(preset.baseUrl) != EndpointKind.Invalid)
     LlmOption(preset.id, preset.name, ready, note = if (ready) null else "未填密钥或服务未配置")
 }

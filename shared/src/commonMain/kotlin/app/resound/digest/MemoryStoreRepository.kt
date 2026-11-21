@@ -47,8 +47,26 @@ class MemoryStoreRepository(
     private val codec: MemoryLegacyCodec,
     private val dueDate: (Long) -> MemoryDueDate,
     private val readVoiceInput: (String?) -> VoiceInputMeta?,
+    /** 有则记忆的人工改动写 memory_revisions 留痕（编辑/删除/合并/拆分/事件改都可撤销追溯） */
+    private val revisions: app.resound.revise.MemoryRevisionDao? = null,
     private val onEventDeleted: suspend () -> Unit = {},
 ) : MemoryRepository {
+
+    private fun snap(content: String, status: String = "", deleted: Boolean = false, mergedInto: Long? = null) =
+        kotlinx.serialization.json.buildJsonObject {
+            put("content", kotlinx.serialization.json.JsonPrimitive(content))
+            put("status", kotlinx.serialization.json.JsonPrimitive(status))
+            put("deleted", kotlinx.serialization.json.JsonPrimitive(deleted))
+            put("mergedInto", kotlinx.serialization.json.JsonPrimitive(mergedInto ?: -1))
+        }.toString()
+
+    private suspend fun revise(kind: String, id: Long, op: app.resound.revise.RevisionOp, before: String, after: String) {
+        val dao = revisions ?: return
+        runCatching {
+            dao.insert(app.resound.revise.MemoryRevisionRow(targetKind = kind, targetId = id, op = op.name,
+                beforeJson = before, afterJson = after, at = now.now()))
+        }
+    }
 
     override fun events(date: LocalDate): Flow<List<MemoryEvent>> = events(date, TimeZone.of(zoneProvider.zoneId()))
 
@@ -101,7 +119,12 @@ class MemoryStoreRepository(
 
     override fun mergedItems(itemId: Long): Flow<List<MemoryItem>> = listed(dao.mergedItems(itemId))
 
-    override fun unmerge(itemId: Long) { scope.launch { dao.unmerge(itemId) } }
+    override fun unmerge(itemId: Long) { scope.launch {
+        val before = dao.itemIncludingDeleted(itemId)
+        dao.unmerge(itemId)
+        if (before?.mergedInto != null) revise("item", itemId, app.resound.revise.RevisionOp.Undo,
+            snap(before.content, before.status, mergedInto = before.mergedInto), snap(before.content, before.status))
+    } }
 
     override suspend fun sourceLines(lineId: Long): List<TranscriptLine> = kotlinx.coroutines.withContext(io) {
         dao.segmentLinesOf(lineId).map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it.speakerScore, it.segmentId, readVoiceInput(it.voiceInputJson), it.textEditedAt != null, it.eventId) }
@@ -124,9 +147,19 @@ class MemoryStoreRepository(
     override fun ongoing(): Flow<List<MemoryItem>> = listed(dao.ongoing())
     override fun doneItems(from: LocalDate): Flow<List<MemoryItem>> =
         listed(dao.doneItems(from.atStartOfDayIn(TimeZone.of(zoneProvider.zoneId())).toEpochMilliseconds()))
-    override fun deleteItem(id: Long) { scope.launch { dao.deleteItem(id) } }
+    override fun deleteItem(id: Long) { scope.launch {
+        val before = dao.itemIncludingDeleted(id)
+        dao.deleteItem(id)
+        if (before != null) revise("item", id, app.resound.revise.RevisionOp.Delete,
+            snap(before.content, before.status), snap(before.content, before.status, deleted = true))
+    } }
     override fun updateItem(id: Long, content: String, dueAt: Long?, hasTime: Boolean, who: String?) {
-        scope.launch { updateItemRow(id, content, dueAt, hasTime, who, now.now()) }
+        scope.launch {
+            val before = dao.itemIncludingDeleted(id)
+            updateItemRow(id, content, dueAt, hasTime, who, now.now())
+            if (before != null) revise("item", id, app.resound.revise.RevisionOp.Edit,
+                snap(before.content, before.status), snap(content, before.status))
+        }
     }
     override fun setStrongReminder(id: Long, on: Boolean) {
         scope.launch { dao.setStrongReminder(id, on) }
@@ -169,7 +202,12 @@ class MemoryStoreRepository(
         }.flowOn(io)
     }
 
-    override fun setItemStatus(id: Long, status: ItemStatus) { scope.launch { dao.setItemStatus(id, status.name, now.now()) } }
+    override fun setItemStatus(id: Long, status: ItemStatus) { scope.launch {
+        val before = dao.itemIncludingDeleted(id)
+        dao.setItemStatus(id, status.name, now.now())
+        if (before != null && before.status != status.name) revise("item", id, app.resound.revise.RevisionOp.Edit,
+            snap(before.content, before.status), snap(before.content, status.name))
+    } }
 
     override fun setImportant(eventId: Long, important: Boolean) = setStarred(eventId, important)
 

@@ -39,6 +39,21 @@ class DayDiaryTest {
         day.atTime(hour, minute).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
     @Before fun setup() {
+        // FileProvider 按 authority 静态缓存路径策略；同进程先跑过的用例会把根目录留在别的临时目录里，
+        // 不清掉会让本用例的导出文件匹配不到根（"Failed to find configured root"）。
+        // androidx.core 1.18 的 belongsToRoot 用 '/' 硬编码做前缀匹配，Windows JVM 的 '\' 路径永远匹配不到根。
+        // 真机不受影响；这里注入等价策略，仍验证文件写出、内容与返回 URI。
+        val cache = androidx.core.content.FileProvider::class.java.getDeclaredField("sCache")
+            .apply { isAccessible = true }.get(null) as MutableMap<String, Any>
+        cache.clear()
+        val strategyClass = Class.forName("androidx.core.content.FileProvider\$PathStrategy")
+        cache["${context.packageName}.files"] = java.lang.reflect.Proxy.newProxyInstance(
+            strategyClass.classLoader, arrayOf(strategyClass)) { _, method, args ->
+            when (method.name) {
+                "getUriForFile" -> android.net.Uri.parse("content://${context.packageName}.files/cache/${(args[0] as File).name}")
+                "getFileForUri" -> File(context.cacheDir, (args[0] as android.net.Uri).lastPathSegment ?: "")
+                else -> null
+            } }
         originalZone = TimeZone.getDefault()
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Shanghai"))
         db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).build()
@@ -48,7 +63,7 @@ class DayDiaryTest {
         val runner = DigestRunner(context, db.memory(), llm, settings, { "" }, { false })
         memory = RoomMemoryRepository(db.memory(), runner, { error("禁止触发整理") }, scope, zoneProvider = app.resound.platform.ZoneProvider { java.time.ZoneId.systemDefault().id }, now = app.resound.platform.SystemNow, io = Dispatchers.IO)
         val reviews = RoomReviewRepository(db.review(), db.memory(), context.getSharedPreferences("review", 0), scope,
-            { error("禁止读模型凭证") }, { _, _, _, _ -> error("禁止调用模型") }, { "" }, "回响",
+            { error("禁止读模型凭证") }, { _, _, _, _ -> error("禁止调用模型") }, { "" }, "声声不息",
             object : Notifier { override suspend fun send(title: String, body: String, deepLink: String?, topic: app.resound.push.PushTopic?) { error("禁止推送") } }, {}, now = app.resound.platform.SystemNow::now, zone = java.time.ZoneId::systemDefault, io = kotlinx.coroutines.Dispatchers.IO)
         diary = LocalDiaryRepository(context, memory, reviews, db.memory(), app.resound.platform.SystemZone, Dispatchers.IO)
     }
@@ -245,7 +260,7 @@ class DayDiaryTest {
         assertEquals(expected + "\n\n## 原话\n**2026-10-23 14:05 我**：先确认需求\n**2026-10-23 14:06 某人**：周三发报价", diary.markdown(date, date, true))
         assertEquals("", diary.markdown(date.plusDays(1), date.plusDays(2), true))
         // 保留真实输出，交付说明引用这份测试生成的样例。
-        File("build/outputs/diary/回响日记_2026-10-23.md").apply { parentFile!!.mkdirs(); writeText(markdown) }
+        File("build/outputs/diary/声声不息日记_2026-10-23.md").apply { parentFile!!.mkdirs(); writeText(markdown) }
         val uri = diary.exportFile(date, date, false)
         assertEquals("content", uri.scheme)
         assertEquals("${context.packageName}.files", uri.authority)

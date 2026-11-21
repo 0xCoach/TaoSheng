@@ -29,6 +29,8 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
         val timing = SegmentTimings(segment.id, source, segment.endAt - segment.startAt)
         withContext(timing) {
         if (!network(source)) throw AsrException(AsrError.Network)
+        // 额度门：重做与常规转写同一规则——Free 超额即拦，不丢原音频
+        if (!app.resound.AppGraph.membership.allowTranscribe()) throw AsrException(AsrError.Quota)
         val began = System.currentTimeMillis()
         val key = settings.credential(source)
         var sent = 0L; var error: AsrError? = null; var outcome = "Failed"; var log: String? = null
@@ -44,6 +46,9 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             outcome = if (result.sentences.isEmpty()) "Empty" else "Done"
             log = TranscribePolicy.safeLogId(result.logId, key)
             chooser.record(source, segment.endAt - segment.startAt, System.currentTimeMillis() - began)
+            // 与常规转写同一记账：seg:<id> 幂等，重转不重复计
+            app.resound.AppGraph.membership.recordSuccess(segment.id, segment.endAt - segment.startAt)
+            runCatching { app.resound.AppGraph.membership.flush() }
             result
         } catch (e: CancellationException) { error = AsrError.Interrupted; throw e }
         catch (e: AsrException) { error = e.type; throw e }
@@ -71,8 +76,13 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             scene = if (items.none { it.eventIndex == eventIndex && it.category in setOf("待办", "约定") } && db.envSound().media(e.startAt, e.endAt)) "媒体" else e.scene, title = e.title, summary = e.summary,
             pointsJson = JSONArray(e.points).toString(), peopleJson = JSONArray(e.people).toString(), place = e.place,
             emotion = e.emotion, intensity = e.intensity, important = e.important, createdAt = at, model = reply.actualModel ?: preset.model) to e.lineIds },
-            { ids -> items.map { i -> MemoryItemEntity(eventId = ids[i.eventIndex], category = i.category, kind = i.kind, content = i.content,
-                dueText = i.dueText, dueAt = i.dueAt, who = i.who, lineId = i.lineId, status = "Pending", createdAt = at) } })
+            { ids -> items.map { i ->
+                val recordedAt = lines.firstOrNull { it.id == i.lineId }?.startAt
+                val dueAt = app.resound.data.TemporalGuard.sanitizeDue(i.dueAt, recordedAt)
+                MemoryItemEntity(eventId = ids[i.eventIndex], category = i.category, kind = i.kind, content = i.content,
+                dueText = i.dueText, dueAt = dueAt, who = i.who, lineId = i.lineId, status = "Pending", createdAt = at,
+                recordedAt = recordedAt,
+                valueScore = app.resound.data.MemoryValueRules.itemScore(i.category, i.kind, dueAt, i.who, "digest")) } })
     }, merge = { events, lines, presetId ->
         val (preset, key) = synchronized(digestSettings.providers.guard) {
             require(presetId == null || digestSettings.presets.any { it.id == presetId }) { "重做所选服务商已删除，请重新选择" }
@@ -89,8 +99,13 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             scene = if (db.envSound().media(event.startAt, event.endAt)) "媒体" else event.scene, title = event.title, summary = event.summary,
             pointsJson = JSONArray(event.points).toString(), peopleJson = JSONArray(event.people).toString(), place = event.place,
             emotion = event.emotion, intensity = event.intensity, important = event.important, createdAt = at, model = reply.actualModel ?: preset.model) to event.lineIds),
-            { ids -> items.map { i -> MemoryItemEntity(eventId = ids[i.eventIndex], category = i.category, kind = i.kind, content = i.content,
-                dueText = i.dueText, dueAt = i.dueAt, who = i.who, lineId = i.lineId, status = "Pending", createdAt = at) } })
+            { ids -> items.map { i ->
+                val recordedAt = lines.firstOrNull { it.id == i.lineId }?.startAt
+                val dueAt = app.resound.data.TemporalGuard.sanitizeDue(i.dueAt, recordedAt)
+                MemoryItemEntity(eventId = ids[i.eventIndex], category = i.category, kind = i.kind, content = i.content,
+                dueText = i.dueText, dueAt = dueAt, who = i.who, lineId = i.lineId, status = "Pending", createdAt = at,
+                recordedAt = recordedAt,
+                valueScore = app.resound.data.MemoryValueRules.itemScore(i.category, i.kind, dueAt, i.who, "digest")) } })
     }, identify = identify, regenerate = { oldCards, events, lines ->
         files.reload()
         // 以候选新事件构造输入，技能结果也先暂存；失败时整个事件替换不落库。

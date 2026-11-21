@@ -110,7 +110,7 @@ def dependency_errors(text):
             # 根依赖块仅供逐目标 KSP 处理器使用，不能往 commonMain 偷加依赖。
             if source is None and re.fullmatch(
                 r'\s*(?:add\("ksp(?:Android|Jvm|IosArm64|IosSimulatorArm64)",\s*"androidx\.room:room-compiler:2\.8\.4"\)\s*'
-                r'|if\s*\(providers\.gradleProperty\("taosheng\.ios"\)\.orNull\s*==\s*"true"\)\s*\{\s*'
+                r'|if\s*\(providers\.gradleProperty\("soundsound\.ios"\)\.orNull\s*==\s*"true"\)\s*\{\s*'
                 r'|\}\s*)*', literal_code[match.end():end - 1],
             ):
                 continue

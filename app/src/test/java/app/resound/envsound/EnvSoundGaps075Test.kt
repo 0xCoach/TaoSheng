@@ -98,7 +98,7 @@ class EnvSoundGaps075Test {
 
     /** 同轮私有证据回放：核对Python取样与生产Kotlin逐采样一致，360段规则结论一致；不重复推理。 */
     @Test fun realRecordingEvidenceReplaysThroughProductionExtractionAndRules() {
-        val path = System.getenv("TAOSHENG_ENV075_EVIDENCE")
+        val path = System.getenv("soundsound_ENV075_EVIDENCE")
         assumeTrue("仅本机075证据回放时设置路径", path != null)
         val dir = File(path!!)
         val expected = File(dir, "expected.jsonl").readLines().map(::JSONObject).associateBy { it.getLong("id") }

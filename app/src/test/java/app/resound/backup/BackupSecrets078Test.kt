@@ -55,7 +55,7 @@ class BackupSecrets078Test {
         } }
         seed("backup-secrets", "password")
         prefs("backup").edit().putString("account", "fixture@example.invalid").putBoolean("enabled", true).commit()
-        prefs("transcribe").edit().putString("hotwords", "[\"回响\"]").putString("model", "fixture-asr-model").commit()
+        prefs("transcribe").edit().putString("hotwords", "[\"声声不息\"]").putString("model", "fixture-asr-model").commit()
         prefs("asr-speed").edit().putString("history", "[{\"at\":0,\"separate\":false,\"classroom\":false,\"until\":null}]").commit()
         prefs("env-sound").edit().putBoolean("enabled", true).putString("skip", "On").commit()
         prefs("redo-choices").edit().putString("asr", "Custom").putString("llm", ids.first()).putFloat("local-ratio", .2f).commit()

@@ -14,11 +14,8 @@ import androidx.core.content.FileProvider
 import app.resound.AppGraph
 import app.resound.ui.verify.Pill
 import kotlinx.coroutines.launch
-import android.net.Uri
 import android.widget.Toast
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,12 +37,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.resound.R
@@ -53,21 +46,24 @@ import app.resound.ui.theme.Rs
 import app.resound.ui.theme.RsType
 import app.resound.ui.verify.RsCard
 
-const val HOMEPAGE_URL = "https://github.com/0xCoach/TaoSheng"
-
-/** README 的摘要；内容写在 App 里，没网也能看 */
+/** 功能摘要；内容写在 App 里，没网也能看 */
 private val HIGHLIGHTS = listOf(
     "🎙" to "全天在听，只录人声，安静时不录",
     "📴" to "可用本地模型离线转写，声音不出手机",
     "🧑‍🤝‍🧑" to "声纹认人，分得清谁在说",
     "✅" to "原话里答应的事自动变成待办",
+    "📥" to "网页、文字、截图都能分享进收集箱，图片在本地识字",
+    "💡" to "灵感收件箱：标记、分类、合并，成熟后转待办或项目",
+    "⚖️" to "决定留版本历史，生效、否决、替代都附原话证据",
+    "🔁" to "说过要做却没下文的事主动提醒，周复盘单列反复未推进项",
     "💬" to "打字问一句就能找回，答案附原话出处",
+    "🤖" to "授权后把灵感派给外部 AI 做研究，结果回写到来源",
     "⌨️" to "语音输入时连同聊天上下文一起记下",
     "🌙" to "每天、每周自动回顾",
     "☁️" to "每天自动备份到坚果云和本机",
 )
 
-/** 设置 → 关于 → 关于涛声 */
+/** 设置 → 关于 → 关于声声不息 */
 @Composable
 fun AboutPage(version: String?, bottom: Dp) {
     val c = Rs.colors
@@ -82,11 +78,10 @@ fun AboutPage(version: String?, bottom: Dp) {
         Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.size(76.dp).shadow(12.dp, RoundedCornerShape(20.dp), ambientColor = c.shadow, spotColor = c.shadow)
                 .clip(RoundedCornerShape(20.dp))) {
-                Image(painterResource(R.drawable.ic_launcher_background), null, Modifier.fillMaxSize())
-                Image(painterResource(R.drawable.ic_launcher_foreground), null, Modifier.fillMaxSize())
+                Image(painterResource(R.drawable.ic_fg), null, Modifier.fillMaxSize())
             }
             Spacer(Modifier.height(14.dp))
-            Text("涛声", style = RsType.title, color = c.text)
+            Text("声声不息", style = RsType.title, color = c.text)
             Spacer(Modifier.height(4.dp))
             Text("替你听，替你记，替你想。", style = RsType.subhead, color = c.textSecondary)
             if (version != null) {
@@ -107,11 +102,11 @@ fun AboutPage(version: String?, bottom: Dp) {
 
         if (devUnlocked && AppGraph.isUpdaterReady) PreviewCard()
 
-        AboutCard("涛声是什么") {
-            Text("一部安卓手机就够：全天收音 → 自动转写 → 认出谁在说 → AI 整理成待办、约定和记忆。",
+        AboutCard("声声不息是什么") {
+            Text("一部安卓手机就够：全天收音 → 自动转写 → 认出谁在说 → AI 整理成待办、约定和记忆；分享进来的链接和截图也统一收进收集箱。",
                 style = RsType.body, color = c.text)
             Spacer(Modifier.height(6.dp))
-            Text("不用买硬件，不用注册账号，数据只在你自己手机里。", style = RsType.body, color = c.textSecondary)
+            Text("说过的、决定过的、要做的事，都能查得到、推得动。不用买硬件，声音和记忆都在你自己手机里。", style = RsType.body, color = c.textSecondary)
         }
 
         AboutCard("主要能做什么") {
@@ -125,7 +120,7 @@ fun AboutPage(version: String?, bottom: Dp) {
         }
 
         AboutCard("隐私") {
-            Text("不用注册账号，没有我们的服务器；密钥存在系统安全区；原录音默认保留 3 天后自动删除，可在“语音转写”里改。",
+            Text("录音和转写只存在这台手机里；服务器只管登录和会员，不存你的声音。原录音默认保留 3 天后自动删除，可在“语音转写”里改。",
                 style = RsType.body, color = c.text)
         }
 
@@ -135,17 +130,28 @@ fun AboutPage(version: String?, bottom: Dp) {
             Pill("查看更新日志", filled = false) { app.resound.ui.ShellNav.openSettings(SettingsPage.Update) }
         }
 
+        if (devUnlocked) AboutCard("开源许可") {
+            var show by remember { mutableStateOf(false) }
+            val notices = remember(show) {
+                if (show) runCatching {
+                    context.assets.open("THIRD_PARTY_NOTICES.md").bufferedReader().use { it.readText() }
+                }.getOrNull() else null
+            }
+            Text("基于上游开源项目涛声 TaoSheng 开发；包含 sherpa-onnx、ONNX Runtime、Silero VAD 等第三方组件。",
+                style = RsType.body, color = c.textSecondary)
+            Spacer(Modifier.height(12.dp))
+            Pill(if (show) "收起声明" else "查看完整声明", filled = false) { show = !show }
+            if (notices != null) {
+                Spacer(Modifier.height(10.dp))
+                Text(notices, style = RsType.caption, color = c.textTertiary)
+            }
+        }
+
         AboutCard("问题反馈") {
             Text("遇到闪退或功能不对，在“高级诊断”导出问题记录发给开发。",
                 style = RsType.body, color = c.textSecondary)
             Spacer(Modifier.height(12.dp))
             Pill("去高级诊断", filled = false) { app.resound.ui.ShellNav.openSettings(SettingsPage.Advanced) }
-        }
-
-        AboutCard("源码公开") {
-            Text("涛声源码公开（FSL-1.1-MIT），每个版本发布两年后自动转为 MIT。代码、更新记录和问题反馈都在项目主页。", style = RsType.body, color = c.textSecondary)
-            Spacer(Modifier.height(12.dp))
-            HomepageLink()
         }
     }
 }
@@ -158,33 +164,6 @@ private fun AboutCard(title: String, content: @Composable () -> Unit) {
         Spacer(Modifier.height(10.dp))
         content()
     }
-}
-
-/** 点一下用浏览器打开；长按复制（国内打不开时方便发到电脑上） */
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun HomepageLink() {
-    val c = Rs.colors
-    val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).combinedClickable(
-            onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(HOMEPAGE_URL))) } },
-            onLongClick = {
-                clipboard.setText(AnnotatedString(HOMEPAGE_URL))
-                Toast.makeText(context, "已复制链接", Toast.LENGTH_SHORT).show()
-            },
-        ).padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text("项目主页", style = RsType.body, color = c.text)
-            Text(HOMEPAGE_URL.removePrefix("https://"), style = RsType.subhead, color = c.accent)
-        }
-        Text("›", style = RsType.headline.copy(fontWeight = FontWeight.Normal), color = c.textTertiary, textAlign = TextAlign.End)
-    }
-    Spacer(Modifier.height(4.dp))
-    Text("长按可复制链接", style = RsType.caption, color = c.textTertiary)
 }
 
 private const val DEV_UNLOCKED = "devOptionsUnlocked"
@@ -251,7 +230,7 @@ fun CrashNotice(topGap: Dp = 0.dp) {
     if (at == null) return
     Spacer(Modifier.height(topGap))
     RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
-        Text("涛声上次意外退出了", style = RsType.body, color = c.text)
+        Text("声声不息上次意外退出了", style = RsType.body, color = c.text)
         Spacer(Modifier.height(2.dp))
         Text("导出问题记录发给开发，方便查原因。", style = RsType.caption, color = c.textSecondary)
         Spacer(Modifier.height(10.dp))

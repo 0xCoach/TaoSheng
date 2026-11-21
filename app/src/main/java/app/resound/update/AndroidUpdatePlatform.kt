@@ -22,7 +22,7 @@ internal class AndroidUpdatePlatform(
             ?: throw UpdateFailure(UPDATE_INTEGRITY_ERROR, "archive_unreadable")
         val current = manager.getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
         validateIdentity(archive.packageName, archive.longVersionCode, current.longVersionCode,
-            manifest.versionCode, signers(archive), signers(current))
+            manifest.versionCode, signers(archive), signers(current), signerHistory(archive))
     }
     override suspend fun backup(progress: (String, Float) -> Unit) = backup.run(progress)
     override fun canInstall() = manager.canRequestPackageInstalls()
@@ -80,14 +80,24 @@ internal class AndroidUpdatePlatform(
     override fun afterReplacement() = VoiceInputAfterUpdateWork.schedule(context)
 
     private fun signers(info: PackageInfo): Set<String> = info.signingInfo?.apkContentsSigners
-        ?.map { java.security.MessageDigest.getInstance("SHA-256").digest(it.toByteArray()).hex() }?.toSet().orEmpty()
+        ?.map { digest(it) }?.toSet().orEmpty()
+
+    /** v3 签名轮换：新包 signingCertificateHistory 返回 lineage 全部证书（含当前 signer；未轮换时仅当前证书）。 */
+    private fun signerHistory(info: PackageInfo): Set<String> =
+        (info.signingInfo?.signingCertificateHistory ?: emptyArray<android.content.pm.Signature>())
+            .map { digest(it) }.toSet()
+
+    private fun digest(sig: android.content.pm.Signature): String =
+        java.security.MessageDigest.getInstance("SHA-256").digest(sig.toByteArray()).hex()
 
     companion object {
         internal fun validateIdentity(packageName: String?, version: Long, installed: Long, expected: Int,
-            newSigners: Set<String>, currentSigners: Set<String>) {
+            newSigners: Set<String>, currentSigners: Set<String>, newHistory: Set<String> = emptySet()) {
             if (packageName != "app.resound" || version <= installed || version != expected.toLong())
-                throw UpdateFailure("安装包不适用于涛声，已删除", "package_or_version")
-            if (newSigners.isEmpty() || currentSigners.isEmpty() || newSigners != currentSigners)
+                throw UpdateFailure("安装包不适用于声声不息，已删除", "package_or_version")
+            if (newSigners.isEmpty() || currentSigners.isEmpty()) throw UpdateFailure("安装包签名不对，已删除", "signature")
+            // 同证书直接放行；换证书只认新包 lineage 明确包含当前证书的轮换链（Android 装包时还会再核一遍）。
+            if (newSigners != currentSigners && !currentSigners.all { it in newHistory })
                 throw UpdateFailure("安装包签名不对，已删除", "signature")
         }
     }
@@ -95,9 +105,12 @@ internal class AndroidUpdatePlatform(
 
 internal fun createUpdater(app: ResoundApp, backup: BackupRepository): UpdateEngine {
     val log: (String) -> Unit = { UpdateDiagnostics.record(app, it) }
+    val store = AndroidUpdateStore(app)
     @Suppress("DEPRECATION") val installed = app.packageManager.getPackageInfo(app.packageName, 0)
     return UpdateEngine(installed.longVersionCode, installed.versionName.orEmpty(), File(app.applicationInfo.sourceDir),
-        File(app.filesDir, "update"), app.scope, AndroidUpdateStore(app), UpdateRemote(log = log),
+        File(app.filesDir, "update"), app.scope, store,
+        UpdateRemote(log = log, sources = { UpdateSources.configured(store.string("manifestUrl")) },
+            previewSources = { UpdateSources.preview() }),
         AndroidUpdatePlatform(app, PreUpdateBackup(app, app.database, backup, log)), log,
         reschedule = { enabled, preview -> UpdateWork.schedule(app, enabled, preview) })
 }

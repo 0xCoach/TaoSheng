@@ -65,10 +65,17 @@ class AndroidLlmProviders internal constructor(
     private val _saved: MutableStateFlow<List<SavedProvider>>
     private val _activeId: MutableStateFlow<String>
 
+    /** 官方条目就绪态由 AppGraph 经 OfficialAi 状态刷新维护：开启+已配置+已同意才算可用。 */
+    internal var officialReady: () -> Boolean = { false }
+    /** 官方套餐（free/pro 等），由 AppGraph 挂 officialAi.status?.plan；null=状态未拉到 */
+    internal var officialPlan: () -> String? = { null }
+    private fun officialEntry() = SavedProvider(OFFICIAL_PROVIDER_ID, null, "声声不息官方 AI", OFFICIAL_PROVIDER_ID, OFFICIAL_PROVIDER_ID, officialReady())
+    private fun withOfficial(list: List<SavedProvider>) = if (list.any { it.id == OFFICIAL_PROVIDER_ID }) list else list + officialEntry()
+
     init {
         if (!prefs.contains("saved")) migrate(context)
         // 损坏时拒绝覆盖，以免把仍在的密钥变成无法找到的孤儿。
-        val list = decode(requireNotNull(prefs.getString("saved", null)))
+        val list = withOfficial(decode(requireNotNull(prefs.getString("saved", null))))
         require(list.isNotEmpty() && list.map { it.id }.distinct().size == list.size) { "服务商配置损坏，请保留数据后恢复备份" }
         _saved = MutableStateFlow(list)
         _activeId = MutableStateFlow(prefs.getString("activeId", null)?.takeIf { id -> list.any { it.id == id } } ?: list.first().id)
@@ -117,9 +124,22 @@ class AndroidLlmProviders internal constructor(
         check(prefs.edit().putString("saved", data.toString()).putString("activeId", active).putBoolean("placeholder", placeholder).commit()) { "服务商保存失败，请重试" }
     }
     internal fun listen(listener: (String?) -> Unit) = synchronized(guard) { listeners += listener }
+    /** 官方 AI 就绪态变化后重发列表（hasKey 只随 publish 重算）。 */
+    internal fun refreshOfficial() = synchronized(guard) {
+        val wasReady = saved.value.firstOrNull { it.id == OFFICIAL_PROVIDER_ID }?.hasKey == true
+        publish(saved.value, activeId.value, null)
+        // 登录授权就绪瞬间：当前服务商没填密钥不可用，默认切到官方 AI——
+        // 只在 false→true 沿触发，用户之后手动选回其他服务商不被覆盖。
+        if (!wasReady && officialReady()) {
+            val cur = selected()
+            if (cur.id != OFFICIAL_PROVIDER_ID && !cur.hasKey && !cur.preset().allowsEmptyKey() && !hasHeaderAuth(cur.id)) {
+                activate(OFFICIAL_PROVIDER_ID)
+            }
+        }
+    }
     private fun publish(list: List<SavedProvider>, active: String, changed: String?) {
         changed?.let(askCompatibility::changed)
-        _saved.value = list.map { it.copy(hasKey = keys.has(it.id)) }
+        _saved.value = withOfficial(list).map { it.copy(hasKey = if (it.id == OFFICIAL_PROVIDER_ID) officialReady() else keys.has(it.id)) }
         _activeId.value = active
         listeners.forEach { it(changed) }
     }
@@ -142,6 +162,7 @@ class AndroidLlmProviders internal constructor(
         balanceUrl: String, balancePath: String): String = synchronized(guard) {
         require(id == null || saved.value.any { it.id == id }) { "服务商已删除，请重新添加" }
         require(templateId == null || templates.any { it.id == templateId }) { "服务商模板不存在" }
+        require(id != OFFICIAL_PROVIDER_ID) { "官方 AI 条目不可编辑" }
         require(name.isNotBlank() && model.isNotBlank()) { "请填写名称和模型" }
         validateBase(baseUrl); validateBalance(balanceUrl, balancePath)
         val value = key?.trim(); validateKey(value)
@@ -175,6 +196,7 @@ class AndroidLlmProviders internal constructor(
         if (id != activeId.value) { persist(saved.value, id); publish(saved.value, id, null) }
     }
     override fun delete(id: String) = synchronized(guard) {
+        require(id != OFFICIAL_PROVIDER_ID) { "官方 AI 条目不能删除" }
         require(id != activeId.value) { "不能删除当前服务商，请先切换" }
         if (saved.value.none { it.id == id }) return@synchronized
         beforeDelete(id)
@@ -185,6 +207,7 @@ class AndroidLlmProviders internal constructor(
     internal fun setKey(key: String) = synchronized(guard) {
         val value = key.trim(); validateKey(value)
         val id = activeId.value
+        require(id != OFFICIAL_PROVIDER_ID) { "官方 AI 不需要密钥" }
         if (value.isEmpty()) keys.remove(id) else keys.write(id, value)
         check(prefs.edit().putBoolean("placeholder", false).commit())
         publish(saved.value, id, id)
@@ -215,7 +238,7 @@ class AndroidLlmProviders internal constructor(
         validateBase(baseUrl); require(model.isNotBlank()) { "请填写模型" }
         val p = LlmPreset(id ?: "draft", "测试服务", baseUrl.trim(), model.trim())
         val secret = draftKey(id, key)
-        require(secret.isNotBlank() || p.allowsEmptyKey() || hasHeaderAuth(p.id)) { "还没填写大模型密钥" }
+        require(p.id == OFFICIAL_PROVIDER_ID || secret.isNotBlank() || p.allowsEmptyKey() || hasHeaderAuth(p.id)) { "还没填写大模型密钥" }
         val reply = client.probeJson(p, secret, "只输出 JSON。", "输出 {\"ok\":true,\"reply\":\"你好\"}")
         withContext(NonCancellable) { recordUsage(reply) }
         id?.let(onTestSuccess)
@@ -254,5 +277,6 @@ class AndroidLlmProviders internal constructor(
 
 private fun JSONObject.nullString(key: String) = if (isNull(key)) null else getString(key)
 internal fun SavedProvider.preset() = LlmInputBudget.bind(LlmPreset(id, name, baseUrl, model), templateId)
-/** 保留旧自定义无密钥语义，新建的局域网服务也可不鉴权。 */
-fun LlmPreset.allowsEmptyKey() = id == "custom" || OpenAiEndpoint.kind(baseUrl) == EndpointKind.LocalHttp
+/** 保留旧自定义无密钥语义，新建的局域网服务也可不鉴权；官方条目走账号令牌计费、从不持本地密钥——
+ *  免密钥放行后由官方桥直接报真因（未登录/未同意/点数不足），比各处"还没填写密钥"的误导文案准确。 */
+fun LlmPreset.allowsEmptyKey() = id == OFFICIAL_PROVIDER_ID || id == "custom" || OpenAiEndpoint.kind(baseUrl) == EndpointKind.LocalHttp

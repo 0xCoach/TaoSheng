@@ -26,7 +26,8 @@ class CaptureStats177Test {
             val date = LocalDate.of(2026, 11, 1)
             val a = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(); val b = date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             val dao = db.capture(); val repo = RoomCaptureStatsRepository(RuntimeEnvironment.getApplication(), dao, app.resound.platform.SystemZone)
-            val text = StringBuilder(); fun save(key: String, value: Any?) { text.appendLine("$key=$value") }
+            // File.toString 在 Windows 输出反斜杠，夹具按 POSIX 斜杠生成；比较前统一分隔符。
+            val text = StringBuilder(); fun save(key: String, value: Any?) { text.appendLine("$key=${value.toString().replace('\\', '/')}") }
             save("empty", repo.dayStats(date).first())
             dao.segment(SegmentEntity(1, a - 1000, a + 1000, "mic", "/synthetic/1", 10))
             dao.segment(SegmentEntity(2, b - 1000, b + 1000, "mic", "/synthetic/2", 20))

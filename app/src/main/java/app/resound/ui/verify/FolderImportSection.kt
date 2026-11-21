@@ -104,7 +104,7 @@ fun FolderImportSection(imports: FolderImports) {
             }
             Text("通话录音、录音笔 App、录音机存在哪，就加哪个文件夹，可以加多个。新录音会自动导入转写；原文件不动、不删，同一个录音只导入一次。",
                 style = RsType.caption, color = c.textTertiary)
-            Text("大约每 15 分钟看一次，打开涛声时也会看；录音写完一两分钟后才会导入。", style = RsType.caption, color = c.textTertiary)
+            Text("大约每 15 分钟看一次，打开声声不息时也会看；录音写完一两分钟后才会导入。", style = RsType.caption, color = c.textTertiary)
         }
     }
 
@@ -171,7 +171,7 @@ private fun CallGuideSheet(guide: CallFolderGuide, onDismiss: () -> Unit, onPick
     val c = Rs.colors
     val context = LocalContext.current
     var others by remember { mutableStateOf(false) }
-    RsSheet("通话录音", "手机自己录，涛声来收。安卓不让其他 App 录通话，但手机自带的电话可以自动录。", onDismiss = onDismiss) {
+    RsSheet("通话录音", "手机自己录，声声不息来收。安卓不让其他 App 录通话，但手机自带的电话可以自动录。", onDismiss = onDismiss) {
         GuideStep(1, "打开自动通话录音", guide.brand) {
             guide.steps.forEach { Text("· $it", style = RsType.subhead, color = c.textSecondary) }
             Text("去打开", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.accent,
@@ -302,8 +302,8 @@ private fun EditFolderSheet(f: WatchedFolder, imports: FolderImports, onRepick: 
     RsSheet(f.name, listOfNotNull("已导入 ${f.imported} 个录音", f.listed.takeIf { it > 0 }?.let { "未转写 $it 个" },
         f.lastScanAt?.let { "${formatStamp(it)} 看过" }).joinToString(" · "), onDismiss = onDismiss) {
         if (!f.accessible) {
-            Text("涛声没有这个文件夹的读取权限了（可能在系统里撤销了，或文件夹被删除、换了手机）。请重新选一次。", style = RsType.subhead, color = c.warning)
-            ActionButton("重新选择文件夹", ActionKind.Primary) { onRepick() }
+            Text("声声不息没有这个文件夹的读取权限了（可能在系统里撤销了，或文件夹被删除、换了手机）。请重新选一次。", style = RsType.subhead, color = c.warning)
+            ActionButton("重新选择文件夹", ActionKind.Primary) { imports.remove(f.id); onRepick() }
         }
         Text("按什么整理", style = RsType.caption, color = c.textSecondary)
         KindChoices(f.kind) { imports.setKind(f.id, it) }

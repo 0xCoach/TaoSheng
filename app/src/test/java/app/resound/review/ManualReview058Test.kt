@@ -41,7 +41,7 @@ class ManualReview058Test {
     }
     private fun repo(work: WorkManager? = null) = RoomReviewRepository(db.review(), db.memory(), prefs, scope,
         { LlmPreset(modelId, "测试", "https://example.invalid", "test") to key },
-        { _, _, _, _ -> calls++; reply() }, { "" }, "涛声",
+        { _, _, _, _ -> calls++; reply() }, { "" }, "声声不息",
         object : Notifier {
             override suspend fun send(title: String, body: String, deepLink: String?, topic: PushTopic?) {
                 error("手动不得推送")
@@ -57,6 +57,17 @@ class ManualReview058Test {
     private suspend fun seed(time: Long = at + 1000, id: Long = 1) {
         db.memory().insertEvent(MemoryEventEntity(id, time, time + 1000, "会议", "方案", "讨论方案",
             "[]", "[]", null, null, null, false, false, time, "test"))
+    }
+
+    @Test fun officialReviewWithEmptyKeyReachesModelAndKeepsRealError() = runBlocking {
+        seed()
+        key = ""
+        modelId = OFFICIAL_PROVIDER_ID
+        reply = { throw LlmException(LlmError.Auth, detail = "请登录后使用声声不息官方 AI", terminal = true) }
+        val r = repo()
+        r.run(date, false)
+        assertEquals(1, calls)
+        assertEquals("请登录后使用声声不息官方 AI", r.state.value.lastError)
     }
     private fun assertEnded(r: RoomReviewRepository, error: String?) {
         assertEquals(error, r.state.value.lastError)

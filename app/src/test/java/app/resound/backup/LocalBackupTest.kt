@@ -65,7 +65,7 @@ class LocalBackupTest {
         assertEquals(tree, granted); assertEquals("Resound", repository.local.value.folder)
         assertEquals(7, repository.local.value.keep)
         val foreign = File(folder, "notes.zip").apply { writeText("keep") }
-        val legacy = File(folder, "回响-2026-01-01-0310.zip").apply { writeText("keep") }
+        val legacy = File(folder, "声声不息-2026-01-01-0310.zip").apply { writeText("keep") }
         val invalid = File(folder, "resound-2026-02-30-0310.zip").apply { writeText("keep") }
         val old = (1..4).map { File(folder, "resound-2026-01-0$it-0310.zip").apply { writeText("old") } }
         assertFalse(repository.runLocalBackup(false))
@@ -155,7 +155,7 @@ class LocalBackupTest {
             }
         }
         try {
-            val cloud = newRepository { WebDavClient(BackupConfig(server.url("/dav/").toString()), "回响", "test@example.com", "test") }
+            val cloud = newRepository { WebDavClient(BackupConfig(server.url("/dav/").toString()), "声声不息", "test@example.com", "test") }
             cloud.setEnabled(true); cloud.setLocalFolder(tree); cloud.setLocalAuto(true)
             assertTrue(cloud.runBackup(true))
             assertFalse(cloud.runLocalBackup(true)); assertNotNull(cloud.local.value.lastAt)

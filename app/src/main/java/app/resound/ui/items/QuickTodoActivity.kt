@@ -28,7 +28,7 @@ import app.resound.ui.verify.RsSheet
 import kotlinx.coroutines.launch
 
 /**
- * 快速加待办：从通知栏或桌面长按菜单打开，浮在当前界面上，不进入涛声主界面。
+ * 快速加待办：从通知栏或桌面长按菜单打开，浮在当前界面上，不进入声声不息主界面。
  * 一打开就开始听；点“说完了”识别并生成待办卡，确认后自动关闭，回到原来的界面。也可改为打字。
  */
 class QuickTodoActivity : ComponentActivity() {
@@ -52,7 +52,7 @@ private enum class QuickPhase { Starting, Listening, Recognizing, Drafting, Typi
 private fun QuickTodoFlow(day: java.time.LocalDate?, onClose: () -> Unit) {
     val context = LocalContext.current
     if (!AppGraph.isManualTodosReady || !AppGraph.isTodoVoiceReady) {
-        LaunchedEffect(Unit) { Toast.makeText(context, "涛声还在启动，请稍后再试", Toast.LENGTH_SHORT).show(); onClose() }
+        LaunchedEffect(Unit) { Toast.makeText(context, "声声不息还在启动，请稍后再试", Toast.LENGTH_SHORT).show(); onClose() }
         return
     }
     val voice = AppGraph.todoVoice
@@ -82,7 +82,8 @@ private fun QuickTodoFlow(day: java.time.LocalDate?, onClose: () -> Unit) {
     result?.let { (drafts, origin, source) ->
         DraftSheet(drafts, source, onDismiss = onClose, defaultDay = day) { confirmed ->
             todos.add(confirmed, origin, source)
-            toast("已添加 ${confirmed.size} 条待办")
+            val ideas = confirmed.count { it.category == "灵感" }
+            toast(if (ideas > 0) "已添加，其中 $ideas 条进灵感箱" else "已添加 ${confirmed.size} 条待办")
             onClose()
         }
         return

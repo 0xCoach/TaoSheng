@@ -299,7 +299,7 @@ private fun InputBar(streaming: Boolean, onSend: (String) -> Unit, onStop: () ->
                     Modifier.shadow(if (c.isDark) 0.dp else 8.dp, RoundedCornerShape(24.dp), ambientColor = c.shadow, spotColor = c.shadow)
                         .clip(RoundedCornerShape(24.dp)).background(c.card).padding(horizontal = 18.dp, vertical = 13.dp),
                 ) {
-                    if (input.isEmpty()) Text("念念不忘，必有回响...", style = RsType.body, color = c.textTertiary)
+                    if (input.isEmpty()) Text("念念不忘，必有声声不息...", style = RsType.body, color = c.textTertiary)
                     inner()
                 }
             },

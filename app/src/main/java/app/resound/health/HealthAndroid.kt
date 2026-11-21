@@ -126,8 +126,8 @@ class AndroidHealthCheck(
         val zone = ZoneId.systemDefault()
         val date = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
         val status = capture.status.value
-        val interruptions = events?.let { HealthWatchdogRules.interruptions(it, now, status.state == CaptureState.MicBusy) }
-        val days = interruptions?.map { Instant.ofEpochMilli(it).atZone(zone).toLocalDate().toEpochDay() }
+        val interruptions = events?.let { HealthWatchdogRules.interruptionsWithKind(it, now, status.state == CaptureState.MicBusy) }
+        val days = interruptions?.map { Instant.ofEpochMilli(it.first).atZone(zone).toLocalDate().toEpochDay() }
         val cloud = backup.state.value
         val local = backup.local.value
         val b = balance.state.value.balance
@@ -150,6 +150,9 @@ class AndroidHealthCheck(
             localBackupEnabled = local.auto, localBackupFailed = local.lastError != null,
             nextBackupAt = next,
             interruptionsToday = days?.count { it == date.toEpochDay() }, lastInterruptionDay = days?.maxOrNull(),
+            interruptionKindsToday = interruptions?.filter {
+                Instant.ofEpochMilli(it.first).atZone(zone).toLocalDate().toEpochDay() == date.toEpochDay()
+            }?.groupingBy { it.second }?.eachCount().orEmpty(),
             manualPausedUntil = capturePrefs.getLong("manualPausedUntil", 0),
         ))
     }

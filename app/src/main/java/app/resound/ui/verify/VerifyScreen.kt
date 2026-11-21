@@ -110,7 +110,9 @@ fun VerifyScreen(
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val order = buildList {
         add(listOf("permissions", "pause-length", "playback"))
+        add(listOf("knock"))
         if (g.isQuietScheduleReady) add(listOf("quiet"))
+        if (g.isSceneReady) add(listOf("scene"))
         if (g.isInputsReady) add(listOf("input"))
         if (g.isDevicesReady) add(emptyList())
         if (g.isVoiceInputReady) add(listOf("voice-input"))
@@ -126,14 +128,17 @@ fun VerifyScreen(
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
         item { Box(Modifier.settingsAnchor("permissions", "pause-length", "playback")) { StatusCard(capture) } }
+        item { KnockSection() }
         // 卡 210：录音存多久、打包导出属于录音本身，从“语音转写”挪来
         if (app.resound.AppGraph.isOriginalAudioReady || app.resound.AppGraph.isRecordingPackerReady)
             item { Box(Modifier.settingsAnchor("audio-retention", "recording-pack")) { RecordingStoreSection() } }
         if (g.isQuietScheduleReady) item { Box(Modifier.settingsAnchor("quiet")) { QuietSection(g.quietSchedule) } }
+        if (g.isSceneReady) item { Box(Modifier.settingsAnchor("scene")) { SceneSection(g.scene) } }
         if (g.isInputsReady) item { Box(Modifier.settingsAnchor("input")) { InputSection(g.inputs) } }
-        if (g.isDevicesReady) item {
-            LinkRow("外接设备", devicesSummary()) { app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Devices) }
-        }
+        // 外接设备驱动均未真机验证，入口先隐藏（与设置首页同步）；恢复时取消注释即可
+        // if (g.isDevicesReady) item {
+        //     LinkRow("外接设备", devicesSummary()) { app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Devices) }
+        // }
         if (g.isVoiceInputReady) item { Box(Modifier.settingsAnchor("voice-input")) { VoiceInputSection(g.voiceInput) } }
         if (g.isFolderImportReady) item { Box(Modifier.settingsAnchor("folder-import")) { FolderImportSection(g.folderImports) } }
         item { Box(Modifier.settingsAnchor("battery")) { SetupSection(setup) } }
@@ -583,10 +588,10 @@ private fun SetupSection(setup: SetupGuide) {
     Section("后台设置", trailing = {
         Text("$doneCount / ${items.size} 已完成", style = RsType.caption, color = if (doneCount == items.size) c.good else c.accent)
     }) {
-        // 卓易通里的设置要对卓易通本身做，先说清楚，免得在涛声的设置里找半天
+        // 卓易通里的设置要对卓易通本身做，先说清楚，免得在声声不息的设置里找半天
         val container = (LocalContext.current.applicationContext as? app.resound.ResoundApp)?.pipelineDiagnostics?.system ==
             app.resound.scheduling.BackgroundSystem.Type.Container
-        if (container) Text("你在鸿蒙的卓易通里用涛声，下面带“卓易通”的那项要在鸿蒙系统设置里对卓易通做。",
+        if (container) Text("你在鸿蒙的卓易通里用声声不息，下面带“卓易通”的那项要在鸿蒙系统设置里对卓易通做。",
             style = RsType.caption, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 8.dp))
         RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 6.dp)) {
             items.forEachIndexed { i, item ->
@@ -624,7 +629,7 @@ private fun SetupRow(item: SetupItem, onOpen: () -> Unit, onDone: () -> Unit) {
     }
 }
 
-/** 录音占着麦克风时，很多手机的唤醒芯片会被系统暂停；涛声改不了，只说替代办法 */
+/** 录音占着麦克风时，很多手机的唤醒芯片会被系统暂停；声声不息改不了，只说替代办法 */
 @Composable
 private fun WakeWordSection() {
     Section("语音助手") {

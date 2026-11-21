@@ -22,7 +22,7 @@ internal class RecordingUploadState(private val file: File) {
         file.parentFile!!.mkdirs()
         val tmp = File(file.parentFile, file.name + ".tmp")
         tmp.outputStream().use { it.write(json.toString().toByteArray()); it.fd.sync() }
-        check(tmp.renameTo(file)) { "无法保存录音上传状态" }
+        app.resound.util.atomicReplace(tmp, file)
     }
     fun since(s: PushSubscription, today: LocalDate): LocalDate? {
         if (!json.has("since")) {

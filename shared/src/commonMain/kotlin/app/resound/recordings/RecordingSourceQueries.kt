@@ -56,7 +56,7 @@ object RecordingSelection {
     fun <T : RecordingSourceFields> estimate(rows: List<T>, day: (T) -> String, size: (T) -> Long) = RecordingEstimateData(
         rows.map(day).distinct().size, rows.size, rows.sumOf(size), rows.sumOf { RecordingTextRules.duration(it) })
     fun name(from: String, to: String, wholeDays: Boolean, fromTime: () -> String, toTime: () -> String) =
-        if (wholeDays) "涛声录音 $from" + (if (from == to) "" else " 至 $to") + ".zip"
-        else "涛声录音 $from ${fromTime()} 至 " + (if (from == to) "" else "$to ") + toTime() + ".zip"
+        if (wholeDays) "声声不息录音 $from" + (if (from == to) "" else " 至 $to") + ".zip"
+        else "声声不息录音 $from ${fromTime()} 至 " + (if (from == to) "" else "$to ") + toTime() + ".zip"
 }
 data class RecordingEstimateData(val days: Int, val count: Int, val bytes: Long, val millis: Long)

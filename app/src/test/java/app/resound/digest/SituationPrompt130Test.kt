@@ -35,8 +35,8 @@ class SituationPrompt130Test {
         }
         val prompt = SituationPrompt(false, forbidden)
         val today = LocalDate.of(2026, 11, 10)
-        assertEquals(DigestPrompt.system("原模板", today, "涛声"), prompt.system(DigestPrompt.system("原模板", today, "涛声")))
-        assertEquals(MergePrompt.system("合并模板", today, "涛声"), prompt.system(MergePrompt.system("合并模板", today, "涛声")))
+        assertEquals(DigestPrompt.system("原模板", today, "声声不息"), prompt.system(DigestPrompt.system("原模板", today, "声声不息")))
+        assertEquals(MergePrompt.system("合并模板", today, "声声不息"), prompt.system(MergePrompt.system("合并模板", today, "声声不息")))
         assertEquals(DigestPrompt.transcript(lines, zone, setOf(1)), prompt.transcript(lines, setOf(1), zone))
         assertEquals(MergePrompt.input(events, zone), prompt.merge(events, zone))
     }

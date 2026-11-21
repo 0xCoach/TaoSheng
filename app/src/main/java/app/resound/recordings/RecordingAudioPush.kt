@@ -105,7 +105,7 @@ internal class RecordingAudioPush(
         j.save(); revision.value++
     }
     /**
-     * 推到远端（网盘、手机文件夹）的文件，涛声一律不自动删：隐私删除只把远端相关文件列进“需要你自己删”的清单。
+     * 推到远端（网盘、手机文件夹）的文件，声声不息一律不自动删：隐私删除只把远端相关文件列进“需要你自己删”的清单。
      * 本地删除失败时撤回这次写入的删除标记和清单，录音照旧受保护、照旧可推。
      */
     suspend fun withPrivacy(ids: List<Long>, block: suspend () -> app.resound.privacy.ForgetResult): app.resound.privacy.ForgetResult = urgent {

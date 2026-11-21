@@ -37,7 +37,7 @@ internal class LocalProblemReports(
             (app.resound.AppGraph.envSound as? app.resound.envsound.LocalEnvSoundRepository)?.diagnostics().orEmpty() else ""
         val content = try {
             buildString {
-                appendLine("涛声问题记录")
+                appendLine("声声不息问题记录")
                 appendLine("版本名=${installed.versionName} versionCode=${installed.longVersionCode}")
                 appendLine("是否预览版=${updater.isPreviewBuild} 预览通道=${updater.previewChannel.value}")
                 appendLine("手机型号=${Build.MANUFACTURER} ${Build.MODEL} 安卓版本=${Build.VERSION.RELEASE} API=${Build.VERSION.SDK_INT}")
@@ -65,7 +65,7 @@ internal class LocalProblemReports(
         } finally { diagnostics.delete() }
         val directory = File(context.cacheDir, "problem-reports").apply { check(isDirectory || mkdirs()) }
         val stamp = DateTimeFormatter.ofPattern("MMdd-HHmmss-SSS").withZone(ZoneId.systemDefault()).format(at)
-        val file = File(directory, "涛声问题记录-${updater.currentVersion}-$stamp.txt")
+        val file = File(directory, "声声不息问题记录-${updater.currentVersion}-$stamp.txt")
         file.writeText(scrubProblemReport(content))
         file
     }

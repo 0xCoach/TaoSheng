@@ -167,7 +167,7 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
                     "| ideas.md、decisions-and-facts.md | 最近一年提取项 | 同步时 |\n" +
                     "| archive/ | 一年以前的提取项 | 同步时 |\n" +
                     "| inbox/ | 预留；只建空目录，不读取 | 不处理 |\n" +
-                    "| my-notes/ | 归用户所有 | 涛声永不读写、不删除 |"
+                    "| my-notes/ | 归用户所有 | 声声不息永不读写、不删除 |"
                 ) else ""}
 
             ## 给智能体的用法
@@ -177,11 +177,11 @@ internal class MemoryFolder(private val today: LocalDate, private val zone: Zone
             缺少某类文件表示未订阅或没有内容。条目 I 编号、事件 E 编号用于引用来源。
 
             ## 智能体读取须知
-            - 本文件夹由用户手机上的「涛声」App 自动写入：全天录音 → 转写 → 整理成事件、待办和回顾。用户问“我之前……”“我答应过谁……”“某天做了什么”时来这里查。
+            - 本文件夹由用户手机上的「声声不息」App 自动写入：全天录音 → 转写 → 整理成事件、待办和回顾。用户问“我之前……”“我答应过谁……”“某天做了什么”时来这里查。
             - 按日期找：每日记录在 daily/年-月/年-月-日-星期_daily-record.md（如 daily/2026-11/2026-11-16-Mon_daily-record.md），当天原话在 transcripts/ 下同名的 _transcript.md，每周回顾在 weekly/。路径都能按日期直接拼出，一般不用列目录。
             - 时间以每天文档开头写的 UTC 偏移为准。内容由录音自动整理，可能有错字或认错人；拿不准时以原话为准，并告诉用户“记录里是这么写的”，不要补写记录里没有的内容。
             - 通过 WebDAV 只读访问：只用 GET（和列目录用的 PROPFIND），不要 PUT、DELETE、MOVE、MKCOL。内容只用来回答用户本人，不要转发或上传到别处。
-            - 本说明随涛声更新，以这里写的为准。
+            - 本说明随声声不息更新，以这里写的为准。
         """.lines().joinToString("\n") { it.trimStart() }.trim())
         return files
     }

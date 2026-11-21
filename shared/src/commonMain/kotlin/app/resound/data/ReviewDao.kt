@@ -48,7 +48,8 @@ abstract class ReviewDao {
     @Query("SELECT * FROM memory_events WHERE deleted = 0 AND (scene != '媒体' OR starred = 1) AND startAt > :start AND startAt <= :end ORDER BY startAt, id")
     abstract suspend fun events(start: Long, end: Long): List<MemoryEventEntity>
 
-    @Query("SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND (e.id IS NULL OR e.scene != '媒体' OR e.starred = 1) AND COALESCE(e.startAt,i.createdAt) > :start AND COALESCE(e.startAt,i.createdAt) <= :end ORDER BY i.createdAt, i.id")
+    // 归属：事件时间→录音时间→处理时间；排序：有效分（内在分+父事件实时星标/重点加成）高优先，同分按处理序。
+    @Query("SELECT i.* FROM memory_items i LEFT JOIN memory_events e ON e.id = i.eventId WHERE (e.id IS NULL OR e.deleted = 0) AND i.deleted = 0 AND i.mergedInto IS NULL AND (e.id IS NULL OR e.scene != '媒体' OR e.starred = 1) AND COALESCE(e.startAt,i.recordedAt,i.createdAt) > :start AND COALESCE(e.startAt,i.recordedAt,i.createdAt) <= :end ORDER BY (i.valueScore + COALESCE(e.starred,0)*${app.resound.data.MemoryValueRules.PARENT_STAR_BONUS} + COALESCE(e.important,0)*${app.resound.data.MemoryValueRules.PARENT_IMPORTANT_BONUS}) DESC, i.createdAt, i.id")
     abstract suspend fun items(start: Long, end: Long): List<MemoryItemEntity>
 
     @Query("""SELECT e.* FROM memory_events e WHERE e.deleted = 0 AND e.starred = 1

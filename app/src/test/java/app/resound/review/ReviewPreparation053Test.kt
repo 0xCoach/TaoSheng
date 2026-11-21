@@ -48,7 +48,7 @@ class ReviewPreparation053Test {
                 { preset to "test" }, { _, _, _, _ ->
                     generated = true
                     LlmReply("""{"brief":"新回顾","sections":[{"title":"一句话","lines":[{"text":"讨论方案","eventId":1}]},{"title":"发生了什么","lines":[{"text":"讨论方案","eventId":1}]}]}""", 1, 1)
-                }, { "测试" }, "涛声", notifier, {}, now = { at }, zone = { zone },
+                }, { "测试" }, "声声不息", notifier, {}, now = { at }, zone = { zone },
                 beforeReview = { ReviewPreparation.prepare(30, logs::add) { lock.withLock { error("不应拿到锁") } } }, io = kotlinx.coroutines.Dispatchers.IO)
             assertFalse(repo.run(day, scheduled = false))
             assertTrue(generated); assertNotNull(repo.daily(day).first())

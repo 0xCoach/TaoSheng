@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit
 @Config(sdk = [29], manifest = Config.NONE, application = Application::class)
 class PushChannelsTest {
     private val context: Context get() = RuntimeEnvironment.getApplication()
-    private val message = PushMessage("回响 · 今日回顾", "## 今日\n**完成任务**", PushTopic.DailyReview, "resound://review?date=2026-10-23", 1234)
+    private val message = PushMessage("声声不息 · 今日回顾", "## 今日\n**完成任务**", PushTopic.DailyReview, "resound://review?date=2026-10-23", 1234)
     private val configs = mapOf(
         PushKind.PushPlus to mapOf("token" to "fake-token-123", "topic" to "team"),
         PushKind.WeCom to mapOf("webhook" to "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fake-key-123"),

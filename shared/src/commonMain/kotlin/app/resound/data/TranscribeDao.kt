@@ -16,8 +16,14 @@ data class TranscriptLineEntity(@PrimaryKey(autoGenerate = true) val id: Long = 
     val voiceInputJson: String? = null, val voiceInputPendingUntil: Long? = null,
     /** 本地同音纠正前的整句；未纠正为 null。 */
     val originalText: String? = null,
+    /** 人工复核过的时间；null 表示还没复核（复核标记见 TranscriptReviewRules）。 */
+    val reviewedAt: Long? = null,
     /** 卡 211：人工修改文字的时间；没改过为 null。重新转写会生成新行，自然回到机器结果 */
     val textEditedAt: Long? = null)
+
+/** 复核候选的行级投影；可疑判定在 shared 规则里算，SQL 只取字段。 */
+data class TranscriptReviewRow(val lineId: Long, val segmentId: Long, val startAt: Long, val endAt: Long,
+    val text: String, val speakerScore: Float?, val speakerTag: String?, val originalText: String?, val attempts: Int)
 @Entity(tableName = "asr_usage")
 data class AsrUsageEntity(@PrimaryKey val day: String, val sentMillis: Long,
     @ColumnInfo(defaultValue = "0") val inputTokens: Long = 0,
@@ -237,4 +243,14 @@ abstract class TranscribeDao {
     }
     @Insert abstract suspend fun attempt(row: AsrAttemptEntity)
     @Query("SELECT * FROM asr_attempts ORDER BY id DESC LIMIT 20") abstract suspend fun recentAttempts(): List<AsrAttemptEntity>
+
+    // ---------- 低置信转写复核 ----------
+
+    @Query("""SELECT l.id AS lineId, l.segmentId, l.startAt, l.endAt, l.text, l.speakerScore, l.speakerTag,
+        l.originalText, s.attempts FROM transcript_lines l JOIN segments s ON s.id = l.segmentId
+        WHERE l.reviewedAt IS NULL AND l.startAt >= :since ORDER BY l.startAt DESC""")
+    abstract fun reviewLines(since: Long): Flow<List<TranscriptReviewRow>>
+
+    @Query("UPDATE transcript_lines SET reviewedAt = :at WHERE id = :id")
+    abstract suspend fun markReviewed(id: Long, at: Long)
 }

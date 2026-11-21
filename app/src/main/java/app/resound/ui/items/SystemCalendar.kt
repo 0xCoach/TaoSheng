@@ -17,7 +17,7 @@ import java.time.LocalDate
 
 /**
  * 加到手机日历：打开系统日历的“新建日程”页面并填好内容，用户点保存才算加上。
- * 不申请日历权限，涛声自己不写日历；之后待办改了，日历里那条不会跟着变。
+ * 不申请日历权限，声声不息自己不写日历；之后待办改了，日历里那条不会跟着变。
  */
 internal object SystemCalendar {
     private fun zone() = TimeZone.currentSystemDefault()

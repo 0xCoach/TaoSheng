@@ -201,7 +201,7 @@ interface PushChannels {
     /** 现在推一次（按订阅推整理结果和原话；增量通道只推变化） */
     suspend fun pushNow(id: Long): Result<String>
 
-    /** 全部重新生成：文件夹类清空回响写的文件后整个重建（my-notes/ 不碰） */
+    /** 全部重新生成：文件夹类清空声声不息写的文件后整个重建（my-notes/ 不碰） */
     suspend fun rebuild(id: Long): Result<String>
 
     fun status(id: Long): Flow<PushChannelStatus>

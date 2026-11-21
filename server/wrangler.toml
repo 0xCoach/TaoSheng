@@ -1,0 +1,34 @@
+name = "soundsound-auth"
+main = "src/worker.js"
+compatibility_date = "2026-11-01"
+
+# workers.dev 在国内被上游 DNS 投毒（alidns DoH 也返回假 IP，Wi-Fi/蜂窝同病）；
+# 自有域名走正常 Cloudflare 解析，子域名独立托管 auth 不影响主站 gdfactory.cn。
+# workers.dev 原地址保留可用（双通道）。
+workers_dev = true
+routes = [
+  { pattern = "soundsound.gdfactory.cn", custom_domain = true }
+]
+
+# 注：免费版 5 个 cron 名额已用尽，无法加自探活；worker.scheduled handler 保留备用。
+
+[[d1_databases]]
+binding = "DB"
+database_name = "soundsound-auth"
+database_id = "7949eb2a-a699-4048-ae01-ea92386c5548"
+
+# Secrets (wrangler secret put):
+#   ADMIN_TOKEN         管理员令牌（创建/停用账号用）
+#   LICENSE_PRIVATE_KEY ECDSA P-256 PKCS8 PEM base64，离线授权/JWT 签名私钥（公钥随 App 分发）
+#   LICENSE_PUBLIC_JWK  与私钥配对的 JWK JSON（服务端验签用）
+
+[vars]
+ACCESS_TTL_SECONDS = 900
+REFRESH_TTL_SECONDS = 2592000          # 30 天
+OFFLINE_LICENSE_DAYS = 7               # 离线授权有效期，可配置策略
+LOGIN_RATE_LIMIT = 8                   # 每账号+IP 每窗口允许失败次数
+LOGIN_RATE_WINDOW_SECONDS = 600
+OPEN_REGISTRATION = "1"                # 自助注册开关；"0" 即关（防滥用应急）
+REGISTER_RATE_LIMIT = 5                # 每 IP 每小时最多注册账号数
+REGISTER_RATE_WINDOW_SECONDS = 3600
+REFRESH_GRACE_SECONDS = 60             # refresh 轮换宽限：防响应丢失误登出

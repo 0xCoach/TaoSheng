@@ -66,7 +66,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-/** 挂在最外层：有等确认的导入（别的 App 分享过来、或在回响里选的文件）就弹确认面板 */
+/** 挂在最外层：有等确认的导入（别的 App 分享过来、或在声声不息里选的文件）就弹确认面板 */
 @Composable
 fun ImportHost() {
     if (!AppGraph.isImporterReady) return

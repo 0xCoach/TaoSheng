@@ -74,7 +74,17 @@ class MainActivity : ComponentActivity() {
         intent?.getStringExtra(app.resound.transcribe.EXTRA_EXPORT_JOB)?.let { app.resound.ui.transcript.ExportUi.openJob = it }
         // 点“重做完成”通知：打开结果面板（可撤销）
         intent?.getStringExtra(app.resound.redo.EXTRA_REDO_JOB)?.let { app.resound.ui.redo.RedoUi.openJob = it }
-        lifecycleScope.launch { receiveSharedAudio(intent) }
+        // 分享先路由：文字/链接/图片进统一收集箱，音频走原有导入通道；收集箱先判，避免录音导入抢先把 action 置空
+        val toInbox = AppGraph.isAssistantReady && AppGraph.captureInbox.accepts(intent)
+        lifecycleScope.launch {
+            if (toInbox) {
+                if (AppGraph.captureInbox.receive(requireNotNull(intent), referrer?.host ?: callingActivity?.packageName) > 0) {
+                    tabRequest = 1 to System.nanoTime() // 第 2 页“助手”
+                }
+            } else {
+                receiveSharedAudio(intent)
+            }
+        }
         // 卡 147/148：长按快捷开关。专题开关 → 进行中打开那场专题，否则打开“开始专题”（上次的类型）；聆听开关 → 录音与后台页
         if (intent?.action == "android.service.quicksettings.action.QS_TILE_PREFERENCES") {
             @Suppress("DEPRECATION")
@@ -119,10 +129,20 @@ class MainActivity : ComponentActivity() {
         val open = intent?.getStringExtra("open")
         // 寻物“已记”通知：回到今天，确认卡就在待确认里
         if (open == "things_pending") { tabRequest = 0 to System.nanoTime(); return }
+        // 待办到期/强提醒通知：直达待办页
+        if (open == "todos") { tabRequest = 2 to System.nanoTime(); return }
+        // 跟进/规则引擎提醒：直达助手里对应子页
+        if (open == "followups" || open == "rules") {
+            tabRequest = 1 to System.nanoTime()
+            app.resound.ui.ShellNav.assistantPage.value =
+                if (open == "followups") app.resound.ui.assistant.AssistantPage.Followups.ordinal
+                else app.resound.ui.assistant.AssistantPage.Rules.ordinal
+            return
+        }
         if (open != "review" && open != "day") return
         dayOnly = open == "day"
         openReview = intent.getStringExtra("date")?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now()
-        tabRequest = 2 to System.nanoTime() // 第 3 页“记忆”
+        tabRequest = 3 to System.nanoTime() // 第 4 页“记忆”
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -174,12 +194,13 @@ class MainActivity : ComponentActivity() {
                 else AppShell(
                     listOf(
                         "今天" to { TodayScreen(capture, stats, transcripts, memory, digestSettings, mode, setMode, ShellBottomPadding) },
-                        "问问" to { AskScreen(ask, ShellBottomPadding) },
+                        "助手" to { app.resound.ui.assistant.AssistantScreen(ShellBottomPadding) },
+                        "待办" to { TodoScreen(memory, ShellBottomPadding) },
                         "记忆" to {
                             MemoryScreen(memory, if (AppGraph.isReviewReady) AppGraph.review else null, transcripts,
                                 if (AppGraph.isDiaryReady) AppGraph.diary else null, openReview, { openReview = null }, ShellBottomPadding, showReview = !dayOnly)
                         },
-                        "待办" to { TodoScreen(memory, ShellBottomPadding) },
+                        "问问" to { AskScreen(ask, ShellBottomPadding) },
                         "设置" to {
                             SettingsScreen(capture, transcribeSettings, digestSettings, mode, setMode, ShellBottomPadding) { page, bottom ->
                                 when (page) {
@@ -199,6 +220,9 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                     SettingsPage.Capture -> VerifyScreen(capture, stats, setup, bottom)
+                                    SettingsPage.Account -> Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 0.dp, end = 0.dp, top = 8.dp, bottom = bottom + 24.dp)) {
+                                        app.resound.auth.MyAccountSection()
+                                    }
                                     SettingsPage.Devices -> app.resound.ui.verify.DevicesPage(bottom)
                                     SettingsPage.Advanced -> app.resound.ui.verify.AdvancedPage(stats, bottom)
                                     SettingsPage.Transcript -> TranscriptScreen(transcripts, transcribeSettings, bottom)
@@ -210,6 +234,7 @@ class MainActivity : ComponentActivity() {
                                         (digestSettings as? app.resound.digest.AndroidDigestSettings)?.let {
                                             Box(Modifier.settingsAnchor("digest-timing", "conversation-gap", "thinking", "context")) { app.resound.ui.settings.DigestTimingCard(it) }
                                         }
+                                        app.resound.digest.QuietDigestSection { memory.runNow() }
                                         // 余额已并入服务商卡片；没有服务商列表时仍用单独的余额卡
                                         if (!AppGraph.isLlmProvidersReady && AppGraph.isLlmBalanceReady) (digestSettings as? app.resound.digest.AndroidDigestSettings)?.let { app.resound.ui.settings.BalanceCard(AppGraph.llmBalance, it) }
                                         if (AppGraph.isUsageReady) app.resound.ui.settings.LlmUsageCard(AppGraph.usage)
@@ -236,6 +261,7 @@ class MainActivity : ComponentActivity() {
                     tabRequest,
                 )
                 app.resound.ui.importer.ImportHost()
+                app.resound.auth.AuthLoginHost()
                 openCardId?.let { id ->
                     val repo = remember { app.resound.ui.skills.skillRepo() }
                     val card by remember(id) { repo.card(id) }.collectAsStateWithLifecycle(initialValue = null)

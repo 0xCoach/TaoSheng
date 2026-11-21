@@ -64,7 +64,7 @@ data class CallFolderGuide(
     val steps: List<String>,
     /** 通话录音可能所在的位置（相对内部存储根目录，按可能性排序），用来让文件选择器直接打开到那里 */
     val folders: List<String>,
-    /** 这个品牌/系统涛声收不到时为 false（如老一加放在 Android/data 下） */
+    /** 这个品牌/系统声声不息收不到时为 false（如老一加放在 Android/data 下） */
     val supported: Boolean = true,
     /** 补充说明（一句话）；没有为 null */
     val note: String? = null,

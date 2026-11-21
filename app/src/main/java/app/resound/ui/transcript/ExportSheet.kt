@@ -184,7 +184,7 @@ fun ExportSheet(segmentIds: List<Long>, suggestedTitle: String, onDismiss: () ->
                 }
             }
         }
-        Text("录音将离开涛声，请注意他人隐私", style = RsType.caption, color = c.textTertiary,
+        Text("录音将离开声声不息，请注意他人隐私", style = RsType.caption, color = c.textTertiary,
             modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
@@ -504,7 +504,7 @@ fun ExportJobSheet(jobId: String, onDismiss: () -> Unit) {
     fun close() { ExportUi.seen(jobId); onDismiss() }
     RsSheet(job.title, null, onDismiss = { close() }) {
         JobBody(job, onClose = { close() })
-        Text("录音将离开涛声，请注意他人隐私", style = RsType.caption, color = Rs.colors.textTertiary,
+        Text("录音将离开声声不息，请注意他人隐私", style = RsType.caption, color = Rs.colors.textTertiary,
             modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }

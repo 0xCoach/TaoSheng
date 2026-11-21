@@ -203,7 +203,7 @@ internal class LocalAudioExporter(
     }
     companion object {
         internal fun safeTitle(title: String): String = title.filter { it !in "/\\:*?\"<>|" && !it.isISOControl() }
-            .trim().take(60).trimEnd('.', ' ').ifBlank { "涛声录音" }
+            .trim().take(60).trimEnd('.', ' ').ifBlank { "声声不息录音" }
     }
 }
 

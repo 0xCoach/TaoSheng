@@ -1,6 +1,16 @@
 package app.resound.search
 
 import androidx.room.RoomDatabase
+import app.resound.data.readSql
+
+const val LIMIT = 100
+private const val FETCH = 300
+
+/** 首页“搜索记录”的一条结果：原话或整理出的事件。valueBonus 是价值加成（星标/重点），排序仍按时间。 */
+data class SearchHit(val kind: Kind, val id: Long, val at: Long, val text: String,
+                     val speaker: String? = null, val segmentId: Long? = null, val valueBonus: Int = 0) {
+    enum class Kind { Line, Event }
+}
 
 /**
  * 搜索的共用文字规则（议题 #34，卡 194 扩展）。多个词之间是“都要包含”。
@@ -9,6 +19,37 @@ import androidx.room.RoomDatabase
 object RecordSearchRules {
     fun words(query: String): List<String> =
         query.split(Regex("\\s+")).map { it.trim() }.filter { it.isNotEmpty() }.distinct().take(8)
+
+    /** 单个汉字切不出两字词，用 LIKE 兜底；其余走全文索引。 */
+    private fun clause(word: String, column: String, fts: String, args: MutableList<Any>): String {
+        val tokens = SearchTokens.split(word)
+        val singleHan = tokens.any { it.length == 1 && it[0].code >= 0x3400 }
+        return if (tokens.isNotEmpty() && !singleHan) {
+            args += tokens.joinToString(" ") { "\"$it\"" }
+            "id IN (SELECT rowid FROM $fts WHERE $fts MATCH ?)"
+        } else {
+            args += "%" + word.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+            "$column LIKE ? ESCAPE '\\'"
+        }
+    }
+
+    fun lineQuery(words: List<String>): Pair<String, List<Any>> {
+        val args = mutableListOf<Any>()
+        val where = words.joinToString(" AND ") { clause(it, "text", "lines_fts", args) }
+        return "SELECT id, startAt, text, speakerName, segmentId FROM transcript_lines WHERE $where " +
+            "ORDER BY startAt DESC, id DESC LIMIT $FETCH" to args
+    }
+
+    fun eventQuery(words: List<String>): Pair<String, List<Any>> {
+        val args = mutableListOf<Any>()
+        val where = words.joinToString(" AND ") { clause(it, "title || ' ' || summary", "events_fts", args) }
+        // 第 5 列是价值加成，与 MemoryValueRules.eventBonus 同公式。
+        return "SELECT id, startAt, title, summary, starred*${app.resound.data.MemoryValueRules.EVENT_STAR_BONUS} + important*${app.resound.data.MemoryValueRules.EVENT_IMPORTANT_BONUS} FROM memory_events WHERE deleted = 0 AND $where " +
+            "ORDER BY startAt DESC, id DESC LIMIT $FETCH" to args
+    }
+
+    fun merge(lines: List<SearchHit>, events: List<SearchHit>): List<SearchHit> =
+        (lines + events).sortedWith(compareByDescending<SearchHit> { it.at }.thenBy { it.kind }).take(LIMIT)
 
     /** 原文里逐词都出现才算命中（不分大小写）。 */
     fun contains(text: String, words: List<String>) = words.all { text.contains(it, ignoreCase = true) }
@@ -26,4 +67,32 @@ object RecordSearchRules {
 /** 记录搜索入口：对话、事件、待办、记忆和其他五类各自计数、时间过滤与分页（卡 194）。 */
 class RecordSearch(private val db: RoomDatabase) {
     suspend fun searchAll(request: ExpandedSearchRequest): ExpandedSearchResult = ExpandedSearch(db).search(request)
+
+    suspend fun search(query: String): List<SearchHit> {
+        val words = RecordSearchRules.words(query)
+        if (words.isEmpty()) return emptyList()
+        val (lineSql, lineArgs) = RecordSearchRules.lineQuery(words)
+        val lines = db.readSql(lineSql, lineArgs.toTypedArray()) { s ->
+            buildList {
+                while (s.step()) {
+                    val text = s.getText(2)
+                    if (!RecordSearchRules.contains(text, words)) continue
+                    add(SearchHit(SearchHit.Kind.Line, s.getLong(0), s.getLong(1), RecordSearchRules.snippet(text, words),
+                        if (s.isNull(3)) null else s.getText(3), s.getLong(4)))
+                }
+            }
+        }
+        val (eventSql, eventArgs) = RecordSearchRules.eventQuery(words)
+        val events = db.readSql(eventSql, eventArgs.toTypedArray()) { s ->
+            buildList {
+                while (s.step()) {
+                    val title = s.getText(2); val summary = s.getText(3)
+                    if (!RecordSearchRules.contains("$title $summary", words)) continue
+                    val body = if (RecordSearchRules.contains(title, words)) title else "$title：" + RecordSearchRules.snippet(summary, words)
+                    add(SearchHit(SearchHit.Kind.Event, s.getLong(0), s.getLong(1), body, valueBonus = s.getLong(4).toInt()))
+                }
+            }
+        }
+        return RecordSearchRules.merge(lines, events)
+    }
 }

@@ -1,5 +1,7 @@
 package app.resound.capture
 
+import app.resound.AppGraph
+import app.resound.auth.Capability
 import app.resound.diagnostics.FailureNotes
 
 import android.Manifest
@@ -39,6 +41,14 @@ class AndroidCaptureController(private val context: Context, private val store: 
         else update(CaptureState.Stopped)
     }
     private fun dispatch(action: String, minutes: Int = 60) {
+        // AUTH：未授权不发起录音——UI 路径在此弹登录，登录成功自动重发同一命令；
+        // STOP/PAUSE 是"停下"动作永远放行（登出后也要能安全收尾）；直启服务的入口由服务端闸兜底。
+        val gated = action == CaptureService.START || action == CaptureService.RESUME
+        if (gated && AppGraph.isAuthReady &&
+            !AppGraph.auth.requireOrPrompt(Capability.RecordAudio) { dispatch(action, minutes) }) {
+            if (!CaptureService.alive) update(CaptureState.Stopped)
+            return
+        }
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED || !CaptureNotifications.permitted(context)) {
             update(CaptureState.NoPermission); return
         }

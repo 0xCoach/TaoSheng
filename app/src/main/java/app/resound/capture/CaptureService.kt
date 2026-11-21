@@ -3,7 +3,8 @@ package app.resound.capture
 import app.resound.transcribe.PlaybackOverride
 import app.resound.digest.DigestMode
 import app.resound.AppGraph
-import app.resound.topic.TopicPolicy
+import app.resound.auth.AuthGate
+import app.resound.auth.Capability
 
 import android.app.*
 import android.content.Intent
@@ -39,6 +40,10 @@ class CaptureService : Service() {
     private var capture: Job? = null
     private var resumeTimer: Job? = null
     private var heartbeat: Job? = null
+    /** 试用到期精确任务：心跳只是兜底，到点用单调延迟的 RECHECK 触发收尾（delay 用单调时钟，改系统时间不影响）。 */
+    private var trialExpiryJob: Job? = null
+    /** 试用计量的单调时钟锚点——改系统时间不 inflate/deflate 已用量。 */
+    private var intervalStartElapsed = 0L
     private var initialized = false
     private var normalStop = false
     private val beatMutex = Mutex()
@@ -118,8 +123,23 @@ class CaptureService : Service() {
         val command = intent ?: Intent().setAction(START).putExtra("route", "system-sticky")
         // 停止也不创建新的录音会话。
         if (command.action == STOP) { commands.trySend(Command(command)); return START_NOT_STICKY }
+        // AUTH：所有进入录音动作的入口（界面/磁贴/通知/Widget/场景/快捷指令）统一在这里拦。
+        // 已初始化（正在录）时走正常 STOP 通道安全收尾——当前片段写完、心跳归档；
+        // 未初始化时绝不为此新建录音会话。
+        if (AppGraph.isAuthReady && !AppGraph.auth.allowed(Capability.RecordAudio)) {
+            if (initialized) commands.trySend(Command(Intent().setAction(STOP).putExtra("route", "auth-expired")))
+            else {
+                controller.update(CaptureState.Stopped)
+                store.prefs.edit().putBoolean("enabled", false).commit()
+                // startForegroundService 契约：必须尽快 startForeground，否则系统判超时崩溃。
+                runCatching { startForegroundWithLocation() }
+                stopSelf()
+            }
+            return START_NOT_STICKY
+        }
         if (!CaptureNotifications.permitted(this)) {
             controller.update(CaptureState.NoPermission)
+            runCatching { startForegroundWithLocation() }
             stopSelf(); return START_NOT_STICKY
         }
         try {
@@ -160,7 +180,7 @@ class CaptureService : Service() {
             normalStop = true
             store.prefs.edit().putBoolean("enabled", false).putBoolean("unclean", false).putLong("pausedUntil", 0).putLong("manualPausedUntil", 0).remove("quietName").commit()
             transition(CaptureState.Stopped)
-            heartbeat?.cancel()
+            heartbeat?.cancel(); trialExpiryJob?.cancel()
             releaseWakeLock()
             stopLocation()
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -178,7 +198,7 @@ class CaptureService : Service() {
                 store.event(WatchdogEventType.Recovered, "恢复途径=${intent.getStringExtra("route") ?: "unknown"}")
             }
             store.prefs.edit().putBoolean("enabled", true).putBoolean("unclean", true).putLong("heartbeat", now).commit()
-            initialized = true; intervalStart = now
+            initialized = true; intervalStart = now; intervalStartElapsed = SystemClock.elapsedRealtime()
             store.event(WatchdogEventType.ServiceStarted, "启动途径=${intent.getStringExtra("route")}")
             store.sampleBattery(); samplePower()
             CaptureWatchdog.schedule(this)
@@ -201,16 +221,32 @@ class CaptureService : Service() {
                 reconcilePause()
             }
             RESUME -> {
+                // 隐私暂停是硬锁：RESUME（背敲/磁贴/通知/Widget/快捷指令）只解手动暂停，
+                // 绝不顺带清 KEY_PRIVACY——解除隐私暂停只能走 PRIVACY(on=false) 的明确开关。
                 store.prefs.edit().putLong("manualPausedUntil", 0).commit()
                 app.quietSchedule.resume()
+                reconcilePause()
+            }
+            PRIVACY -> {
+                val on = intent.getBooleanExtra("on", false)
+                store.prefs.edit().putBoolean(AndroidScene.KEY_PRIVACY, on)
+                    .putLong("manualPausedUntil", if (on) Long.MAX_VALUE else 0L).commit()
                 reconcilePause()
             }
             else -> reconcilePause()
         }
     }
     private suspend fun reconcilePause() {
-        val plan = capturePausePlan(System.currentTimeMillis(), store.prefs.getLong("manualPausedUntil", 0), app.quietSchedule.refresh().takeUnless { AppGraph.isTopicsReady && TopicPolicy.overridesQuiet(AppGraph.topics.current.value, System.currentTimeMillis()) })
-        if (plan != null) pauseUntil(plan.until, plan.quietName)
+        // 授权失效兜底：心跳 RECHECK 周期内复查——试用耗尽/凭证过期时正常收尾停录（保留已录片段），
+        // 修掉"授权只在入口拦、已录会话永不复核"的缺口。
+        if (AppGraph.isAuthReady && !AppGraph.auth.allowed(Capability.RecordAudio)) {
+            handle(Intent().setAction(STOP).putExtra("route", "auth-expired")); return
+        }
+        val at = System.currentTimeMillis()
+        val decision = app.scene.decide(at)
+        app.scene.track(decision, at)
+        val plan = decision.directive
+        if (plan is CaptureDirective.Pause) pauseUntil(plan.until, plan.label)
         else if (playbackHeld) {
             capture?.cancelAndJoin(); capture = null
             releaseWakeLock()
@@ -227,8 +263,12 @@ class CaptureService : Service() {
         transition(CaptureState.Paused, until, quietName = quietName)
         releaseWakeLock()
         store.prefs.edit().putLong("pausedUntil", until).putString("quietName", quietName).commit()
-        val clock = java.time.Instant.ofEpochMilli(until).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
-        store.event(WatchdogEventType.Paused, if (quietName == null) "暂停至 $until" else "停录时段：$quietName，至 $clock")
+        store.event(WatchdogEventType.Paused, when {
+            until == Long.MAX_VALUE && quietName != null -> "专题暂停（恢复专题后继续）"
+            until == Long.MAX_VALUE -> "隐私暂停（需手动恢复）"
+            quietName == null -> "暂停至 $until"
+            else -> "停录时段：$quietName，至 ${java.time.Instant.ofEpochMilli(until).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}"
+        })
         val manager = getSystemService(AlarmManager::class.java)
         if (until != Long.MAX_VALUE) {
             try {
@@ -415,8 +455,11 @@ class CaptureService : Service() {
         }
     }
     private fun running(s: CaptureState) = s == CaptureState.Listening || s == CaptureState.Recording || s == CaptureState.MicBusy
+    /** 试用累计口径：只算真正收音的 Listening/Recording（MicBusy 让麦不计）。 */
+    private fun accrues(s: CaptureState) = s == CaptureState.Listening || s == CaptureState.Recording
     private suspend fun transition(next: CaptureState, until: Long? = null, detail: String? = null, quietName: String? = null) {
-        if (initialized && running(state) != running(next)) beat()
+        // MicBusy 边界也要补拍：让麦期间不累计试用，到期任务须挂起重排，不能照跑。
+        if (initialized && (running(state) != running(next) || accrues(state) != accrues(next))) beat()
         nightCapture?.captureState(when(next) { CaptureState.Paused -> if(quietName != null) "停录时段内没有记录" else "已暂停录音"; CaptureState.MicBusy -> "麦克风被占用"; else -> null })
         state = next; controller.update(next, until, busyDetail = detail, quietName = quietName)
     }
@@ -425,22 +468,43 @@ class CaptureService : Service() {
     private suspend fun beat() = beatMutex.withLock {
         val now = System.currentTimeMillis()
         store.dao.heartbeat(HeartbeatEntity(at = now, intervalStart = minOf(intervalStart, now), running = running(state), session = session))
-        intervalStart = now
+        // 试用计量：心跳间隔即真实在录时长（仅真正收音的 Listening/Recording 累计，MicBusy 不计）；
+        // 状态切换也会触发 beat，误差不超过一个心跳周期。
+        // 增量用 elapsedRealtime 单调时钟：改系统时间不能让已用量涨水或清零。
+        if (accrues(state) && AppGraph.isAuthReady) {
+            val s = AppGraph.auth.store
+            if (s.boundAccountId == null && s.sessionAccountId == null)
+                s.guestTrialUsedMs = s.guestTrialUsedMs + (SystemClock.elapsedRealtime() - intervalStartElapsed).coerceAtLeast(0)
+        }
+        intervalStart = now; intervalStartElapsed = SystemClock.elapsedRealtime()
         store.prefs.edit().putLong("heartbeat", now).commit()
+        scheduleTrialExpiry()
         folderImports()?.heartbeat(now)
         (applicationContext as app.resound.ResoundApp).let { application ->
             application.pipelineDiagnostics.heartbeat(AppGraph.digestTiming.mode.value == DigestMode.Interval)
             application.pipelineScheduler.trigger("心跳")
         }
     }
+    /** 精确试用到期：心跳只是兜底，按真实剩余量排一个单调延迟 RECHECK——到点走授权复核正常收尾（保留片段）。 */
+    private fun scheduleTrialExpiry() {
+        trialExpiryJob?.cancel(); trialExpiryJob = null
+        if (!AppGraph.isAuthReady || !accrues(state)) return
+        val s = AppGraph.auth.store
+        if (s.boundAccountId != null || s.sessionAccountId != null) return // 只给游客排期
+        val remaining = (AuthGate.GUEST_TRIAL_MS - s.guestTrialUsedMs).coerceAtLeast(0)
+        trialExpiryJob = scope.launch {
+            delay(remaining)
+            commands.send(Command(Intent().setAction(RECHECK).putExtra("route", "trial-expiry")))
+        }
+    }
     private suspend fun fail(detail: String) {
         if (initialized) { beat(); store.event(WatchdogEventType.ServiceStopped, "$detail；等待手动恢复，保留未正常停止标记") }
         if (state != CaptureState.NoPermission) { state = CaptureState.Stopped; controller.update(state) }
-        releaseWakeLock(); heartbeat?.cancel()
+        releaseWakeLock(); heartbeat?.cancel(); trialExpiryJob?.cancel()
         CaptureNotifications.interrupted(this)
         stopForeground(STOP_FOREGROUND_REMOVE); stopSelf()
     }
-    private fun plannedPause() = capturePausePlan(System.currentTimeMillis(), store.prefs.getLong("manualPausedUntil", 0), app.quietSchedule.refresh().takeUnless { AppGraph.isTopicsReady && TopicPolicy.overridesQuiet(AppGraph.topics.current.value, System.currentTimeMillis()) }) != null
+    private fun plannedPause() = app.scene.decide(System.currentTimeMillis()).pausing
     private fun alarmIntent() = PendingIntent.getBroadcast(this, 10, Intent(this, CaptureResumeReceiver::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     private fun cancelAlarm() { getSystemService(AlarmManager::class.java).cancel(alarmIntent()) }
     private fun refreshNotification(paused: Boolean) {
@@ -521,6 +585,8 @@ class CaptureService : Service() {
         }
         const val REMEMBER_PLAYBACK = "app.resound.capture.REMEMBER_PLAYBACK"
         const val RECHECK = "app.resound.capture.RECHECK"
+        /** R4 隐私暂停：extra "on"=true 进入（不自动恢复），false 恢复 */
+        const val PRIVACY = "app.resound.capture.PRIVACY"
         /** 规则改动、心跳和系统广播只通知已有服务，绝不在后台新建麦克风前台服务。 */
         /** 课堂模式开关或到点后刷新常驻通知的文字与按钮 */
         internal fun refreshOngoing() { instance?.let { it.refreshNotification(it.store.prefs.getLong("pausedUntil", 0) > System.currentTimeMillis()) } }

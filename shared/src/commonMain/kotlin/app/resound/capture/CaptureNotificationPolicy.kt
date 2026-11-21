@@ -22,5 +22,5 @@ object CaptureNotificationPolicy {
     fun interrupted(appName: String) = "${appName}已停止，点此恢复"
     const val INTERRUPTED_DETAIL = "后台被系统关闭，点击重新开始"
     const val SILENT = "麦克风收不到声音"
-    const val SILENT_DETAIL = "请检查系统的麦克风开关，或在涛声里暂停后再恢复"
+    const val SILENT_DETAIL = "请检查系统的麦克风开关，或在声声不息里暂停后再恢复"
 }

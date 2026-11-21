@@ -10,7 +10,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Process
-import android.util.AtomicFile
 import java.io.File
 import app.resound.data.*
 import kotlinx.coroutines.runBlocking
@@ -49,8 +48,9 @@ internal object BackupRestore {
         }
         if (pending(context).exists()) throw BackupFailure("已有待恢复数据，请重启 App")
         val id = java.util.UUID.randomUUID()
-        val workspace = File(context.cacheDir, "resound-restore-$id").apply { check(mkdirs()) }
-        val verified = File(context.noBackupFilesDir, "resound-restore-$id")
+        // 暂存目录名保持短：桌面 Windows 上长测试目录叠加深层暂存路径会让 sqlite 文件超过 MAX_PATH。
+        val workspace = File(context.cacheDir, "r-w-$id").apply { check(mkdirs()) }
+        val verified = File(context.noBackupFilesDir, "r-$id")
         try {
             IncrementalBackup.verify(source, verified, workspace, database.readSqlBlocking("PRAGMA user_version") { check(it.step()); it.getLong(0).toInt() },
                 storedPassphrase, suppliedPassphrase, fetchBase, expectedName)
@@ -74,8 +74,8 @@ internal object BackupRestore {
         stored: String?, supplied: String?, closeDatabase: () -> Unit, restartProcess: () -> Unit, checkpoint: String? = null) {
         if (pending(context).exists()) throw BackupFailure("已有待恢复数据，请重启 App")
         val id = java.util.UUID.randomUUID()
-        val work = File(context.cacheDir, "resound-restore-$id").apply { check(mkdirs()) }
-        val verified = File(context.noBackupFilesDir, "resound-restore-$id")
+        val work = File(context.cacheDir, "r-w-$id").apply { check(mkdirs()) }
+        val verified = File(context.noBackupFilesDir, "r-$id")
         try {
             val source = if (checkpoint == null) HistoryVolumes.latest(store, work) else HistoryVolumes.selected(store, checkpoint, work)
             DayVolumes.restore(context, source, work, verified, stored, supplied)
@@ -88,8 +88,10 @@ internal object BackupRestore {
     private fun snapshot(context: Context, database: CaptureDatabase) {
         val directory = File(context.noBackupFilesDir, "before-restore").apply { check(isDirectory || mkdirs()) }
         val id = java.util.UUID.randomUUID()
-        val stage = File(directory, ".$id-content").apply { check(mkdirs()) }
-        val part = File(directory, ".$id.part")
+        // 暂存目录名保持短：桌面 Windows 上长测试目录叠加深层暂存路径会让 sqlite 文件超过 MAX_PATH。
+        val short = id.toString().take(13)
+        val stage = File(directory, ".c$short").apply { check(mkdirs()) }
+        val part = File(directory, ".$short.part")
         try {
             DayVolumes.export(context, database, stage, part, null)
             check(part.renameTo(File(directory, "$id.zip")))
@@ -167,10 +169,7 @@ internal object BackupRestore {
                 return@forEach
             }
             val target = File(data, path).apply { parentFile!!.mkdirs() }
-            val atomic = AtomicFile(target)
-            val stream = atomic.startWrite()
-            try { source.inputStream().use { it.copyTo(stream) }; atomic.finishWrite(stream) }
-            catch (e: Exception) { atomic.failWrite(stream); throw e }
+            app.resound.util.atomicWriteFile(target) { out -> source.inputStream().use { it.copyTo(out) } }
         }
         val settings = File(pending, "settings.json")
         val secrets = File(pending, "secrets.json")

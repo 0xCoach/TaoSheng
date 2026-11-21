@@ -47,7 +47,7 @@ class AskFollowUp097DeviceTest {
                 tokens += p + c
                 (context.applicationContext as ResoundApp).database.memory().addUsage(LocalDate.now().toString(), p, c, UsagePurpose.Ask)
             })
-            val system = DigestPrompt.system(AppGraph.prompts.text("ask"), LocalDate.now(), "涛声")
+            val system = DigestPrompt.system(AppGraph.prompts.text("ask"), LocalDate.now(), "声声不息")
             val history = mutableListOf<AskMessage>()
             for ((index, question) in listOf("纸飞机项目会议决定了什么？", "最后结论是啥").withIndex()) {
                 val evidence = if (index == 0) reader.read(AskSource("event", 9, 1000, "", "")) else reader.followUp(history)

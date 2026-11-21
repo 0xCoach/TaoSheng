@@ -49,7 +49,7 @@ internal fun AndroidPushChannels.attachSubscriptions(context: Context, database:
     }
     subscriptions.reminderSettings = { AppGraph.memory.appointmentReminders.value }
     phoneReminders = PhoneReminders(context.getSharedPreferences("phone-reminders", Context.MODE_PRIVATE),
-        { requireNotNull(subscriptions.automaticSource)(null, false) }, subscriptions.reminderSettings, LocalNotifier(context), { at, continuation -> schedulePhoneReminder(context, at, continuation) },
+        { requireNotNull(subscriptions.automaticSource)(null, false) }, subscriptions.reminderSettings, LocalNotifier(context, LocalNotifier.TODO_CHANNEL), { at, continuation -> schedulePhoneReminder(context, at, continuation) },
         strongNotifier = StrongReminderNotifier(context),
         onRefresh = { snapshot -> StrongReminders.sweep(context, snapshot) })
     scope.launch(Dispatchers.IO) {

@@ -34,7 +34,7 @@ internal fun CoroutineWorker.reviewForegroundInfo(): ForegroundInfo {
         NotificationChannel("review-preparation", "回顾与整理", NotificationManager.IMPORTANCE_LOW))
     return ForegroundInfo(5300 + (id.hashCode() and 0xffff),
         NotificationCompat.Builder(applicationContext, "review-preparation")
-            .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle("涛声正在生成回顾")
+            .setSmallIcon(app.resound.R.drawable.ic_notify).setContentTitle("声声不息正在生成回顾")
             .setOngoing(true).build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
 }
 

@@ -3,7 +3,7 @@
 import argparse,csv,json,pathlib,re,time,subprocess,math
 import numpy as np,soundfile as sf,sherpa_onnx
 from scipy.signal import resample_poly
-p=argparse.ArgumentParser();p.add_argument('--model',type=pathlib.Path,required=True);p.add_argument('--data',type=pathlib.Path,default=pathlib.Path.home()/'Datasets/taosheng-audio');p.add_argument('--output',type=pathlib.Path,default=pathlib.Path('/tmp/070-phone.json'));a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--model',type=pathlib.Path,required=True);p.add_argument('--data',type=pathlib.Path,default=pathlib.Path.home()/'Datasets/soundsound-audio');p.add_argument('--output',type=pathlib.Path,default=pathlib.Path('/tmp/070-phone.json'));a=p.parse_args()
 rules=(pathlib.Path(__file__).resolve().parents[2]/'app/src/main/java/app/resound/envsound/EnvSoundRules.kt').read_text()
 def names(key): return re.findall(r'"([^"]+)"',re.search(r'val '+key+r' = listOf\(([^\n]+)\)',rules)[1])
 speech=names('speech');human=names('human')

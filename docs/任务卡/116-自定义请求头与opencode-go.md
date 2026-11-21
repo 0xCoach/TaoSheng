@@ -1,6 +1,6 @@
 # 卡 116 · 自定义请求头（大模型 + 转写）与 opencode go 预设
 
-- 工作目录 `~/Developer/TaoSheng-116`，分支 `codex/116-custom-headers`（从 `plan/0220` 拉出）。**不改 `ui/`**，设置页由 Claude 做。
+- 工作目录 `~/Developer/soundsound-116`，分支 `codex/116-custom-headers`（从 `plan/0220` 拉出）。**不改 `ui/`**，设置页由 Claude 做。
 - 版本：进 0.2.20。
 
 ## 背景

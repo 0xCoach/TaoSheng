@@ -30,12 +30,19 @@ internal object DayVolumeRows {
         "screen_events" to "at",
         // 设备播放记录按开始时刻分卷
         "playback_rows" to "fromAt",
+        // M2+/R4 记忆与任务表（087 审计补齐）：带语义时间戳的按天分卷
+        "ideas" to "createdAt", "idea_entries" to "at", "project_marks" to "at", "analysis_runs" to "createdAt",
+        "agent_tasks" to "createdAt", "decisions" to "decidedAt", "followups" to "createdAt",
+        "capture_items" to "createdAt", "rule_runs" to "at", "memory_revisions" to "at",
+        "scene_sessions" to "startedAt",
         // 夜间睡眠（卡 202/203/208）：夜晚与其事件、片段、声音包络、反馈、记梦按开始时刻分卷
         "nights" to "start", "night_events" to "start", "night_clips" to "start", "night_envelope" to "start",
         "night_feedback" to "at", "night_dreams" to "at",
     )
     val global = setOf("import_fingerprints", "folder_observations", "device_transfers", "things", "thing_watch_state", "voiceprint_people", "voiceprint_samples",
         "voiceprint_exclusions", "location_places", "screen_app_names", "screen_pull_state", "screen_coverage_gaps",
+        "projects", "project_links", "analysis_templates",
+        "agent_endpoints", "workflow_rules", "mcp_clients",
         "night_tags", "night_tag_links", "night_personal", "night_weeks", "night_notice")
     val zone: ZoneId = ZoneId.of("Asia/Shanghai")
     fun day(at: Long): String = Instant.ofEpochMilli(at).atZone(zone).toLocalDate().toString()

@@ -76,12 +76,20 @@ internal fun skillCardCopyText(card: SkillCard): String = skillCardCopyBlocks(ca
 
 private fun copyReportText(context: android.content.Context, text: String, success: String) {
     val message = try {
-        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("涛声", text))
+        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("声声不息", text))
         success
     } catch (_: RuntimeException) {
         "复制失败，内容可能超出系统剪贴板容量"
     }
     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+}
+
+private fun shareReportText(context: android.content.Context, text: String) {
+    runCatching {
+        context.startActivity(android.content.Intent.createChooser(
+            android.content.Intent(android.content.Intent.ACTION_SEND)
+                .setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, text), "分享"))
+    }.onFailure { Toast.makeText(context, "没有可用来分享的应用", Toast.LENGTH_SHORT).show() }
 }
 
 private data class ReportCopySelection(val text: String, val blocks: List<ReportCopyBlock>)
@@ -97,6 +105,7 @@ internal fun ReportCopyActions(blocks: () -> List<ReportCopyBlock> = { emptyList
                 copyReportText(context, text(), "已复制全部内容")
             }
             ActionButton("选择部分内容", ActionKind.Secondary, Modifier.weight(1f)) { selecting = ReportCopySelection(text(), blocks()) }
+            ActionButton("分享", ActionKind.Secondary) { shareReportText(context, text()) }
         }
     }
     selecting?.let { document ->

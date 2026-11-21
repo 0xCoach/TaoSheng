@@ -20,7 +20,7 @@ class PushNewline113Test {
     private val plus = "## 内容\n第一行<br/>\n**第二行** [链接](https://example.com)\n\n- 甲<br/>\n- 乙\n\n尾行 <&>"
     private val hard = "## 内容\n第一行  \n**第二行** [链接](https://example.com)\n\n- 甲  \n- 乙\n\n尾行 <&>"
     private val plain = "内容\n第一行\n第二行 链接 (https://example.com)\n\n甲\n乙\n\n尾行 <&>"
-    private val message = PushMessage("【涛声测试】推送换行", body, PushTopic.NewEvent, null, 1)
+    private val message = PushMessage("【声声不息测试】推送换行", body, PushTopic.NewEvent, null, 1)
     private val transport = PushTransport(now = { 1_700_000_000_000L })
     private fun request(kind: PushKind, format: PushFormat, value: PushMessage = message): Request = transport.request(kind, format, when (kind) {
         PushKind.PushPlus -> mapOf("token" to "fake-token")

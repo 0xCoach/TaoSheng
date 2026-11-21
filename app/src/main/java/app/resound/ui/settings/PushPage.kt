@@ -105,7 +105,7 @@ fun PushPage(repo: PushChannels, bottomPadding: Dp) {
                 }
             }
         }
-        // 卡 214：隐私删除后还留在推送文件夹里的文件（涛声不删远端文件），请用户自己去删
+        // 卡 214：隐私删除后还留在推送文件夹里的文件（声声不息不删远端文件），请用户自己去删
         item { LeftoverFiles(repo) }
         if (logs.isNotEmpty()) {
             item { Text("最近推送", style = RsType.section, color = c.textSecondary, modifier = Modifier.padding(start = 4.dp, top = 12.dp)) }
@@ -325,7 +325,7 @@ private fun AgentCopy(repo: PushChannels, id: Long) {
     var copied by remember { mutableStateOf(false) }
     val text = prompt ?: return
     ActionButton(if (copied) "已复制" else "复制给智能体", ActionKind.Secondary) {
-        val clip = ClipData.newPlainText("涛声记忆库", text).apply {
+        val clip = ClipData.newPlainText("声声不息记忆库", text).apply {
             // 含应用密码：系统剪贴板预览里不显示内容
             description.extras = PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }
         }
@@ -549,7 +549,7 @@ private fun SubscriptionEditor(sub: PushSubscription, caps: PushCapabilities, fo
             ToggleRow("只在充电时传", "录音多时更省电，一般晚上充电时传完", sub.audioChargingOnly) { onChange(sub.copy(audioChargingOnly = it)) }
             ToggleRow("推通话录音", "系统通话录音手机里本来就有，一般不用推", sub.audioCalls) { onChange(sub.copy(audioCalls = it)) }
             ToggleRow("推导入的录音", "导入的原文件你手里本来就有，一般不用推", sub.audioImports) { onChange(sub.copy(audioImports = it)) }
-            Text("推出去的文件由你自己管理，涛声不会去删。做隐私删除时，会列出这里需要你自己删的文件。", style = RsType.caption, color = c.textTertiary)
+            Text("推出去的文件由你自己管理，声声不息不会去删。做隐私删除时，会列出这里需要你自己删的文件。", style = RsType.caption, color = c.textTertiary)
             Text("“全部录音”一天几十 MB；坚果云免费版每月只能上传约 1 GB，建议选“只推人声”，或把录音推到 S3、手机文件夹。",
                 style = RsType.caption, color = c.warning)
         }
@@ -693,7 +693,7 @@ private fun LocalFolderPicker(values: MutableMap<String, String>) {
     Text("可以选 SD 卡、U 盘，或网盘 App 会自动同步的文件夹。不需要联网，录音写完会逐个核对。", style = RsType.caption, color = c.textTertiary)
 }
 
-/** 树地址 → “内部存储/Music/涛声”“SD 卡/涛声” 这样的名字 */
+/** 树地址 → “内部存储/Music/声声不息”“SD 卡/声声不息” 这样的名字 */
 private fun folderLabel(uri: android.net.Uri): String = runCatching {
     val id = android.provider.DocumentsContract.getTreeDocumentId(uri)
     val volume = id.substringBefore(':'); val path = id.substringAfter(':', "")
@@ -714,7 +714,7 @@ private fun LeftoverFiles(repo: PushChannels) {
         Row(Modifier.fillMaxWidth().springClick { open = !open }, verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("${items.size} 个文件还留在推送的文件夹里", style = RsType.body, color = c.text)
-                Text("你做了隐私删除，但这些文件之前已经推出去了。涛声不会删远端的文件，需要的话自己去删。", style = RsType.caption, color = c.textSecondary)
+                Text("你做了隐私删除，但这些文件之前已经推出去了。声声不息不会删远端的文件，需要的话自己去删。", style = RsType.caption, color = c.textSecondary)
             }
             Text(if (open) "收起" else "查看", style = RsType.subhead, color = c.accent, modifier = Modifier.padding(start = 8.dp))
         }

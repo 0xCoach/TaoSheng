@@ -18,7 +18,8 @@ class Parity160Test {
  @org.junit.After fun reset200Zone() { app.resound.platform.HistoricalZones.history = { app.resound.platform.ZoneHistory(emptyList(), "UTC") } }
  private val day = LocalDate(2026,11,12)
  private val skill = Skill("sample", "例会", "摘要", "meeting", SkillOrigin.Mine, 1, true, SkillTrigger.Daily(1260), SkillScope(), listOf(SkillField("body", "内容", FieldType.Paragraph, "写原话", true)), 1, true, null, false)
- private fun fixture(name: String, actual: String) = assertEquals(javaClass.getResource("/parity160/$name.txt")!!.readText(), actual)
+ // 录制文件在 Windows 检出会变成 CRLF：归一化后比较，与平台无关
+private fun fixture(name: String, actual: String) = assertEquals(javaClass.getResource("/parity160/$name.txt")!!.readText().replace("\r\n", "\n"), actual)
  private val group = TopicGroup(TopicRow(id=1,kind="Script",name="口播 /\n😀",status="Ended",createdAt=0),listOf(TopicSpanRow(topicId=1,startAt=0,endAt=10000)),listOf(TopicMarkRow(topicId=1,at=2000)))
  @Test fun skillSystem() = fixture("skill-system",SkillPrompt.system(skill,"保留 / 原话\n不扩写",day,""))
  @Test fun draftSystem() = fixture("draft-system",SkillDrafter.system("", "UTC+8"))

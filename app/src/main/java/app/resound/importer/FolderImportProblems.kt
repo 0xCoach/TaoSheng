@@ -12,11 +12,11 @@ internal object FolderImportProblems {
         else -> "导入失败，可以重试"
     }
 
-    /** 涛声自己写的说明；系统异常文字可能带路径和文件名（含姓名、号码），一律不记 */
+    /** 声声不息自己写的说明；系统异常文字可能带路径和文件名（含姓名、号码），一律不记 */
     private val OWN = setOf("无法读取文件夹", "文件夹尚未加载完成，请稍后重试", "无法读取录音", "文件仍在写入，稍后重试",
         "文件已不存在", "这个文件里没找到声音", "暂不支持这种格式")
 
-    /** 只记扩展名、原因、异常类别和涛声自己的说明 */
+    /** 只记扩展名、原因、异常类别和声声不息自己的说明 */
     @Synchronized fun record(context: Context, extension: String, reason: String, e: Exception) {
         runCatching {
             val prefs = context.getSharedPreferences("folder-import-problems", Context.MODE_PRIVATE)

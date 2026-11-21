@@ -25,6 +25,6 @@
 - [设备能力、D3200 支持范围与接入流程](../硬件接入与协议适配.md)
 - [插件提交清单与真机报告模板](插件提交清单.md)
 - [录包格式](录包格式.md)
-- [在 GitHub 发起硬件接入讨论](https://github.com/0xCoach/TaoSheng/issues/new)
+- [在 GitHub 发起硬件接入讨论](https://github.com/0xCoach/soundsound/issues/new)
 
 厂商与开发者可提供协议资料、SDK、设备与固件信息和测试样机，共同完善适配。

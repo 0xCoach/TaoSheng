@@ -2,3 +2,15 @@
 
 # Real hardware capture prefixes must retain the reviewed original bytes.
 devices/src/jvmTest/resources/d3200-captured/replay-*-prefix.txt -text
+
+# schema 导出与测试金样本参与 SHA-256/逐字节比对，必须固定 LF（否则 Windows autocrlf 改字节）。
+shared/schemas/**/*.json text eol=lf
+app/src/test/resources/**/*.txt text eol=lf
+app/src/test/resources/**/*.json text eol=lf
+app/src/test/resources/**/*.md text eol=lf
+app/src/test/resources/**/*.patch text eol=lf
+# bsdiff 差异包是二进制，不是文本补丁；上面的 *.patch 规则不能套它
+app/src/test/resources/update/update.patch -text
+app/src/test/resources/**/*.py text eol=lf
+shared/src/jvmTest/resources/**/*.txt text eol=lf
+shared/src/jvmTest/resources/**/*.json text eol=lf

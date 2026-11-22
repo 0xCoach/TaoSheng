@@ -34,6 +34,12 @@ sealed interface InputChoice {
     /** 有 USB / 有线麦克风就用（多个时用最近接上的），都没有用手机麦克风；不自动选蓝牙（卡 112） */
     data object AutoExternal : InputChoice
 
+    /**
+     * 卡 220（#63）：自动且含蓝牙。USB / 有线 > 蓝牙 LE Audio > 蓝牙通话 > 手机，同档用最近接上的。
+     * 蓝牙走通话通道，所以单独做一项，原来的 [AutoExternal] 不变。
+     */
+    data object AutoWithBluetooth : InputChoice
+
     /** 指定某个设备；没接着时先用手机麦克风，接上自动切过去 */
     data class Device(val key: String, val name: String) : InputChoice
 }

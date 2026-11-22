@@ -47,13 +47,17 @@ fun InputSection(inputs: InputDevices) {
     val askBluetooth = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { pending?.let(inputs::choose); pending = null }
     fun isBluetooth(k: InputKind) = k == InputKind.BluetoothCall || k == InputKind.BluetoothLe
+    fun bluetoothDenied() = android.os.Build.VERSION.SDK_INT >= 31 &&
+        androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
     fun pick(next: InputChoice) {
-        val needs = android.os.Build.VERSION.SDK_INT >= 31 && when (next) {
+        val needs = when (next) {
             is InputChoice.Device -> devices.firstOrNull { it.key == next.key }?.let { isBluetooth(it.kind) } == true
+            // 卡 220（#63）：含蓝牙的自动选的时候就要权限，否则蓝牙麦静默用不上
+            InputChoice.AutoWithBluetooth -> true
             InputChoice.AutoExternal -> false
             InputChoice.Phone -> false
-        } && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) !=
-            android.content.pm.PackageManager.PERMISSION_GRANTED
+        } && bluetoothDenied()
         if (needs) { pending = next; askBluetooth.launch(android.Manifest.permission.BLUETOOTH_CONNECT) } else inputs.choose(next)
     }
     Section("录音输入") {
@@ -61,6 +65,9 @@ fun InputSection(inputs: InputDevices) {
             ChoiceRow("手机麦克风", "默认", "手", c.textSecondary, choice == InputChoice.Phone) { pick(InputChoice.Phone) }
             Divider()
             ChoiceRow("自动", "接上 USB 或有线麦克风就用它，拔掉换回手机", "自", c.accent, choice == InputChoice.AutoExternal) { pick(InputChoice.AutoExternal) }
+            Divider()
+            ChoiceRow("自动（含蓝牙）", "USB、有线优先，其次蓝牙麦克风；都断开换回手机", "蓝", Color(0xFF4F86C6),
+                choice == InputChoice.AutoWithBluetooth) { pick(InputChoice.AutoWithBluetooth) }
             external.forEach { d ->
                 Divider()
                 ChoiceRow(d.name, if (d.connected) d.kind.title else "${d.kind.title} · 没接着",
@@ -75,6 +82,10 @@ fun InputSection(inputs: InputDevices) {
                 Text("  正在用：${status.using.name}", style = RsType.subhead, color = c.text)
             }
             status.note?.let { Text(it, style = RsType.caption, color = c.warning) }
+            if (choice == InputChoice.AutoWithBluetooth && bluetoothDenied())
+                Text("没给“附近设备”权限，蓝牙麦克风用不上；再点一次“自动（含蓝牙）”去授权。", style = RsType.caption, color = c.warning)
+            if (choice == InputChoice.AutoWithBluetooth && status.using.kind == InputKind.Phone)
+                Text("连上蓝牙麦克风后会自动切过去；蓝牙走通话通道，音质一般。", style = RsType.caption, color = c.textTertiary)
             if (external.isEmpty()) Text("插上 Type-C 麦克风或领夹麦接收器、连上蓝牙耳机后，会出现在这里。", style = RsType.caption, color = c.textTertiary)
             if (status.using.kind == InputKind.BluetoothCall)
                 Text("蓝牙耳机走的是通话通道：音质一般，开着时听歌也会变成通话音质。", style = RsType.caption, color = c.textTertiary)

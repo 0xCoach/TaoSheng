@@ -13,6 +13,10 @@ internal data class InputSnapshot(val choice: InputChoice, val routes: List<Inpu
         InputChoice.AutoExternal -> routes.firstOrNull { it.device.kind != InputKind.BluetoothLe && it.device.kind != InputKind.BluetoothCall && it.device
             .kind != InputKind.CardDevice && it.device.connected }
             ?: InputRoute(InputDevices.PHONE)
+        // 卡 220（#63）：routes 已按最近接上排序，同档里取第一个
+        InputChoice.AutoWithBluetooth -> listOf(setOf(InputKind.Usb, InputKind.Wired, InputKind.Other), setOf(InputKind.BluetoothLe), setOf(InputKind.BluetoothCall))
+            .firstNotNullOfOrNull { tier -> routes.firstOrNull { it.device.kind in tier && it.device.connected } }
+            ?: InputRoute(InputDevices.PHONE)
         is InputChoice.Device -> routes.find { it.device.key == value.key && it.device.connected } ?: InputRoute(InputDevices.PHONE)
     }
 }

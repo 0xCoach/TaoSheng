@@ -22,11 +22,13 @@ private const val TYPE_BUILTIN_SPEAKER = 2
 private const val TYPE_BUILTIN_SPEAKER_SAFE = 24
 private const val TYPE_BUILTIN_EARPIECE = 1
 private const val TYPE_TELEPHONY = 18
+private const val TYPE_UNKNOWN = 0
 
 /** 该播放用途是否可能从扬声器出声；耳机、蓝牙等外接输出在放时不算外放。 */
 fun speakerMedia(usage: Int, routedType: Int?, outputs: List<Int>): Boolean {
     if (usage !in setOf(USAGE_MEDIA, USAGE_GAME, USAGE_UNKNOWN)) return false
-    if (routedType != null) return routedType == TYPE_BUILTIN_SPEAKER || routedType == TYPE_BUILTIN_SPEAKER_SAFE
+    // #59：路由没解析出来时系统给 TYPE_UNKNOWN(0)，和拿不到一样走下面的输出设备判断（魅族上外放抖音因此一直不算外放）
+    if (routedType != null && routedType != TYPE_UNKNOWN) return routedType == TYPE_BUILTIN_SPEAKER || routedType == TYPE_BUILTIN_SPEAKER_SAFE
     // 普通 App 常拿不到播放路由；保守地把所有外接输出排除，避免误跳过耳机时的人声。
     val external = outputs.any { it != TYPE_BUILTIN_SPEAKER && it != TYPE_BUILTIN_SPEAKER_SAFE
         && it != TYPE_BUILTIN_EARPIECE && it != TYPE_TELEPHONY }

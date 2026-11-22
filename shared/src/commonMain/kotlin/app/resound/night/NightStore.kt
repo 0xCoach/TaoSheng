@@ -201,10 +201,12 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
         val wake=signals.lastOrNull { it.kind=="wake" }?.value?.toLong() ?: row.end
         val segments=db.capture().segments(row.start,row.end).first().filter { it.importRecordId==null && it.startAt<wake }
         val existing=dao.events(id).filter { it.kind=="SleepTalk" }
-        val alive=segments.map { it.id }.toSet()
+        // #59：实时外放判定可能失灵（魅族上路由给 TYPE_UNKNOWN），再用“设备播放记录”（媒体会话）兜底：手机在放节目时录到的人声不算梦话
+        val played=if(wake>row.start) runCatching { app.resound.screentime.PlaybackQueries(db.screenTime()).overlapping(row.start,wake) }.getOrDefault(emptyList()) else emptyList()
+        val talks=segments.filter { s-> s.playbackMillis<=0 && NightRules.sleepTalk(s.startAt,s.endAt,signals) && played.none { it.from<s.endAt+5_000 && it.until>s.startAt-5_000 } }
+        val alive=talks.map { it.id }.toSet()
         existing.filter { json.decodeFromString<NightEvent>(it.payload).segmentId !in alive }.forEach { dao.deleteEvent(it.id) }
-        for(segment in segments) {
-            if(segment.playbackMillis>0 || !NightRules.sleepTalk(segment.startAt,segment.endAt,signals))continue
+        for(segment in talks) {
             val lines=db.voiceprint().lines(segment.id)
             val event=NightEvent(0,NightEventKind.SleepTalk,segment.startAt,segment.endAt,segmentId=segment.id,
                 text=lines.takeIf { it.isNotEmpty() }?.joinToString(" ") { it.text },mine=lines.isNotEmpty() && lines.all { it.speakerPersonId==0L })

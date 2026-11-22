@@ -21,8 +21,26 @@ class NightShare(private val context: Context,private val owner: AndroidNight) {
             if(level>bestEnergy) {bestEnergy=level;bestPcm=selected}
         }
         val pcm=bestPcm ?: return@withContext null
-        val dir=File(context.cacheDir,"night-share").apply {mkdirs()};cleanup()
-        val target=File(dir,"night-${System.currentTimeMillis()}-${java.util.UUID.randomUUID()}.m4a")
+        cleanup()
+        val target=File(File(context.cacheDir,"night-share").apply {mkdirs()},"night-${System.currentTimeMillis()}-${java.util.UUID.randomUUID()}.m4a")
+        FileRef(aac(pcm,target).path) to confirmed.isEmpty()
+    }
+    /**
+     * 卡 220：导出夜里任意一段还没删的录音（整段，转成 m4a）。不改片段的保留期限；录音已删返回 null。
+     * [name] 是给人看的文件名（不含扩展名），例如“鼾声 11月21日 02点14分”。
+     */
+    suspend fun exportClip(clipId: Long,name: String): FileRef? = withContext(Dispatchers.IO) {
+        val ref=owner.store.audio(clipId) ?: return@withContext null
+        val path=owner.store.dao.clip(clipId)?.path ?: return@withContext null
+        val pcm=owner.files.read(path).takeIf {it.isNotEmpty()} ?: return@withContext null
+        check(File(ref.id).isFile)
+        cleanup()
+        val safe=name.replace(Regex("[^\\p{L}\\p{N} _-]"),"").trim().take(40).ifEmpty {"夜里的声音"}
+        // 每次一个子目录：文件名可读又不会互相覆盖
+        val dir=File(File(context.cacheDir,"night-share"),java.util.UUID.randomUUID().toString()).apply {mkdirs()}
+        FileRef(aac(pcm,File(dir,"$safe.m4a")).path)
+    }
+    private fun aac(pcm: ShortArray,target: File): File {
         val raw=File(target.path+".pcm")
         try {
             raw.outputStream().buffered().use {out->pcm.forEach {out.write(it.toInt() and 255);out.write((it.toInt() ushr 8) and 255)}}
@@ -38,8 +56,12 @@ class NightShare(private val context: Context,private val owner: AndroidNight) {
                 extractor.selectTrack(0)
                 check(extractor.readSampleData(java.nio.ByteBuffer.allocate(64*1024),0)>0) { "AAC 无可播放帧" }
             } finally {extractor.release()}
-            FileRef(target.path) to confirmed.isEmpty()
+            return target
         } catch(e: Exception) {target.delete();throw e} finally {raw.delete()}
     }
-    fun cleanup() {File(context.cacheDir,"night-share").listFiles()?.filter {it.isFile && System.currentTimeMillis()-it.lastModified()>=86_400_000}?.forEach {it.delete()}}
+    /** 分享出去的副本留一天；单段导出放在子目录里，一并清掉 */
+    fun cleanup() {
+        val root=File(context.cacheDir,"night-share");val old=System.currentTimeMillis()-86_400_000
+        root.walkBottomUp().filter {it!=root}.forEach {if(it.isFile && it.lastModified()<=old || it.isDirectory && it.listFiles().isNullOrEmpty() && it.lastModified()<=old)it.delete()}
+    }
 }

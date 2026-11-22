@@ -297,6 +297,9 @@ interface NightInsights {
     /** 最响 15 秒 m4a；没有鼾声片段为 null；第二项 true 表示片段没确认过 */
     suspend fun loudestClip(nightId: Long): Pair<FileRef, Boolean>?
 
+    /** 卡 220：把某一段夜里录音导出成 m4a，文件名用 [name]；录音已删为 null。不改保留期限（没确认的仍 7 天后删）。 */
+    suspend fun exportClip(clipId: Long, name: String): FileRef? = throw UnsupportedOperationException("此实现不支持导出单段录音")
+
     /** 鼾声中断提示“不再提示” */
     suspend fun muteBreakNotice()
 

@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 internal class InputPreferences(private val prefs: SharedPreferences) {
     fun read(): InputChoice = when (prefs.getString("choice", null)) {
         "auto" -> InputChoice.AutoExternal
+        "auto-bt" -> InputChoice.AutoWithBluetooth
         "device" -> prefs.getString("key", null)?.takeIf { it.isNotBlank() }?.let {
             InputChoice.Device(it, prefs.getString("name", it) ?: it)
         } ?: InputChoice.Phone
@@ -30,6 +31,7 @@ internal class InputPreferences(private val prefs: SharedPreferences) {
         when (choice) {
             InputChoice.Phone -> edit.putString("choice", "phone")
             InputChoice.AutoExternal -> edit.putString("choice", "auto")
+            InputChoice.AutoWithBluetooth -> edit.putString("choice", "auto-bt")
             is InputChoice.Device -> edit.putString("choice", "device").putString("key", choice.key).putString("name", choice.name)
         }
         check(edit.commit()) { "录音输入设置保存失败" }

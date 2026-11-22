@@ -66,6 +66,8 @@ class Input045Test {
         BackupSettings.capture(context,dir) { _,_ -> "" }
         InputPreferences(prefs).write(InputChoice.AutoExternal)
         assertEquals(InputChoice.AutoExternal,InputPreferences(prefs).read())
+        InputPreferences(prefs).write(InputChoice.AutoWithBluetooth)
+        assertEquals(InputChoice.AutoWithBluetooth,InputPreferences(prefs).read())
         BackupSettings.apply(context,dir) { _,_,_ -> }
         assertEquals(chosen,InputPreferences(prefs).read())
     }

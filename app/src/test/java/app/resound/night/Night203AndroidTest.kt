@@ -39,6 +39,23 @@ class Night203AndroidTest {
             insights.initialize();repeat(20) {assertTrue(insights.createTag("自建$it").isSuccess)};assertTrue(insights.createTag("超额").isFailure)
         } finally {scope.cancel();db.close();context.deleteDatabase("night203-dream.db")}
     }
+    /** #59：实时外放判定失灵时，“设备播放记录”里在放节目的那段人声不算梦话；旧的误判在重算时清掉 */
+    @Test fun voiceDuringRecordedPlaybackIsNotSleepTalk()=runBlocking(Dispatchers.IO) {
+        val context=RuntimeEnvironment.getApplication();val db=CaptureDatabase.open(context,"night220-talk.db")
+        val scope=CoroutineScope(SupervisorJob()+Dispatchers.Default);val t=1_000_000L
+        val store=NightStore(db,scope,NightSettings(),{}, {},{t},{ZoneHistory(emptyList(),"UTC")},{true},{FileRef("/private/$it")},{error("unused")},{},{},MutableStateFlow(emptyList()))
+        try {
+            val id=store.create(NightSession(t,t,t,t+3_600_000),LocalDate(2026,11,22))
+            db.capture().segment(SegmentEntity(201,t+60_000,t+70_000,"phone","show.pcm",10,"Done"))
+            db.capture().segment(SegmentEntity(202,t+3_000_000,t+3_005_000,"phone","talk.pcm",10,"Done"))
+            store.refreshSpeech(id)
+            assertEquals(2,store.detail(id)!!.events.count { it.kind==NightEventKind.SleepTalk })
+            db.screenTime().insertPlayback(app.resound.screentime.PlaybackRow(sessionKey="k",pkg="com.ss.android.ugc.aweme",name="抖音",title=null,subtitle=null,
+                fromAt=t,untilAt=t+2_400_000,lastSeenAt=t+2_400_000))
+            store.refreshSpeech(id)
+            assertEquals(listOf(202L),store.detail(id)!!.events.filter { it.kind==NightEventKind.SleepTalk }.map { it.segmentId })
+        } finally {scope.cancel();db.close();context.deleteDatabase("night220-talk.db")}
+    }
     @Test fun deletingSourceRemovesDerivedWeekAndPersonalWeightsAtomically()=runBlocking(Dispatchers.IO) {
         val context=RuntimeEnvironment.getApplication();val db=CaptureDatabase.open(context,"night203-privacy.db")
         val scope=CoroutineScope(SupervisorJob()+Dispatchers.Default);val zones=ZoneHistory(emptyList(),"UTC")

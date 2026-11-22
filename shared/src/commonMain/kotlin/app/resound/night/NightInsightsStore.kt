@@ -11,7 +11,8 @@ import kotlinx.serialization.encodeToString
 import kotlin.time.Instant
 
 class NightInsightsStore(val store: NightStore,private val now: ()->Long,private val zones: ()->ZoneHistory,
-    private val loudest: suspend (Long)->Pair<FileRef,Boolean>?) : NightInsights {
+    private val loudest: suspend (Long)->Pair<FileRef,Boolean>?,
+    private val exporter: suspend (Long,String)->FileRef? = { _,_->null }) : NightInsights {
     private val dao get()=store.dao
     private val json get()=store.json
     override val tags=dao.tags().map {it.map {NightTag(it.id,it.name,it.preset)}}
@@ -81,6 +82,7 @@ class NightInsightsStore(val store: NightStore,private val now: ()->Long,private
         }
     }
     override suspend fun loudestClip(nightId: Long)=loudest(nightId)
+    override suspend fun exportClip(clipId: Long,name: String)=exporter(clipId,name)
     override suspend fun muteBreakNotice() {dao.notice(NightNoticeRow("break",now(),true));store.notifyChanged()}
     override fun trend(from: LocalDate,to: LocalDate)=store.nights(from,to).map {n->n.sortedBy {it.date}.map {s->NightPoint(s.date,s.times?.bedtime,s.times?.onset,s.times?.wake,s.sleepMillis,s.snoreMillis,s.coughCount,s.awakeCount,s.snoreBreaks,s.confidence,s.tags.map {it.name})}}
     override suspend fun doctorReport(from: LocalDate,to: LocalDate): DoctorReport {

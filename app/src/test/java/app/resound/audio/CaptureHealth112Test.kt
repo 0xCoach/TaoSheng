@@ -41,4 +41,17 @@ class CaptureHealth112Test {
         assertEquals(usb, InputSnapshot(InputChoice.AutoExternal, listOf(le, usb)).selected())
         assertEquals(le, InputSnapshot(InputChoice.Device(le.device.key, "耳机"), listOf(le, usb)).selected())
     }
+
+    /** 卡 220（#63）：含蓝牙的自动。USB/有线 > LE > 通话 > 手机；专用录音设备不抢 */
+    @Test fun automaticWithBluetoothPrefersWiredThenLeThenSco() {
+        val le = InputRoute(InputDevice("Bluetooth:DJI Mic Mini", "DJI Mic Mini", InputKind.BluetoothLe, true), 30)
+        val sco = InputRoute(InputDevice("Bluetooth:旧耳机", "旧耳机", InputKind.BluetoothCall, true), 31)
+        val usb = InputRoute(InputDevice("Usb:DJI", "DJI", InputKind.Usb, true), 10)
+        val card = InputRoute(InputDevice("Card:录音卡", "录音卡", InputKind.CardDevice, true))
+        fun pick(vararg routes: InputRoute) = InputSnapshot(InputChoice.AutoWithBluetooth, routes.toList()).selected()
+        assertEquals(sco, pick(sco))
+        assertEquals(le, pick(sco, le))
+        assertEquals(usb, pick(le, sco, usb))
+        assertEquals("mic", pick(card, le.copy(device = le.device.copy(connected = false))).device.key)
+    }
 }

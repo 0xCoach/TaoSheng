@@ -23,6 +23,13 @@ class PlaybackStateTest {
         val unknown = playbackState(listOf(PlaybackConfigSnapshot(A.USAGE_GAME, null)), listOf(D.TYPE_BUILTIN_SPEAKER), true)
         assertTrue(unknown.playing); assertTrue(unknown.speakerPlaying)
     }
+    /** #59：魅族上路由给 TYPE_UNKNOWN(0)，要和拿不到一样看输出设备，不能直接判“不是外放” */
+    @Test fun unknownRouteFallsBackToOutputs() {
+        val speaker = playbackState(listOf(PlaybackConfigSnapshot(A.USAGE_MEDIA, D.TYPE_UNKNOWN)), listOf(D.TYPE_BUILTIN_EARPIECE, D.TYPE_BUILTIN_SPEAKER), true)
+        assertTrue(speaker.speakerPlaying)
+        val headphones = playbackState(listOf(PlaybackConfigSnapshot(A.USAGE_MEDIA, D.TYPE_UNKNOWN)), listOf(D.TYPE_BUILTIN_SPEAKER, D.TYPE_BLUETOOTH_A2DP), true)
+        assertFalse(headphones.speakerPlaying)
+    }
     @Test fun stoppedBecomesAllFalseEvenWithLingeringPlayers() {
         // 暂停后播放器往往还挂着（配置仍在），必须跟随 isMusicActive 发布 false
         val configs = listOf(PlaybackConfigSnapshot(A.USAGE_MEDIA, D.TYPE_BUILTIN_SPEAKER))

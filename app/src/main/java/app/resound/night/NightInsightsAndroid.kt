@@ -18,7 +18,7 @@ import kotlin.time.Instant
 
 class NightInsightsAndroid(private val context: Context,private val owner: AndroidNight) {
     private val share=NightShare(context,owner)
-    val repository=NightInsightsStore(owner.store,System::currentTimeMillis,HistoricalZones.history,share::export)
+    val repository=NightInsightsStore(owner.store,System::currentTimeMillis,HistoricalZones.history,share::export,share::exportClip)
     private val dao get()=owner.store.dao
     private val json get()=owner.store.json
     private val training = PersonalNightTraining(owner.store,NightFiles::scores) { signature ->

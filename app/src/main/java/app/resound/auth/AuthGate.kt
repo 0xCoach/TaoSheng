@@ -42,6 +42,9 @@ class AuthGate(
     /** 登录/注册成功后的装配回调（AppGraph 挂：刷新官方 AI 状态→可能自动选中官方条目）。 */
     var onAuthSuccess: (() -> Unit)? = null
 
+    /** 动作被门禁拒绝且本次不弹面板时的提醒回调（装配层挂 Toast/通知）；reason 直接给用户看。 */
+    var onActionDenied: ((Capability, String) -> Unit)? = null
+
     /**
      * 服务端拒绝会话（refresh 401-403 等）：清本地会话 + 停止敏感任务 + 立即请求登录面板 + 通知。
      * 不这么做的话用户只能在下次点受保护入口时撞墙——失效本身不可见，表现为"点什么都没反应"。
@@ -100,7 +103,11 @@ class AuthGate(
         // 冷却只适用于"已登录的归属确认"；未登录/会话失效时必须始终能弹登录——
         // 否则登出态取消一次面板，所有受保护入口会静默失效 24 小时（无提示无跳转）。
         if (store.sessionAccountId != null && ownershipIssue() &&
-            System.currentTimeMillis() - store.bindDeclinedAt < BIND_DECLINE_COOLDOWN_MS) return false
+            System.currentTimeMillis() - store.bindDeclinedAt < BIND_DECLINE_COOLDOWN_MS) {
+            // 冷却拒绝必须有声：否则录音/导出等入口表现为"点了没反应"，原因完全不可见。
+            onActionDenied?.invoke(cap, d.reason)
+            return false
+        }
         if (d.status != AuthStatus.Disabled) pendingAction = action
         else pendingAction = null
         _loginRequested.value = LoginRequest(cap, d.reason)

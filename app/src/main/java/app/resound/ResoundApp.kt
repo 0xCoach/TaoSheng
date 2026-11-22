@@ -177,6 +177,12 @@ class ResoundApp : Application() {
                 }
             }
         }
+        // AUTH：归属冷却期内的拒绝不再弹面板，必须至少给一句原因——否则"点录音没反应"。
+        AppGraph.auth.onActionDenied = { _, reason ->
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                android.widget.Toast.makeText(this@ResoundApp, reason, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
         // 敲敲手势：开设置后监听加速度计；敲 N 下=录中暂停/停中恢复/未录启动
         app.resound.capture.KnockGestureController(this, store).start()
         AppGraph.quietSchedule = quietSchedule

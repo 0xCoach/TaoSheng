@@ -50,7 +50,13 @@ class AndroidCaptureController(private val context: Context, private val store: 
             return
         }
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED || !CaptureNotifications.permitted(context)) {
-            update(CaptureState.NoPermission); return
+            update(CaptureState.NoPermission)
+            // 点了开始却只因权限被拒：状态变化不够显眼，补一条说得清原因的提示。
+            val missing = if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) "麦克风" else "通知"
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                android.widget.Toast.makeText(context, "缺少${missing}权限，请在系统设置中开启后再开始录音", android.widget.Toast.LENGTH_LONG).show()
+            }
+            return
         }
         try {
             ContextCompat.startForegroundService(context, Intent(context, CaptureService::class.java).setAction(action)

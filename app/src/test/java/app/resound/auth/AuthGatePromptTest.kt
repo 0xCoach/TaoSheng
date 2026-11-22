@@ -64,6 +64,21 @@ class AuthGatePromptTest {
         assertNull("冷却期内不再自动弹", gate.loginRequested.value)
     }
 
+    /** 回归：冷却期内的拒绝必须触发原因提醒（原 bug：静默 24h，点录音毫无反应）。 */
+    @Test fun cooldownDenialNotifiesReason() {
+        inject(accountId = "u1")
+        val (store, gate) = newGate()
+        store.hasLocalData = true
+        gate.dismissLogin()
+        var hit: Pair<Capability, String>? = null
+        gate.onActionDenied = { cap, reason -> hit = cap to reason }
+        assertFalse(gate.requireOrPrompt(Capability.RecordAudio) {})
+        assertNull(gate.loginRequested.value)
+        assertNotNull("冷却拒绝也必须出声", hit)
+        assertEquals(Capability.RecordAudio, hit?.first)
+        assertTrue(hit?.second?.isNotBlank() == true)
+    }
+
     @Test fun ownerVerificationWithoutCompletedBindingOnlyAllowsBackup() {
         inject(accountId = "u1")
         val (store, gate) = newGate()

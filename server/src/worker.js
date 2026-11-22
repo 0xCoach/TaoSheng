@@ -18,7 +18,7 @@ const nowS = () => Math.floor(Date.now() / 1000);
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json; charset=utf-8" } });
 }
-const err = (msg, status = 400) => json({ error: msg }, status);
+const err = (msg, status = 400, code = undefined) => json(code ? { error: msg, code } : { error: msg }, status);
 
 function timingSafeEq(a, b) {
   const x = enc.encode(a), y = enc.encode(b);
@@ -275,6 +275,11 @@ export default {
           user.status = "active";
         }
         const issued = await issueSession(env, user, b.device_id, b.device_name);
+        // 设备指纹触达即记账：登录也记，堵住"在别的设备注册、回本机注册小号"的口子。
+        // 记录不影响登录本身——一机一免费只在 /auth/register 拦截。
+        const fp = typeof b.device_fp === "string" ? b.device_fp.slice(0, 128) : "";
+        if (fp) await env.DB.prepare("INSERT OR IGNORE INTO device_free(device_fp,user_id,first_seen_at) VALUES(?,?,?)")
+          .bind(fp, user.id, nowS()).run();
         await env.DB.prepare("DELETE FROM login_attempts WHERE key=?").bind(`${b.username}|${ip}`).run();
         await audit(env, user.id, "login.ok", b.device_id, req);
         return json({
@@ -298,6 +303,14 @@ export default {
         if (rl.blocked) { await audit(env, null, "register.rate_limited", username, req); return err("too many attempts", 429); }
         const exists = await env.DB.prepare("SELECT id FROM users WHERE username=?").bind(username).first();
         if (exists) return err("username taken", 409);
+        // 一机一免费：设备指纹已被任何账号触达过，就不能再注册免费账号
+        // （device_fp 为空=老版本客户端，不拦；管理端建的受邀账号走登录+激活码，不受影响）。
+        const fp = typeof b.device_fp === "string" ? b.device_fp.slice(0, 128) : "";
+        if (fp) {
+          const used = await env.DB.prepare("SELECT user_id FROM device_free WHERE device_fp=?").bind(fp).first();
+          if (used) { await audit(env, used.user_id, "register.device_free_used", b.device_id, req);
+            return err("此设备已注册过免费账号，请登录原账号或联系管理员", 403, "DEVICE_FREE_USED"); }
+        }
         const id = uuid();
         const capsJson = JSON.stringify(CAPS_DEFAULT);
         await env.DB.prepare(
@@ -305,6 +318,8 @@ export default {
           .bind(id, username, await hashPassword(b.password), "active", capsJson, null, nowS()).run();
         const user = { id, username, capabilities: capsJson, created_at: nowS() };
         const issued = await issueSession(env, user, b.device_id, b.device_name);
+        if (fp) await env.DB.prepare("INSERT OR IGNORE INTO device_free(device_fp,user_id,first_seen_at) VALUES(?,?,?)")
+          .bind(fp, id, nowS()).run();
         await audit(env, id, "register.ok", b.device_id, req);
         return json({
           account: { id, username, created_at: nowS(), capabilities: await effectiveCaps(env, user) },

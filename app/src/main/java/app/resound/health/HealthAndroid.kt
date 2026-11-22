@@ -16,6 +16,8 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import app.resound.AppGraph
+import app.resound.auth.Capability
 import app.resound.backup.BackupRepository
 import app.resound.capture.CaptureController
 import app.resound.capture.CaptureNotifications
@@ -92,6 +94,8 @@ class AndroidHealthCheck(
         watch(transcribe.ready); watch(transcripts.queue.map { it.failed }.distinctUntilChanged())
         watch(digest.hasKey); watch(providers.saved); watch(providers.activeId)
         watch(balance.state); watch(balance.threshold); watch(backup.state); watch(backup.local)
+        // 账号归属/登录状态变化会改变录音门禁结论，体检卡要即时刷新真实原因。
+        if (AppGraph.isAuthReady) watch(AppGraph.auth.status)
         // 只有设置页展示报告时才读取日志；历史用于异常去重，不能随意截断。
         owner.launch {
             current.subscriptionCount.map { it > 0 }.distinctUntilChanged().collectLatest { visible ->
@@ -154,6 +158,8 @@ class AndroidHealthCheck(
                 Instant.ofEpochMilli(it.first).atZone(zone).toLocalDate().toEpochDay() == date.toEpochDay()
             }?.groupingBy { it.second }?.eachCount().orEmpty(),
             manualPausedUntil = capturePrefs.getLong("manualPausedUntil", 0),
+            recordingBlockedReason = if (AppGraph.isAuthReady)
+                AppGraph.auth.require(Capability.RecordAudio).takeUnless { it.allowed }?.reason else null,
         ))
     }
 

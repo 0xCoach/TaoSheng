@@ -354,6 +354,7 @@ private fun HealthCard(r: HealthReport, capture: CaptureController, onOpen: (Set
             HealthFix.OpenTranscript -> onOpen(SettingsPage.Transcript)
             HealthFix.OpenModel -> onOpen(SettingsPage.Model)
             HealthFix.OpenBackup -> onOpen(SettingsPage.Backup)
+            HealthFix.OpenAccount -> onOpen(SettingsPage.Account)
             HealthFix.TopUp -> {
                 val deepseek = AppGraph.isLlmProvidersReady && AppGraph.llmProviders.let { p -> p.saved.value.firstOrNull { it.id == p.activeId.value }?.templateId == "deepseek" }
                 if (deepseek) runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://platform.deepseek.com/top_up")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }

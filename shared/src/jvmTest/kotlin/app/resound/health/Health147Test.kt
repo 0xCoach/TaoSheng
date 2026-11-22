@@ -40,6 +40,18 @@ class Health147Test {
         assertEquals("listening", HealthRules.report(healthy.copy(listen = ListenState.Unavailable)).issues.single().id)
     }
 
+    /** 门禁拦下时体检卡说真实原因、指去账号页，不再笼统"录音没开"（点了也开不了）。 */
+    @Test fun authBlockedShowsRealReasonInsteadOfListening() {
+        val report = HealthRules.report(healthy.copy(listen = ListenState.Stopped,
+            recordingBlockedReason = "本机数据待归属确认：验证机主身份后绑定"))
+        val issue = report.issues.single()
+        assertEquals("auth-blocked", issue.id)
+        assertEquals(HealthFix.OpenAccount, issue.fix)
+        assertEquals("本机数据待归属确认：验证机主身份后绑定", issue.detail)
+        // 未被拦时保持原行为。
+        assertEquals("listening", HealthRules.report(healthy.copy(listen = ListenState.Stopped)).issues.first().id)
+    }
+
     @Test fun abnormalStopAndRecoveryAreOneInterruptionToday() {
         val at = 100 * DAY
         val events = listOf(HealthWatchdogEvent(at, "ServiceStopped", "输入异常；等待手动恢复，保留未正常停止标记"),

@@ -147,6 +147,7 @@ private fun LoginSheet(reason: String, onCancel: () -> Unit) {
                             is AuthGate.RegisterOutcome.UsernameTaken -> error = "账号名已被占用，换一个试试"
                             is AuthGate.RegisterOutcome.RateLimited -> error = "注册太频繁，请稍后再试"
                             is AuthGate.RegisterOutcome.Closed -> error = "暂未开放自助注册"
+                            is AuthGate.RegisterOutcome.DeviceFreeUsed -> error = "此设备已注册过免费账号，请登录原账号"
                             is AuthGate.RegisterOutcome.Offline -> error = "网络不通，注册需要联网"
                             is AuthGate.RegisterOutcome.Invalid -> error = when {
                                 o.msg.contains("username") -> "账号名需 3~24 位字母、数字、下划线或连字符"

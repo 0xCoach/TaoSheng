@@ -30,7 +30,7 @@ class AuthApi(
 
     sealed class Result {
         data class Ok(val body: kotlinx.serialization.json.JsonObject) : Result()
-        data class Denied(val code: Int, val message: String) : Result()
+        data class Denied(val code: Int, val message: String, val errCode: String = "") : Result()
         data class Network(val message: String) : Result()
     }
 
@@ -48,7 +48,8 @@ class AuthApi(
                 val obj = runCatching { json.parseToJsonElement(text).jsonObject }.getOrNull()
                 when {
                     r.isSuccessful && obj != null -> Result.Ok(obj)
-                    else -> Result.Denied(r.code, obj?.get("error")?.jsonPrimitive?.contentOrNull ?: "HTTP ${r.code}")
+                    else -> Result.Denied(r.code, obj?.get("error")?.jsonPrimitive?.contentOrNull ?: "HTTP ${r.code}",
+                        obj?.get("code")?.jsonPrimitive?.contentOrNull.orEmpty())
                 }
             }
         } catch (e: Exception) {
@@ -56,24 +57,26 @@ class AuthApi(
         }
     }
 
-    suspend fun login(username: String, password: String, deviceId: String, deviceName: String, activationCode: String = "") =
+    suspend fun login(username: String, password: String, deviceId: String, deviceName: String, activationCode: String = "", deviceFp: String = "") =
         call("POST", "/auth/login", Json.encodeToString(
             kotlinx.serialization.json.buildJsonObject {
                 put("username", kotlinx.serialization.json.JsonPrimitive(username))
                 put("password", kotlinx.serialization.json.JsonPrimitive(password))
                 put("device_id", kotlinx.serialization.json.JsonPrimitive(deviceId))
                 put("device_name", kotlinx.serialization.json.JsonPrimitive(deviceName))
+                if (deviceFp.isNotEmpty()) put("device_fp", kotlinx.serialization.json.JsonPrimitive(deviceFp))
                 if (activationCode.isNotEmpty()) put("activation_code", kotlinx.serialization.json.JsonPrimitive(activationCode))
             }))
 
     /** 自助注册：注册即 Free；返回与登录相同的会话体，客户端按登录成功同一路径落库。 */
-    suspend fun register(username: String, password: String, deviceId: String, deviceName: String) =
+    suspend fun register(username: String, password: String, deviceId: String, deviceName: String, deviceFp: String = "") =
         call("POST", "/auth/register", Json.encodeToString(
             kotlinx.serialization.json.buildJsonObject {
                 put("username", kotlinx.serialization.json.JsonPrimitive(username))
                 put("password", kotlinx.serialization.json.JsonPrimitive(password))
                 put("device_id", kotlinx.serialization.json.JsonPrimitive(deviceId))
                 put("device_name", kotlinx.serialization.json.JsonPrimitive(deviceName))
+                if (deviceFp.isNotEmpty()) put("device_fp", kotlinx.serialization.json.JsonPrimitive(deviceFp))
             }))
 
     suspend fun refresh(refreshToken: String) =

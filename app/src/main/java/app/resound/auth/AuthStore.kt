@@ -18,6 +18,14 @@ class AuthStore(context: Context) {
     val deviceId: String = prefs.getString("device_id", null)
         ?: java.util.UUID.randomUUID().toString().also { prefs.edit().putString("device_id", it).apply() }
 
+    /** 设备指纹（ANDROID_ID 的 SHA256）：重装 App 不变、恢复出厂才变；
+     *  服务端按它执行"一机一免费"——device_id 是随机 UUID 重装即换，不能用于防白嫖。 */
+    val deviceFp: String = runCatching {
+        val raw = android.provider.Settings.Secure.getString(context.contentResolver, android.provider.Settings.Secure.ANDROID_ID) ?: ""
+        java.security.MessageDigest.getInstance("SHA-256").digest(raw.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+    }.getOrDefault("")
+
     var serverUrl: String
         get() = prefs.getString("server_url", null)?.takeIf { it.isNotBlank() } ?: DEFAULT_SERVER_URL
         set(v) { prefs.edit().putString("server_url", v.trim().trimEnd('/')).apply() }

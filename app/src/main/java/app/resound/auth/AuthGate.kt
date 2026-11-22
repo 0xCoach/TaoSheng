@@ -296,7 +296,7 @@ class AuthGate(
 
     /** 登录：网络/密码错/需激活/停用分别归类；成功后恢复被拦动作由 UI 层调 afterAuthSuccess。 */
     suspend fun login(username: String, password: String, deviceName: String, activationCode: String = ""): LoginOutcome {
-        val r = api.login(username, password, store.deviceId, deviceName, activationCode)
+        val r = api.login(username, password, store.deviceId, deviceName, activationCode, store.deviceFp)
         return when (r) {
             is AuthApi.Result.Ok -> {
                 val s = api.parseSession(r.body)
@@ -325,7 +325,7 @@ class AuthGate(
 
     /** 自助注册：注册即 Free 并直接落会话（服务端响应体与登录相同），成功后同走 afterAuthSuccess 回放。 */
     suspend fun register(username: String, password: String, deviceName: String): RegisterOutcome {
-        val r = api.register(username, password, store.deviceId, deviceName)
+        val r = api.register(username, password, store.deviceId, deviceName, store.deviceFp)
         return when (r) {
             is AuthApi.Result.Ok -> {
                 val s = api.parseSession(r.body)
@@ -334,6 +334,7 @@ class AuthGate(
             is AuthApi.Result.Denied -> when {
                 r.code == 409 -> RegisterOutcome.UsernameTaken
                 r.code == 429 -> RegisterOutcome.RateLimited
+                r.errCode == "DEVICE_FREE_USED" -> RegisterOutcome.DeviceFreeUsed
                 r.code == 403 -> RegisterOutcome.Closed
                 r.code == 400 -> RegisterOutcome.Invalid(r.message)
                 else -> RegisterOutcome.Error(r.message)
@@ -347,6 +348,7 @@ class AuthGate(
         object UsernameTaken : RegisterOutcome()   // 账号名已占用
         object RateLimited : RegisterOutcome()     // IP 注册频率超限
         object Closed : RegisterOutcome()          // 服务端关闭了自助注册
+        object DeviceFreeUsed : RegisterOutcome()  // 本设备已注册过免费账号（一机一免费）
         object Offline : RegisterOutcome()
         data class Invalid(val msg: String) : RegisterOutcome()  // 参数校验失败（服务端规则）
         data class Error(val msg: String) : RegisterOutcome()

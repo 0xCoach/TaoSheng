@@ -31,6 +31,8 @@ data class HealthInputs(
     val manualPausedUntil: Long? = null,
     /** 今天中断按原因归类；为空时只展示总数 */
     val interruptionKindsToday: Map<InterruptionKind, Int> = emptyMap(),
+    /** 录音被授权门禁拦下的原因（归属待确认/已归他号/试用耗尽等）；非空时取代笼统的“录音没开” */
+    val recordingBlockedReason: String? = null,
 )
 
 object HealthRules {
@@ -41,7 +43,12 @@ object HealthRules {
             }
             if (!microphoneGranted || !notificationsGranted) issue("permissions", HealthSeverity.Critical, "录不了音",
                 if (!microphoneGranted) "缺少麦克风权限" else "缺少通知权限", HealthFix.GrantPermissions, "去开启")
-            if ((listen == ListenState.Stopped || listen == ListenState.Unavailable) && !inQuietPeriod && (manualPausedUntil == null || manualPausedUntil <= now))
+            val listeningOff = (listen == ListenState.Stopped || listen == ListenState.Unavailable) &&
+                !inQuietPeriod && (manualPausedUntil == null || manualPausedUntil <= now)
+            // 门禁拦下时说真实原因（归属待确认等），不再笼统"录音没开"——点"打开"也开不了。
+            if (listeningOff && recordingBlockedReason != null)
+                issue("auth-blocked", HealthSeverity.Critical, "录音被账号拦下", recordingBlockedReason, HealthFix.OpenAccount, "去处理")
+            else if (listeningOff)
                 issue("listening", HealthSeverity.Critical, "录音没开", "现在不会录任何声音", HealthFix.StartListening, "打开")
             if (!batteryUnrestricted) issue("battery", HealthSeverity.Critical, "录音可能被系统中断", "省电策略还没关", HealthFix.DisableBatteryOptimization, "去关闭")
             if (!modelReady) issue("model", HealthSeverity.Critical, "不会自动整理", "还没设置整理模型", HealthFix.OpenModel, "去设置")

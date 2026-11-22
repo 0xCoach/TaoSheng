@@ -31,6 +31,8 @@ enum class HealthFix {
     TopUp,
     /** 打开“备份恢复”页 */
     OpenBackup,
+    /** 打开“我的”账号页（归属确认/登录状态等账号阻断的处理入口） */
+    OpenAccount,
 }
 
 /** 一件要处理的事。title 一句话说影响（如“录音可能被系统中断”），detail 说原因（如“省电策略还没关”） */

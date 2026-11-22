@@ -25,6 +25,20 @@ const b64buf = (b) => btoa(String.fromCharCode(...new Uint8Array(b)));
 const ub64buf = (s) => Uint8Array.from(atob(s.replaceAll("-", "+").replaceAll("_", "/")), (c) => c.charCodeAt(0)).buffer;
 const points = (tin, tout) => Math.max(1, Math.ceil(tin / 1000 + tout / 250));
 const estTokens = (chars) => Math.ceil(chars / 2.2); // 保守高估：中英混排约 1.6~2.6 字符/token
+const RETRY_ONCE = Symbol("retry-once");
+// 上游偶发返回 markdown 围栏或夹带解释文字的 JSON；客户端本就剥围栏再解析，服务端提取首个完整 JSON 值，
+// 否则合约校验会把真实可用输出误判成 TASK_FAILED:contract_json。
+function extractJson(content) {
+  const s = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  try { JSON.parse(s); return s; } catch { /* 继续提取 */ }
+  const start = s.search(/[{[]/);
+  if (start < 0) return null;
+  const close = s[start] === "{" ? "}" : "]";
+  const end = s.lastIndexOf(close);
+  if (end <= start) return null;
+  const cand = s.slice(start, end + 1);
+  try { JSON.parse(cand); return cand; } catch { return null; }
+}
 const dayStart = (t) => Math.floor(t / 86400) * 86400;
 const monthStart = (t) => { const d = new Date(t * 1000); return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 1000); };
 const monthEnd = (t) => { const d = new Date(t * 1000); return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1) / 1000); };
@@ -299,21 +313,25 @@ export async function handleAi(req, env, H) {
       }
 
       // 调服务商（OpenAI 兼容 chat/completions；密钥服务端解密，不出 Worker）
+      // 上游偶发返回空 content（推理耗尽 max_tokens 等）：同请求重试一次，不重复预留/扣点。
       const finish = async (okCall) => {
         const key = provider.api_key_enc ? await decKey(env, provider.api_key_enc) : "";
-        const ctl = new AbortController();
-        const timer = setTimeout(() => ctl.abort(), 55_000);
-        try {
-          const resp = await fetch(provider.api_base.replace(/\/+$/, "") + "/chat/completions", {
-            method: "POST",
-            headers: { "content-type": "application/json", ...(key ? { authorization: "Bearer " + key } : {}) },
-            body: JSON.stringify({ model: provider.model, stream: false,
-              max_tokens: Math.min(maxOut, provider.max_output_tokens),
-              messages: [{ role: "system", content: system }, { role: "user", content: userText }] }),
-            signal: ctl.signal });
-          const text = await resp.text();
-          return await okCall(resp, text);
-        } finally { clearTimeout(timer); }
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const ctl = new AbortController();
+          const timer = setTimeout(() => ctl.abort(), 55_000);
+          try {
+            const resp = await fetch(provider.api_base.replace(/\/+$/, "") + "/chat/completions", {
+              method: "POST",
+              headers: { "content-type": "application/json", ...(key ? { authorization: "Bearer " + key } : {}) },
+              body: JSON.stringify({ model: provider.model, stream: false,
+                max_tokens: Math.min(maxOut, provider.max_output_tokens),
+                messages: [{ role: "system", content: system }, { role: "user", content: userText }] }),
+              signal: ctl.signal });
+            const text = await resp.text();
+            const out = await okCall(resp, text, attempt);
+            if (out !== RETRY_ONCE) return out;
+          } finally { clearTimeout(timer); }
+        }
       };
       let settled = false, released = false;
       const settle = async (pts, tin2, tout2, content, estimated, costMilli) => {
@@ -340,7 +358,7 @@ export async function handleAi(req, env, H) {
       };
 
       try {
-        return await finish(async (resp, text) => {
+        return await finish(async (resp, text, attempt) => {
           if (resp.status === 429) {
             await release("RATE_LIMITED");
             await audit(env, uid, "ai.provider_rate_limited", provider.id, req);
@@ -348,10 +366,15 @@ export async function handleAi(req, env, H) {
           }
           if (!resp.ok) { await release("PROVIDER_UNAVAILABLE", resp.status); await audit(env, uid, "ai.provider_error", `${provider.id}:${resp.status}`, req); return err("PROVIDER_UNAVAILABLE", 503); }
           let obj; try { obj = JSON.parse(text); } catch { await release("TASK_FAILED", "bad_json"); return err("TASK_FAILED", 502); }
-          const content = obj?.choices?.[0]?.message?.content;
-          if (typeof content !== "string" || !content.trim()) { await release("TASK_FAILED", "empty"); return err("TASK_FAILED", 502); }
+          let content = obj?.choices?.[0]?.message?.content;
+          if (typeof content !== "string" || !content.trim()) {
+            if (attempt === 0) return RETRY_ONCE;
+            await release("TASK_FAILED", "empty"); return err("TASK_FAILED", 502);
+          }
           if (JSON_TASKS.has(task)) {
-            try { JSON.parse(content); } catch { await release("TASK_FAILED", "contract_json"); return err("TASK_FAILED", 502); }
+            const extracted = extractJson(content);
+            if (extracted == null) { await release("TASK_FAILED", "contract_json"); return err("TASK_FAILED", 502); }
+            content = extracted;
           }
           const u = obj.usage || {};
           let tin2 = u.prompt_tokens, tout2 = u.completion_tokens, estimated = 0;

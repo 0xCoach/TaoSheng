@@ -583,7 +583,7 @@ private fun LocalModelOptions(settings: AndroidTranscribeSettings) {
     Spacer(Modifier.height(10.dp))
     // 不支持 NPU 的手机不给选项，免得看到了却用不了
     if(supported) Choice(LocalBackend.entries.toList(),backend,{it.title}){settings.setBackend(it)}
-    Text(if(supported) "您的手机支持 NPU 识别，更快、更省电；不成功时自动改用 CPU。" else "您的手机暂不支持 NPU 识别，本机识别默认使用 CPU。",style=RsType.caption,color=c.textSecondary)
+    Text(if(supported) "您的手机（${LocalModels.soc()}）支持 NPU 识别，更快、更省电；不成功时自动改用 CPU。" else LocalModels.npuUnsupportedReason(),style=RsType.caption,color=c.textSecondary)
     Text(actual,style=RsType.caption,color=c.accent)
     val context=androidx.compose.ui.platform.LocalContext.current
     LocalBackend.entries.filter { it==LocalBackend.Cpu || supported }.forEach { mode ->

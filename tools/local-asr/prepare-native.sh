@@ -5,7 +5,7 @@ set -eu
 source_dir="$1"
 output_dir="app/src/main/jniLibs/arm64-v8a"
 mkdir -p "$output_dir"
-for name in libsherpa-onnx-jni.so libQnnHtp.so libQnnSystem.so libQnnHtpV75Stub.so libQnnHtpV75Skel.so; do
+for name in libsherpa-onnx-jni.so libQnnHtp.so libQnnSystem.so libQnnHtpV69Stub.so libQnnHtpV69Skel.so libQnnHtpV73Stub.so libQnnHtpV73Skel.so libQnnHtpV75Stub.so libQnnHtpV75Skel.so libQnnHtpV79Stub.so libQnnHtpV79Skel.so libQnnHtpV81Stub.so libQnnHtpV81Skel.so; do
   cp "$source_dir/$name" "$output_dir/$name"
 done
 cp "$source_dir/libonnxruntime.so" "$output_dir/libresound_asr_ort.so"

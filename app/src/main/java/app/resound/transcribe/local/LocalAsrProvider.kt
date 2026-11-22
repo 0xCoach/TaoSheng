@@ -29,6 +29,8 @@ class LocalAsrProvider(private val context:Context,private val settings:AndroidT
             catch(e:CancellationException){throw e}
             catch(e:Exception){
                 if(e is AsrException && (e.type in setOf(AsrError.Speakers, AsrError.Audio) || e.detail in LOCAL_INTERRUPTION_REASONS))throw e
+                // 记下芯片和原因，诊断日志里能看到为什么没用上 NPU（#64）
+                app.resound.diagnostics.FailureNotes.record("transcribe/local/LocalAsrProvider.kt:npu ${LocalModels.soc()} ${LocalModels.npu.id}", e)
                 // 通过过的偶发失败只回退这一次，不记成“不可用”
                 if(checked!=true)settings.recordNpuCheck(key,false)
                 fallback="NPU 识别暂时不可用，已自动改用 CPU"

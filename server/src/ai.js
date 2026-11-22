@@ -39,6 +39,46 @@ function extractJson(content) {
   const cand = s.slice(start, end + 1);
   try { JSON.parse(cand); return cand; } catch { return null; }
 }
+// 流式读取上游：健康但慢的生成按「闲置 30s」判生死，不再被固定超时被误杀；
+// 真断流/挂死的连接 30s 内出局。把 SSE 增量重组成非流式 JSON，供既有校验逻辑复用。
+const UPSTREAM_IDLE_MS = 30_000;
+async function readUpstreamText(resp) {
+  const ct = (resp.headers.get("content-type") || "").toLowerCase();
+  if (!ct.includes("event-stream") || !resp.body) return resp.text();
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "", content = "", finishReason = null, usage = null;
+  let idleTimer;
+  const idle = () => new Promise((_, rej) => {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => rej(new DOMException("idle", "AbortError")), UPSTREAM_IDLE_MS);
+  });
+  try {
+    for (;;) {
+      const { value, done } = await Promise.race([reader.read(), idle()]);
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let nl;
+      while ((nl = buf.search(/\r?\n\r?\n/)) >= 0) {
+        const block = buf.slice(0, nl);
+        buf = buf.slice(nl).replace(/^\r?\n\r?\n/, "");
+        for (const line of block.split(/\r?\n/)) {
+          if (!line.startsWith("data:")) continue;
+          const data = line.slice(5).trim();
+          if (data === "[DONE]") continue;
+          try {
+            const o = JSON.parse(data);
+            const c = o?.choices?.[0];
+            if (c?.delta?.content) content += c.delta.content;
+            if (c?.finish_reason) finishReason = c.finish_reason;
+            if (o?.usage) usage = o.usage;
+          } catch { /* 坏块跳过，等下一块 */ }
+        }
+      }
+    }
+  } finally { clearTimeout(idleTimer); try { reader.releaseLock(); } catch {} }
+  return JSON.stringify({ choices: [{ message: { content }, finish_reason: finishReason }], usage: usage || {} });
+}
 const dayStart = (t) => Math.floor(t / 86400) * 86400;
 const monthStart = (t) => { const d = new Date(t * 1000); return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 1000); };
 const monthEnd = (t) => { const d = new Date(t * 1000); return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1) / 1000); };
@@ -346,20 +386,21 @@ export async function handleAi(req, env, H) {
           const remaining = CALL_DEADLINE_MS - (Date.now() - callStarted);
           if (remaining < 15_000) { await release("TASK_FAILED", "deadline"); return err("TASK_FAILED", 502); }
           const ctl = new AbortController();
-          // 两次尝试均分预算（45s+40s）：上游抖动时超时可再战，又不越过客户端 100s 死线。
-          const timer = setTimeout(() => ctl.abort(), Math.min(45_000, remaining));
+          // 流式后单次尝试上限 60s：活的生成有空间跑完（实测成功 batch 需 ~55s），
+          // 死流由闲置 30s 检测提前出局，剩余预算仍可再战一次，总和不越客户端死线。
+          const timer = setTimeout(() => ctl.abort(), Math.min(60_000, remaining));
           try {
             const resp = await fetch(provider.api_base.replace(/\/+$/, "") + "/chat/completions", {
               method: "POST",
               headers: { "content-type": "application/json", ...(key ? { authorization: "Bearer " + key } : {}) },
-              body: JSON.stringify({ model: provider.model, stream: false,
+              body: JSON.stringify({ model: provider.model, stream: true,
                 // 推理型上游（deepseek-v4.1-flash）max_tokens 计入思考量：只按答案上限
                 // 给额度会 finish_reason=length 且 content 空（线上实测）。×2 留推理余量；
                 // 点数按实际 usage 结算，用户侧不受影响，预留上限仍按 maxOut 计。
                 max_tokens: Math.min(maxOut * 2, provider.max_output_tokens),
                 messages: [{ role: "system", content: system }, { role: "user", content: userText }] }),
               signal: ctl.signal });
-            const text = await resp.text();
+            const text = await readUpstreamText(resp);
             const out = await okCall(resp, text, attempt);
             if (out !== RETRY_ONCE) return out;
           } catch (e) {

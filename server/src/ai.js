@@ -386,6 +386,72 @@ export async function handleAi(req, env, H) {
       // 留下永不释放的 reserved 僵尸锁。服务端必须抢在客户端超时前给出定论。
       const CALL_DEADLINE_MS = 85_000;
       const callStarted = Date.now();
+      // review 大输入走分段归纳（map-reduce）：按行切块并行归纳、再合并成最终结果。
+      // 每块体量≈digest（实测 40s 内完成），把"一发大请求必须 85s 内活到底"变成
+      // "几发小请求并行 + 一发小合并"，上游单点抖动不再整单判死。
+      const MR_MIN_CHARS = 12000, MR_CHUNK = 9000, MR_MAX = 4;
+      const singleUpstream = async (userMsg, key) => {
+        let last;
+        for (let i = 0; i < 2; i++) {
+          const remaining = CALL_DEADLINE_MS - (Date.now() - callStarted);
+          if (remaining < 15_000) throw new DOMException("deadline", "AbortError");
+          const ctl = new AbortController();
+          const timer = setTimeout(() => ctl.abort(), Math.min(75_000, remaining));
+          try {
+            const resp = await fetch(provider.api_base.replace(/\/+$/, "") + "/chat/completions", {
+              method: "POST",
+              headers: { "content-type": "application/json", ...(key ? { authorization: "Bearer " + key } : {}) },
+              body: JSON.stringify({ model: sendModel, stream: true, max_tokens: provider.max_output_tokens,
+                messages: [{ role: "system", content: system }, { role: "user", content: userMsg }] }),
+              signal: ctl.signal });
+            const text = await readUpstreamText(resp);
+            if (resp.status === 429) throw Object.assign(new Error("rate"), { status: 429 });
+            if (!resp.ok) throw Object.assign(new Error("bad"), { status: resp.status });
+            let obj; try { obj = JSON.parse(text); } catch { last = new Error("bad_json"); continue; }
+            const ch = obj?.choices?.[0];
+            const c = ch?.message?.content;
+            if (typeof c === "string" && c.trim()) return { content: c, usage: obj.usage || {} };
+            last = Object.assign(new Error("empty"), { finish: ch?.finish_reason || "?" });
+          } catch (e) { last = e; } finally { clearTimeout(timer); }
+        }
+        throw last;
+      };
+      const mapReduceFlight = async () => {
+        try {
+          const key = provider.api_key_enc ? await decKey(env, provider.api_key_enc) : "";
+          const chunks = [""];
+          for (const line of userText.split("\n")) {
+            const i = chunks.length - 1;
+            if (chunks[i] && chunks[i].length + line.length + 1 > MR_CHUNK && chunks.length < MR_MAX) chunks.push("");
+            chunks[chunks.length - 1] += (chunks[chunks.length - 1] ? "\n" : "") + line;
+          }
+          const parts = await Promise.all(chunks.filter(c => c.trim()).map(c => singleUpstream(c, key)));
+          let tin2 = 0, tout2 = 0;
+          for (const p of parts) { tin2 += p.usage?.prompt_tokens || 0; tout2 += p.usage?.completion_tokens || 0; }
+          const merged = await singleUpstream("以下是对同一天记录分段归纳出的 " + parts.length +
+            " 份结果，请合并为一份最终结果；输出格式与要求不变，分段间重复的事件要去重：\n\n" +
+            parts.map((p, i) => `第${i + 1}段：\n${p.content}`).join("\n\n---\n\n"), key);
+          tin2 += merged.usage?.prompt_tokens || 0; tout2 += merged.usage?.completion_tokens || 0;
+          let content = merged.content;
+          if (JSON_TASKS.has(task)) {
+            const extracted = extractJson(content);
+            if (extracted == null) { await release("TASK_FAILED", "contract_json:" + String(content).slice(0, 36).replace(/\s+/g, " ")); return err("TASK_FAILED", 502); }
+            content = extracted;
+          }
+          let estimated = 0;
+          if (!(tin2 > 0) || !(tout2 >= 0)) { tin2 = tin; tout2 = estTokens(content.length); estimated = 1; }
+          const charged = Math.min(points(tin2, tout2), reservePts);
+          await settle(charged, tin2, tout2, content, estimated, costMeta(provider, tin2, tout2));
+          const pv = await balance(env, await env.DB.prepare("SELECT * FROM ai_quota_periods WHERE id=?").bind(period.id).first());
+          return json({ request_id: reqKey, content, points: charged, balance: pv });
+        } catch (e) {
+          if (e?.status === 429) { await release("RATE_LIMITED"); return json({ error: "RATE_LIMITED", source: "upstream" }, 429); }
+          if (e?.name === "AbortError") { await release("UNKNOWN_PROVIDER_OUTCOME", "timeout"); return err("UNKNOWN_PROVIDER_OUTCOME", 504); }
+          if (e?.status) { await release("PROVIDER_UNAVAILABLE", e.status); return err("PROVIDER_UNAVAILABLE", 503); }
+          await release("TASK_FAILED", e?.message === "empty" ? "empty:" + (e.finish || "?") : "bad_json").catch(() => {});
+          return err("TASK_FAILED", 502);
+        }
+      };
       const finish = async (okCall) => {
         const key = provider.api_key_enc ? await decKey(env, provider.api_key_enc) : "";
         for (let attempt = 0; attempt < 2; attempt++) {
@@ -442,7 +508,9 @@ export async function handleAi(req, env, H) {
       };
 
       try {
-        const inFlight = finish(async (resp, text, attempt) => {
+        const inFlight = (task === "review" && userText.length > MR_MIN_CHARS)
+          ? mapReduceFlight()
+          : finish(async (resp, text, attempt) => {
           if (resp.status === 429) {
             await release("RATE_LIMITED");
             await audit(env, uid, "ai.provider_rate_limited", provider.id, req);

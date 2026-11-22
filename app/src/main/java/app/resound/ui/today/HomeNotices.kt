@@ -402,6 +402,35 @@ fun PlaybackHintNotice(topGap: Dp = 0.dp) {
     }
 }
 
+/** 卡 222：老用户升级后“整理前先思考”被默认打开，提示一次好处和怎么关 */
+@Composable
+fun DeepThinkingNotice(topGap: Dp = 0.dp) {
+    if (!AppGraph.isDigestSettingsReady) return
+    val settings = AppGraph.digestSettings as? app.resound.digest.AndroidDigestSettings ?: return
+    val show by settings.deepThinkingNotice.collectAsStateWithLifecycle()
+    if (!show) return
+    val c = Rs.colors
+    Spacer(Modifier.height(topGap))
+    RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
+        Row(verticalAlignment = Alignment.Top) {
+            Text("💡", style = RsType.headline)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("已为你打开“整理前先思考”", style = RsType.body, color = c.text)
+                Spacer(Modifier.height(4.dp))
+                Text("大模型会先想清楚再整理，分条更准，一件事一条，不容易切碎。费用约为原来的 3～5 倍，整理也会慢一些；不需要的话，可以在“设置 → 整理模型”里关掉。",
+                    style = RsType.caption, color = c.textSecondary)
+                Spacer(Modifier.height(12.dp))
+                Row {
+                    Pill("去设置", filled = true) { settings.dismissDeepThinkingNotice(); ShellNav.openSettings(SettingsPage.Model) }
+                    Spacer(Modifier.width(8.dp))
+                    Pill("知道了", filled = false) { settings.dismissDeepThinkingNotice() }
+                }
+            }
+        }
+    }
+}
+
 /** 卡 214：开着推录音、到期录音推不上去被扣满 7 天时提醒；“不等了，直接删”要再点一次 */
 @Composable
 fun HeldRecordingsNotice(topGap: Dp = 0.dp) {

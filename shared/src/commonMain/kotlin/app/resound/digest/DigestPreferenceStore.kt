@@ -13,7 +13,7 @@ class DigestPreferenceStore(
     legacyInterval: () -> Int,
     private val saveBoolean: (String, Boolean) -> Boolean,
     private val saveInt: (String, Int) -> Boolean,
-    /** 是否全新安装（不是从旧版升级上来）；只在“整理前先思考”从没存过时问一次 */
+    /** 是否全新安装（不是从旧版升级上来）；新装的不用提示“已为你打开先思考” */
     newInstall: () -> Boolean = { false },
 ) {
     private val _includeSituation = MutableStateFlow(readBoolean("includeSituation", false))
@@ -48,12 +48,21 @@ class DigestPreferenceStore(
     }
     /**
      * 整理前先让模型思考：分条更准，不容易切碎，但费用约为原来的 3～5 倍。
-     * 新装默认开（新手不设置也不会整理得太碎）；从旧版升级上来的保持原来的关，不悄悄涨费用。
-     * 第一次决定后立刻存下，之后升级不会再变。
+     * 卡 222：所有人默认开，包括老用户——升级到这一版时统一打开一次，原来是关着的会在首页提示一次（说明好处、可自己关）。
+     * 打开过一次后就尊重用户自己的选择，之后升级不再改。
      */
+    private val _deepThinkingNotice = MutableStateFlow(readBoolean("deepThinkingNotice", false))
+    /** 老用户升级后被打开了“整理前先思考”，首页提示一次 */
+    val deepThinkingNotice = _deepThinkingNotice.asStateFlow()
+    fun dismissDeepThinkingNotice() { saveBoolean("deepThinkingNotice", false); _deepThinkingNotice.value = false }
     private val _deepThinking = MutableStateFlow(
-        if (readBoolean("deepThinking", false) == readBoolean("deepThinking", true)) readBoolean("deepThinking", false)
-        else newInstall().also { saveBoolean("deepThinking", it) })
+        if (readBoolean("deepThinkingDefaultOn", false)) readBoolean("deepThinking", true)
+        else {
+            val wasOff = !newInstall() && !readBoolean("deepThinking", false)
+            saveBoolean("deepThinking", true); saveBoolean("deepThinkingDefaultOn", true)
+            if (wasOff) { saveBoolean("deepThinkingNotice", true); _deepThinkingNotice.value = true }
+            true
+        })
     val deepThinking = _deepThinking.asStateFlow()
     fun setDeepThinking(on: Boolean) { check(saveBoolean("deepThinking", on)); _deepThinking.value = on }
     fun setPauseMinutes(value: Int) {

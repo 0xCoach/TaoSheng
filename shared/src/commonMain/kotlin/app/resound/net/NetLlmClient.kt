@@ -92,10 +92,11 @@ class NetLlmClient(private val client: HttpClient, private val bases: List<Strin
                     if (status in setOf(404, 405) && index < bases.lastIndex) return@consume null
                     trace?.http(status)
                     if (status !in 200..299) {
-                        runCatching { Obj(response.bodyAsText()).optJSONObject("usage") }.onFailure {
+                        val raw = runCatching { response.bodyAsText() }.getOrDefault("")
+                        runCatching { Obj(raw).optJSONObject("usage") }.onFailure {
                             FailureNotes.record("net/NetLlmClient.kt:75", it)
                         }.getOrNull()?.let { onUsage(it.optLong("prompt_tokens"), it.optLong("completion_tokens")) }
-                        throw httpError(status)
+                        throw httpError(status, raw = raw)
                     }
                     val context = currentCoroutineContext()
                     val parser = NetSseParser({ context.ensureActive(); onText(it) }, onUsage, trace)
@@ -141,7 +142,12 @@ class NetLlmClient(private val client: HttpClient, private val bases: List<Strin
                 }
                 return NetLlmException(NetLlmError.Server, status, detail, usage)
             }
-            return NetLlmException(when(status) { 401,403 -> NetLlmError.Auth; 402 -> NetLlmError.Quota; 429 -> NetLlmError.RateLimit; else -> NetLlmError.Server }, status, usage = usage)
+            if (status == 429) {
+                // 卡 220：429 不一定是“太频繁”：智谱免费模型并发 1、模型过载、欠费都回 429，读出错误码说清楚
+                val (type, detail) = rateLimitReason(raw)
+                return NetLlmException(type, status, detail, usage)
+            }
+            return NetLlmException(when(status) { 401,403 -> NetLlmError.Auth; 402 -> NetLlmError.Quota; else -> NetLlmError.Server }, status, usage = usage)
         }
     }
 }

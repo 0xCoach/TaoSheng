@@ -244,7 +244,11 @@ export async function handleAi(req, env, H) {
         const pv = await quotaView();
         return json({ request_id: reqKey, content: dup.result || "", points: dup.points, duplicated: true, balance: pv });
       }
-      if (dup && dup.status === "reserved") return err("request in flight", 409);
+      // reserved 锁龄超过上游调用上限（55s×2 + 余量）即视为僵尸：Worker 部署/被杀
+      // 会留下永不释放的 reserved，不回收则该 request_id 永久 409、点数永久占压。
+      const STALE_RESERVED_S = 240;
+      if (dup && dup.status === "reserved" && t - Number(dup.created_at) <= STALE_RESERVED_S)
+        return err("request in flight", 409);
       // 超时可能已在上游执行，不能以同一凭据再次发起并造成重复调用。
       if (dup?.error_code?.startsWith("UNKNOWN_PROVIDER_OUTCOME")) return err("UNKNOWN_PROVIDER_OUTCOME", 504);
 
@@ -258,6 +262,21 @@ export async function handleAi(req, env, H) {
       if (!provider) return err("PROVIDER_UNAVAILABLE", 503);
 
       const period = await ensurePeriod(env, uid, t, cfg);
+
+      // 僵尸 reserved 回收：先带状态守卫原子抢占（并发重试只有一个能改状态），
+      // 赢的那个才归还占用预留；随后统一走 status IN ('failed','rejected') 的重取。
+      if (dup && dup.status === "reserved") {
+        const claim = await env.DB.prepare(
+          "UPDATE ai_usage_requests SET status='failed',error_code='STALE_RESERVED' WHERE id=? AND status='reserved'")
+          .bind(dup.id).run();
+        if (claim.meta.changes) {
+          await env.DB.batch([
+            env.DB.prepare("UPDATE ai_quota_periods SET reserved=MAX(0,reserved-?) WHERE id=?").bind(dup.reserved_points, period.id),
+            env.DB.prepare("INSERT INTO ai_usage_ledger(id,user_id,period_id,request_id,kind,delta,actor,at) VALUES(?,?,?,?,?,?,?,?)")
+              .bind(uuid(), uid, period.id, dup.id, "release", dup.reserved_points, "system", t),
+          ]);
+        }
+      }
 
       // 每日成功任务上限（Free/Pro 分开）
       const todayCount = await env.DB.prepare(

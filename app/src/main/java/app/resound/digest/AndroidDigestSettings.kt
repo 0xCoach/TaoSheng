@@ -28,7 +28,8 @@ class AndroidDigestSettings internal constructor(
     private val preferences = DigestPreferenceStore(prefs::getBoolean, prefs::getInt,
         { context.getSharedPreferences("transcribe", Context.MODE_PRIVATE).getInt("interval", 30) },
         { key, value -> prefs.edit().putBoolean(key, value).commit() },
-        { key, value -> prefs.edit().putInt(key, value).commit() })
+        { key, value -> prefs.edit().putInt(key, value).commit() },
+        { context.packageManager.getPackageInfo(context.packageName, 0).let { it.firstInstallTime == it.lastUpdateTime } })
     override val includeSituation get() = preferences.includeSituation
     override fun setIncludeSituation(on: Boolean) = preferences.setIncludeSituation(on)
     override val includeAppPlayback get() = preferences.includeAppPlayback

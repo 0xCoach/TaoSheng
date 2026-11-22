@@ -13,6 +13,8 @@ class DigestPreferenceStore(
     legacyInterval: () -> Int,
     private val saveBoolean: (String, Boolean) -> Boolean,
     private val saveInt: (String, Int) -> Boolean,
+    /** 是否全新安装（不是从旧版升级上来）；只在“整理前先思考”从没存过时问一次 */
+    newInstall: () -> Boolean = { false },
 ) {
     private val _includeSituation = MutableStateFlow(readBoolean("includeSituation", false))
     val includeSituation = _includeSituation.asStateFlow()
@@ -44,8 +46,14 @@ class DigestPreferenceStore(
         val v = value.coerceIn(MIN_INTERVAL, MAX_INTERVAL)
         check(saveInt("interval", v)); _intervalMinutes.value = v; onIntervalChanged()
     }
-    /** 整理前先让模型思考：分条更准，但费用约为原来的 3～5 倍；默认关 */
-    private val _deepThinking = MutableStateFlow(readBoolean("deepThinking", false))
+    /**
+     * 整理前先让模型思考：分条更准，不容易切碎，但费用约为原来的 3～5 倍。
+     * 新装默认开（新手不设置也不会整理得太碎）；从旧版升级上来的保持原来的关，不悄悄涨费用。
+     * 第一次决定后立刻存下，之后升级不会再变。
+     */
+    private val _deepThinking = MutableStateFlow(
+        if (readBoolean("deepThinking", false) == readBoolean("deepThinking", true)) readBoolean("deepThinking", false)
+        else newInstall().also { saveBoolean("deepThinking", it) })
     val deepThinking = _deepThinking.asStateFlow()
     fun setDeepThinking(on: Boolean) { check(saveBoolean("deepThinking", on)); _deepThinking.value = on }
     fun setPauseMinutes(value: Int) {

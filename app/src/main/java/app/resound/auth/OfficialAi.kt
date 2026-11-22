@@ -1,6 +1,7 @@
 package app.resound.auth
 
 import android.content.Context
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -114,9 +115,14 @@ class OfficialAi(context: Context, private val gate: AuthGate, private val store
     private suspend fun send(taskType: String, system: String, user: String, maxOutput: Int, nonce: String): GenOutcome {
         val account = store.sessionAccountId ?: return GenOutcome.NeedLogin
         val requestId = sha256(listOf(account, taskType, system, user, nonce).joinToString("|"))
-        val result = gate.officialGenerate(requestId, taskType, system, user, maxOutput)
-        if (store.sessionAccountId != account) return GenOutcome.NeedLogin
-        return when (val r = result) {
+        // 409（request in flight）：同 request_id 静默轮询等待。原请求结算后服务端幂等回放结果、
+        // 不重复扣点；本地 HTTP 超时但服务端仍在执行时同样走这条路自愈。只在窗口内让路，
+        // 超窗仍把 409 原样交还上层（僵尸锁由服务端锁龄回收兜底，下轮整理自然恢复）。
+        var inflightWaits = 0
+        while (true) {
+            val result = gate.officialGenerate(requestId, taskType, system, user, maxOutput)
+            if (store.sessionAccountId != account) return GenOutcome.NeedLogin
+            val out = when (val r = result) {
             is AuthApi.Result.Ok -> {
                 val bal = r.body["balance"] as? JsonObject
                 GenOutcome.Ok(
@@ -130,9 +136,17 @@ class OfficialAi(context: Context, private val gate: AuthGate, private val store
                     }
                 }
             }
-            is AuthApi.Result.Denied -> if (r.code == 401) GenOutcome.NeedLogin else GenOutcome.Denied(r.code, r.message)
-            is AuthApi.Result.Network -> GenOutcome.Network(r.message)
-            null -> GenOutcome.NeedLogin
+                is AuthApi.Result.Denied -> if (r.code == 401) GenOutcome.NeedLogin else GenOutcome.Denied(r.code, r.message)
+                is AuthApi.Result.Network -> GenOutcome.Network(r.message)
+                null -> GenOutcome.NeedLogin
+            }
+            if (out is GenOutcome.Denied && out.httpCode == 409 && out.code == "request in flight" &&
+                inflightWaits < INFLIGHT_WAITS_MAX) {
+                inflightWaits += 1
+                delay(INFLIGHT_WAIT_MS)
+                continue
+            }
+            return out
         }
     }
 
@@ -145,6 +159,9 @@ class OfficialAi(context: Context, private val gate: AuthGate, private val store
 
     companion object {
         const val CONSENT_VERSION = 1
+        /** 409 在途等待窗口：服务端单次官方请求最长约 85s，5×15s 覆盖大多数并发结算。 */
+        private const val INFLIGHT_WAITS_MAX = 5
+        private const val INFLIGHT_WAIT_MS = 15_000L
         private fun sha256(text: String) = MessageDigest.getInstance("SHA-256")
             .digest(text.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }.take(48)
     }

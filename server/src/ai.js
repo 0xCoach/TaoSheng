@@ -249,8 +249,11 @@ export async function handleAi(req, env, H) {
       const STALE_RESERVED_S = 240;
       if (dup && dup.status === "reserved" && t - Number(dup.created_at) <= STALE_RESERVED_S)
         return err("request in flight", 409);
-      // 超时可能已在上游执行，不能以同一凭据再次发起并造成重复调用。
-      if (dup?.error_code?.startsWith("UNKNOWN_PROVIDER_OUTCOME")) return err("UNKNOWN_PROVIDER_OUTCOME", 504);
+      // 超时可能已在上游执行，不能以同一凭据立刻再次发起。
+      // 但上游调用有 85s 总时限，超龄（>300s）的 UNKNOWN_PROVIDER_OUTCOME 必定已死透：
+      // 永久封禁只会让该批内容永远无法重试整理。代价最多是多付一次上游成本，用户点不重复扣。
+      if (dup?.error_code?.startsWith("UNKNOWN_PROVIDER_OUTCOME") &&
+          t - Number(dup.created_at) <= 300) return err("UNKNOWN_PROVIDER_OUTCOME", 504);
 
       const inChars = system.length + userText.length;
       const tin = estTokens(inChars);

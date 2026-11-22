@@ -352,7 +352,10 @@ export async function handleAi(req, env, H) {
               method: "POST",
               headers: { "content-type": "application/json", ...(key ? { authorization: "Bearer " + key } : {}) },
               body: JSON.stringify({ model: provider.model, stream: false,
-                max_tokens: Math.min(maxOut, provider.max_output_tokens),
+                // 推理型上游（deepseek-v4.1-flash）max_tokens 计入思考量：只按答案上限
+                // 给额度会 finish_reason=length 且 content 空（线上实测）。×2 留推理余量；
+                // 点数按实际 usage 结算，用户侧不受影响，预留上限仍按 maxOut 计。
+                max_tokens: Math.min(maxOut * 2, provider.max_output_tokens),
                 messages: [{ role: "system", content: system }, { role: "user", content: userText }] }),
               signal: ctl.signal });
             const text = await resp.text();

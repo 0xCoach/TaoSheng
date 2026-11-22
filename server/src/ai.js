@@ -303,6 +303,12 @@ export async function handleAi(req, env, H) {
 
       const provider = await providerRow();
       if (!provider) return err("PROVIDER_UNAVAILABLE", 503);
+      // 按任务类型覆盖模型：cost_meta.task_models = {"review":"model-id"} —
+      // 大任务（review 全天归纳）可单独走更快通道，小任务保持默认档。
+      const sendModel = (() => {
+        try { const tm = JSON.parse(provider.cost_meta || "{}").task_models;
+          return (tm && tm[task]) ? String(tm[task]) : provider.model; } catch { return provider.model; }
+      })();
 
       const period = await ensurePeriod(env, uid, t, cfg);
 
@@ -361,10 +367,10 @@ export async function handleAi(req, env, H) {
       // 已明确失败/拒绝的任务可以恢复；比较状态抢占，只有一个调用能预留和访问上游。
       const ins = dup ? await env.DB.prepare(
         "UPDATE ai_usage_requests SET status='reserved',error_code=NULL,provider_id=?,model=?,reserved_points=?,created_at=? WHERE id=? AND status IN ('failed','rejected')")
-        .bind(provider.id, provider.model, reservePts, t, reqId).run()
+        .bind(provider.id, sendModel, reservePts, t, reqId).run()
         : await env.DB.prepare(
           "INSERT OR IGNORE INTO ai_usage_requests(id,user_id,request_key,task_type,status,provider_id,model,reserved_points,created_at) VALUES(?,?,?,?,?,?,?,?,?)")
-          .bind(reqId, uid, reqKey, task, "reserved", provider.id, provider.model, reservePts, t).run();
+          .bind(reqId, uid, reqKey, task, "reserved", provider.id, sendModel, reservePts, t).run();
       if (!ins.meta.changes) return err("request in flight", 409);
       const rs = await env.DB.prepare(
         "UPDATE ai_quota_periods SET reserved=reserved+? WHERE id=? AND ? - used - reserved >= ?")
@@ -393,7 +399,7 @@ export async function handleAi(req, env, H) {
             const resp = await fetch(provider.api_base.replace(/\/+$/, "") + "/chat/completions", {
               method: "POST",
               headers: { "content-type": "application/json", ...(key ? { authorization: "Bearer " + key } : {}) },
-              body: JSON.stringify({ model: provider.model, stream: true,
+              body: JSON.stringify({ model: sendModel, stream: true,
                 // 推理型上游 max_tokens 计入思考量，按答案上限给会 length 截断 JSON
                 // （线上实测 contract_json）。max_tokens 只是上限不是目标，直接发满
                 // provider 额度一次解决：思考+正文都由模型自行分配，点数按实际 usage 结算。

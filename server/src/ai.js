@@ -394,10 +394,10 @@ export async function handleAi(req, env, H) {
               method: "POST",
               headers: { "content-type": "application/json", ...(key ? { authorization: "Bearer " + key } : {}) },
               body: JSON.stringify({ model: provider.model, stream: true,
-                // 推理型上游（deepseek-v4.1-flash）max_tokens 计入思考量：只按答案上限
-                // 给额度会 finish_reason=length 且 content 空（线上实测）。×2 留推理余量；
-                // 点数按实际 usage 结算，用户侧不受影响，预留上限仍按 maxOut 计。
-                max_tokens: Math.min(maxOut * 2, provider.max_output_tokens),
+                // 推理型上游 max_tokens 计入思考量，按答案上限给会 length 截断 JSON
+                // （线上实测 contract_json）。max_tokens 只是上限不是目标，直接发满
+                // provider 额度一次解决：思考+正文都由模型自行分配，点数按实际 usage 结算。
+                max_tokens: provider.max_output_tokens,
                 messages: [{ role: "system", content: system }, { role: "user", content: userText }] }),
               signal: ctl.signal });
             const text = await readUpstreamText(resp);
@@ -452,7 +452,10 @@ export async function handleAi(req, env, H) {
           }
           if (JSON_TASKS.has(task)) {
             const extracted = extractJson(content);
-            if (extracted == null) { await release("TASK_FAILED", "contract_json:" + String(content).slice(0, 36).replace(/\s+/g, " ")); return err("TASK_FAILED", 502); }
+            if (extracted == null) {
+              if (attempt === 0) return RETRY_ONCE;
+              await release("TASK_FAILED", "contract_json:" + String(content).slice(0, 36).replace(/\s+/g, " ")); return err("TASK_FAILED", 502);
+            }
             content = extracted;
           }
           const u = obj.usage || {};

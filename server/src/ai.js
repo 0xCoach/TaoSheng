@@ -346,7 +346,8 @@ export async function handleAi(req, env, H) {
           const remaining = CALL_DEADLINE_MS - (Date.now() - callStarted);
           if (remaining < 15_000) { await release("TASK_FAILED", "deadline"); return err("TASK_FAILED", 502); }
           const ctl = new AbortController();
-          const timer = setTimeout(() => ctl.abort(), Math.min(55_000, remaining));
+          // 两次尝试均分预算（45s+40s）：上游抖动时超时可再战，又不越过客户端 100s 死线。
+          const timer = setTimeout(() => ctl.abort(), Math.min(45_000, remaining));
           try {
             const resp = await fetch(provider.api_base.replace(/\/+$/, "") + "/chat/completions", {
               method: "POST",
@@ -361,6 +362,11 @@ export async function handleAi(req, env, H) {
             const text = await resp.text();
             const out = await okCall(resp, text, attempt);
             if (out !== RETRY_ONCE) return out;
+          } catch (e) {
+            // 上游超时：预算内重试一次（同请求身份，不重复扣用户点；
+            // 上游可能已执行，代价最多一次服务商成本——好过整批失败）。
+            if (e?.name === "AbortError" && attempt === 0) continue;
+            throw e;
           } finally { clearTimeout(timer); }
         }
       };

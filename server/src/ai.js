@@ -386,9 +386,9 @@ export async function handleAi(req, env, H) {
           const remaining = CALL_DEADLINE_MS - (Date.now() - callStarted);
           if (remaining < 15_000) { await release("TASK_FAILED", "deadline"); return err("TASK_FAILED", 502); }
           const ctl = new AbortController();
-          // 流式后单次尝试上限 60s：活的生成有空间跑完（实测成功 batch 需 ~55s），
-          // 死流由闲置 30s 检测提前出局，剩余预算仍可再战一次，总和不越客户端死线。
-          const timer = setTimeout(() => ctl.abort(), Math.min(60_000, remaining));
+          // 流式后单次尝试上限 75s：活流几乎给满 85s 预算（实测成功 batch 需 ~55s），
+          // 死流由闲置 30s 检测提前出局、剩余预算再战；超时烧完才干净失败。
+          const timer = setTimeout(() => ctl.abort(), Math.min(75_000, remaining));
           try {
             const resp = await fetch(provider.api_base.replace(/\/+$/, "") + "/chat/completions", {
               method: "POST",
@@ -436,7 +436,7 @@ export async function handleAi(req, env, H) {
       };
 
       try {
-        return await finish(async (resp, text, attempt) => {
+        const inFlight = finish(async (resp, text, attempt) => {
           if (resp.status === 429) {
             await release("RATE_LIMITED");
             await audit(env, uid, "ai.provider_rate_limited", provider.id, req);
@@ -465,6 +465,10 @@ export async function handleAi(req, env, H) {
           const pv = await balance(env, await env.DB.prepare("SELECT * FROM ai_quota_periods WHERE id=?").bind(period.id).first());
           return json({ request_id: reqKey, content, points: charged, balance: pv });
         });
+        // 客户端断连（App 超时/进程被杀）时，waitUntil 让 isolate 活到把上游调用和
+        // settle/release 跑完：不再留 reserved 僵尸锁，App 重试还能命中幂等回放免费拿结果。
+        if (H.ctx?.waitUntil) H.ctx.waitUntil(inFlight.catch(() => {}));
+        return await inFlight;
       } catch (e) {
         if (e?.name === "AbortError") { await release("UNKNOWN_PROVIDER_OUTCOME", "timeout"); return err("UNKNOWN_PROVIDER_OUTCOME", 504); }
         await release("PROVIDER_UNAVAILABLE", "fetch").catch(() => {});

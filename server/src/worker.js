@@ -179,13 +179,13 @@ export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(env.DB.prepare("SELECT 1").first().catch(() => null));
   },
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url);
     const path = url.pathname;
     try {
       // ---- R6.2：官方 AI 网关与点数（/ai/official/* 与 /console/api/ai/*；先匹配，/console/api/* 会被会员模块 404 必须先走）----
       const ar = await handleAi(req, env,
-        { json, err, timingSafeEq, uuid, nowS, sha256b64, hashPassword, audit, authed, CAPS_DEFAULT });
+        { json, err, timingSafeEq, uuid, nowS, sha256b64, hashPassword, audit, authed, CAPS_DEFAULT, ctx });
       if (ar) return ar;
       // ---- R4.3：管理台页面/会员/用量/兑换码（先匹配，不命中再走原认证路由）----
       const mr = await handleMembership(req, env,

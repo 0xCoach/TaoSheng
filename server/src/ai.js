@@ -333,11 +333,17 @@ export async function handleAi(req, env, H) {
 
       // 调服务商（OpenAI 兼容 chat/completions；密钥服务端解密，不出 Worker）
       // 上游偶发返回空 content（推理耗尽 max_tokens 等）：同请求重试一次，不重复预留/扣点。
+      // 总时限 85s 预算：App longReadClient callTimeout=100s，客户端断开会让 isolate 被杀、
+      // 留下永不释放的 reserved 僵尸锁。服务端必须抢在客户端超时前给出定论。
+      const CALL_DEADLINE_MS = 85_000;
+      const callStarted = Date.now();
       const finish = async (okCall) => {
         const key = provider.api_key_enc ? await decKey(env, provider.api_key_enc) : "";
         for (let attempt = 0; attempt < 2; attempt++) {
+          const remaining = CALL_DEADLINE_MS - (Date.now() - callStarted);
+          if (remaining < 15_000) { await release("TASK_FAILED", "deadline"); return err("TASK_FAILED", 502); }
           const ctl = new AbortController();
-          const timer = setTimeout(() => ctl.abort(), 55_000);
+          const timer = setTimeout(() => ctl.abort(), Math.min(55_000, remaining));
           try {
             const resp = await fetch(provider.api_base.replace(/\/+$/, "") + "/chat/completions", {
               method: "POST",
@@ -388,11 +394,12 @@ export async function handleAi(req, env, H) {
           let content = obj?.choices?.[0]?.message?.content;
           if (typeof content !== "string" || !content.trim()) {
             if (attempt === 0) return RETRY_ONCE;
-            await release("TASK_FAILED", "empty"); return err("TASK_FAILED", 502);
+            // finish_reason 诊断：length=推理烧光 max_tokens；stop=上游吐空内容
+            await release("TASK_FAILED", "empty:" + String(obj?.choices?.[0]?.finish_reason || "?")); return err("TASK_FAILED", 502);
           }
           if (JSON_TASKS.has(task)) {
             const extracted = extractJson(content);
-            if (extracted == null) { await release("TASK_FAILED", "contract_json"); return err("TASK_FAILED", 502); }
+            if (extracted == null) { await release("TASK_FAILED", "contract_json:" + String(content).slice(0, 36).replace(/\s+/g, " ")); return err("TASK_FAILED", 502); }
             content = extracted;
           }
           const u = obj.usage || {};

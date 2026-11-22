@@ -470,8 +470,17 @@ export async function handleAi(req, env, H) {
         });
         // 客户端断连（App 超时/进程被杀）时，waitUntil 让 isolate 活到把上游调用和
         // settle/release 跑完：不再留 reserved 僵尸锁，App 重试还能命中幂等回放免费拿结果。
-        if (H.ctx?.waitUntil) H.ctx.waitUntil(inFlight.catch(() => {}));
-        return await inFlight;
+        // 后台异常也要兜底 release，否则僵尸锁。
+        if (H.ctx?.waitUntil) H.ctx.waitUntil(
+          inFlight.catch(() => release("UNKNOWN_PROVIDER_OUTCOME", "bg").catch(() => {})));
+        // 85s 定论用代码赛跑兜底，不依赖 abort 能否解挂上游流：上游连接活着但
+        // 永不发数据时 fetch 中断不可靠，isolate 会被平台掐死留下僵尸锁。
+        // 超时先回 502，上游在后台继续跑，拿到结果正常结算（幂等回放免费取）。
+        const TIMEOUT_MARK = {};
+        const out = await Promise.race([
+          inFlight, new Promise(res => setTimeout(() => res(TIMEOUT_MARK), CALL_DEADLINE_MS))]);
+        if (out === TIMEOUT_MARK) return err("TASK_FAILED", 502);
+        return out;
       } catch (e) {
         if (e?.name === "AbortError") { await release("UNKNOWN_PROVIDER_OUTCOME", "timeout"); return err("UNKNOWN_PROVIDER_OUTCOME", 504); }
         await release("PROVIDER_UNAVAILABLE", "fetch").catch(() => {});

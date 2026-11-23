@@ -23,8 +23,9 @@ enum class NetLlmError { Auth, Quota, RateLimit, Network, Server, Format, TooSlo
 data class NetReply(val content: String, val promptTokens: Long, val completionTokens: Long)
 data class NetToolCall(val id: String, val name: String, val arguments: String, val extraContent: String?)
 data class NetStreamReply(val content: String, val calls: List<NetToolCall>, val reasoningContent: String?)
+/** [silent]：超时前模型一个字（含思考）都没输出，说明服务卡住了，切小重发没用。 */
 class NetLlmException(val type: NetLlmError, val status: Int = 0, val detail: String? = null,
-    val usage: NetReply? = null, val truncated: Boolean = false) : Exception(detail) {
+    val usage: NetReply? = null, val truncated: Boolean = false, val silent: Boolean = false) : Exception(detail) {
     companion object { const val TRUNCATED = "回答没写完就被截断了：模型思考太久，可在设置里关掉深度思考或换个模型" }
 }
 /** client 和已校验的候选地址由平台装配；不会读取设置、时钟、密钥或创建平台实现。 */

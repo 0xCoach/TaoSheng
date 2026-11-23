@@ -32,7 +32,9 @@ enum class LlmError(val human: String, val retryable: Boolean) {
 }
 
 /** 只用固定文案，不带服务端原文或请求内容，避免密钥、原话进日志。status 是 HTTP 状态码（0 = 没拿到），供模型检测分辨原因。 */
-class LlmException(val type: LlmError, val status: Int = 0, val detail: String = type.human, val usage: LlmReply? = null, val truncated: Boolean = false) : Exception(detail) {
+/** [silent] 见 NetLlmException：超时前一个字都没输出。 */
+class LlmException(val type: LlmError, val status: Int = 0, val detail: String = type.human, val usage: LlmReply? = null, val truncated: Boolean = false,
+    val silent: Boolean = false) : Exception(detail) {
     companion object {
         const val TRUNCATED = "回答没写完就被截断了：模型思考太久，可在设置里关掉深度思考或换个模型"
     }
@@ -71,7 +73,7 @@ class LlmClient(
     } }
     private fun error(e: NetLlmException): LlmException {
         val type = LlmError.valueOf(e.type.name)
-        return LlmException(type, e.status, e.detail ?: type.human, e.usage?.let { LlmReply(it.content, it.promptTokens, it.completionTokens) }, e.truncated)
+        return LlmException(type, e.status, e.detail ?: type.human, e.usage?.let { LlmReply(it.content, it.promptTokens, it.completionTokens) }, e.truncated, e.silent)
     }
     suspend fun chatJson(preset: LlmPreset, key: String, system: String, user: String, thinking: Boolean = false): LlmReply =
         jsonRequest(preset, key, system, user, thinking, probe = kotlin.coroutines.coroutineContext[app.resound.net.LlmProbeRequest] != null)

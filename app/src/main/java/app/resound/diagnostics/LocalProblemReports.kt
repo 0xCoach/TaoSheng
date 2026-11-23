@@ -52,6 +52,8 @@ internal class LocalProblemReports(
                 appendLine(app.resound.data.captureQueryStats.dump())
                 appendLine("\n整理与大模型诊断")
                 appendLine(runCatching { LlmProblemDiagnostics(context, memoryDao, failover).dump() }.getOrDefault("暂无"))
+                appendLine("\n专题进度（最近 3 天，最多 10 个；不含原话和纪要内容）")
+                appendLine(runCatching { app.resound.topic.TopicCheckpointFiles.diagnostics(context) }.getOrDefault("暂无"))
                 appendLine("\n环境音识别"); appendLine(envDiagnostics)
                 appendLine("\n推送诊断")
                 appendLine(app.resound.push.PushDiagnostics.dump(context.getSharedPreferences("push", Context.MODE_PRIVATE)))

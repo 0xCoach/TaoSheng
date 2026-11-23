@@ -19,6 +19,40 @@ import java.security.MessageDigest
 
 /** 存派生结果、指纹和冻结的待办上下文，不存整场原话；不进入备份。文件损坏时安全重新生成。 */
 internal class TopicCheckpointFiles(context: Context, private val currentRevision: (suspend (Long) -> Long?)? = null) : TopicCheckpointStore {
+    companion object {
+        /**
+         * 卡 226：问题记录里的专题进度。只列最近 [days] 天动过的专题的块状态和失败原因（固定文案），
+         * 不导出原话、要点或纪要内容。专题编号和"大模型响应摘要"里的 topic= 对得上。
+         */
+        fun diagnostics(context: Context, now: Long = System.currentTimeMillis(), days: Int = 3): String {
+            val json = Json { ignoreUnknownKeys = true }
+            val zone = java.time.ZoneId.systemDefault()
+            val hm = java.time.format.DateTimeFormatter.ofPattern("HH:mm").withZone(zone)
+            val stamp = java.time.format.DateTimeFormatter.ofPattern("MM-dd HH:mm").withZone(zone)
+            fun t(ms: Long) = hm.format(java.time.Instant.ofEpochMilli(ms))
+            fun at(ms: Long?) = ms?.takeIf { it > 0 }?.let { stamp.format(java.time.Instant.ofEpochMilli(it)) } ?: "暂无"
+            val files = File(context.noBackupFilesDir, "topic-checkpoints").listFiles().orEmpty()
+                .filter { it.extension == "json" && now - it.lastModified() <= days * 86_400_000L }
+                .sortedByDescending { it.lastModified() }.take(10)
+            if (files.isEmpty()) return "暂无"
+            return files.joinToString("\n") { file ->
+                val id = file.nameWithoutExtension
+                val c = runCatching { json.decodeFromString<TopicCheckpoint>(AtomicFile(file).openRead().bufferedReader().use { it.readText() }) }.getOrNull()
+                    ?: return@joinToString "专题 id=$id 检查点读不出（旧格式或损坏）"
+                val p = c.progress
+                buildString {
+                    append("专题 id=$id 格式=${c.format} 阶段=${p.phase.ifBlank { "暂无" }} 块=${p.blocksDone}/${p.blocksTotal} 失败=${p.blocksFailed}")
+                    append(" 等转写=${p.waitingTranscribe} 等认人=${p.waitingVoiceprint} 等网络=${p.waitingNetwork} 跳过等待=${c.skipWaiting}")
+                    append(" 完成=${p.finished} 最近进展=${at(p.lastProgressAt)} 结束=${at(c.endedAt)} 卡住=${p.stalledReason ?: "暂无"} 错误=${p.error ?: "暂无"}")
+                    for (b in p.blockNotes) {
+                        val range = b.ranges.firstOrNull()?.let { "${t(it.startAt)}-${t(b.ranges.last().endAt)}" } ?: "暂无"
+                        append("\n  块${b.index + 1} $range ${b.state}")
+                        if (b.state != TopicBlockState.Done) append(" 原因=${b.reason ?: "暂无"}")
+                    }
+                }
+            }
+        }
+    }
     private val dir = File(context.noBackupFilesDir, "topic-checkpoints")
     private val mutex = Mutex()
     private val epochs = mutableMapOf<Long, Long>()

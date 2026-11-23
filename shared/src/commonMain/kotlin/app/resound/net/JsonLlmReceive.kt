@@ -35,6 +35,8 @@ internal class JsonLlmReceive(private val client: HttpClient, private val bases:
     suspend fun chat(preset: LlmPreset, headers: List<Pair<String, String>>, body: Obj, trace: NetworkTrace?): NetReply {
         val progress = currentCoroutineContext()[LlmReceiveProgress]
         progress?.update(0, 0)
+        // 卡 226：模型输出过正文或思考就记下；超时时据此区分"卡住没响应"和"在写但太慢"。
+        var heard = false
         return try {
             withTimeout(TOTAL_MS) {
                 var streaming = support?.nonStreaming(preset) != true
@@ -57,12 +59,12 @@ internal class JsonLlmReceive(private val client: HttpClient, private val bases:
                                 if (status in setOf(404, 405) && index < bases.lastIndex) return@execute null
                                 val sse = response.headers[HttpHeaders.ContentType]?.substringBefore(';')?.trim()?.equals("text/event-stream", true) == true
                                 if (status in 200..299 && sse) {
-                                    receiveSse(response.bodyAsChannel(), tick, trace, progress)
+                                    receiveSse(response.bodyAsChannel(), tick, trace, progress) { heard = true }
                                 } else {
                                     val raw = receiveText(response.bodyAsChannel(), tick)
                                     // 有的中转把流式内容标成 application/json：按内容认出“data:”分段，仍按流式解析。
                                     if (status in 200..299 && streaming && raw.trimStart().startsWith("data:"))
-                                        return@execute receiveSse(ByteReadChannel(raw.encodeToByteArray()), tick, trace, progress)
+                                        return@execute receiveSse(ByteReadChannel(raw.encodeToByteArray()), tick, trace, progress) { heard = true }
                                     if (streaming && status in 400..499 && status != 429 && rejectsStream(raw)) {
                                         support?.rememberNonStreaming(preset)
                                         streaming = false; retry = true
@@ -93,9 +95,12 @@ internal class JsonLlmReceive(private val client: HttpClient, private val bases:
             }
         } catch (e: TimeoutCancellationException) {
             currentCoroutineContext().ensureActive()
-            throw NetLlmException(NetLlmError.TooSlow, detail = WAIT_TIMEOUT_TEXT)
+            throw NetLlmException(NetLlmError.TooSlow, detail = WAIT_TIMEOUT_TEXT, silent = !heard)
         } catch (e: CancellationException) { throw e }
-          catch (e: NetLlmException) { throw e }
+          catch (e: NetLlmException) {
+              throw if (e.type == NetLlmError.TooSlow && !heard && !e.silent)
+                  NetLlmException(e.type, e.status, e.detail, e.usage, e.truncated, silent = true) else e
+          }
           catch (e: Exception) {
               app.resound.diagnostics.FailureNotes.record("net/JsonLlmReceive.kt:transport", e)
               throw NetLlmException(NetLlmError.Network, detail = networkError(e))
@@ -130,7 +135,8 @@ internal class JsonLlmReceive(private val client: HttpClient, private val bases:
         return buffer.readByteArray().decodeToString()
     }
 
-    private suspend fun receiveSse(source: ByteReadChannel, tick: () -> Unit, trace: NetworkTrace?, progress: LlmReceiveProgress?): NetReply {
+    private suspend fun receiveSse(source: ByteReadChannel, tick: () -> Unit, trace: NetworkTrace?, progress: LlmReceiveProgress?,
+        heard: () -> Unit = {}): NetReply {
         val text = StringBuilder()
         var reasoningChars = 0
         var tokens: NetReply? = null
@@ -157,6 +163,7 @@ internal class JsonLlmReceive(private val client: HttpClient, private val bases:
                     if (!delta.isNull(field)) reasoningChars += delta.optString(field).length
                 }
                 if (text.length + reasoningChars > 2_000_000) throw NetLlmException(NetLlmError.Format)
+                if (text.isNotEmpty() || reasoningChars > 0) heard()
                 progress?.update(reasoningChars, text.length)
             }
         }

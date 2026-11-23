@@ -61,7 +61,7 @@ class LocalAsrDeviceTest {
                 var uploads=0
                 val result=provider.recognize(AsrAudio(audio,"ogg",3007),"local-model"){uploads++}
                 assertTrue(result.sentences.isNotEmpty());assertEquals(0,uploads)
-                assertTrue(settings.localStatus.value.contains(if(mode==LocalBackend.Npu) "NPU（检查已通过）" else "CPU"))
+                assertEquals("正在使用：${mode.title}", settings.localStatus.value)
             }
             settings.recordNpuCheck(LocalModels.npuCheckKey(context),false)
             provider.recognize(AsrAudio(audio,"ogg",3007),"local-model"){fail("local must not upload")}

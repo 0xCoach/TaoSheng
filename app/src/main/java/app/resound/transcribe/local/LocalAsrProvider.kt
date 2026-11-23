@@ -1,50 +1,69 @@
 package app.resound.transcribe.local
 
+import android.content.Context
 import app.resound.PipelineProgress
+import app.resound.diagnostics.FailureNotes
+import app.resound.transcribe.AndroidTranscribeSettings
+import app.resound.transcribe.AsrAudio
+import app.resound.transcribe.AsrError
+import app.resound.transcribe.AsrException
+import app.resound.transcribe.AsrProvider
+import app.resound.transcribe.AsrResult
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withContext
 
-import android.content.*
-import android.os.*
-import app.resound.transcribe.*
-import kotlinx.coroutines.*
-
-class LocalAsrProvider(private val context:Context,private val settings:AndroidTranscribeSettings,
-    private val hotwords: () -> List<String> = { emptyList() }):AsrProvider {
+class LocalAsrProvider(
+    private val context: Context,
+    private val settings: AndroidTranscribeSettings,
+    private val hotwords: () -> List<String> = { emptyList() },
+) : AsrProvider {
     private val correction by lazy { LocalHotwordCorrection(context, hotwords) }
-    override suspend fun recognize(audio:AsrAudio,key:String,beforeAudio:suspend()->Unit):AsrResult {
-        val requested=settings.backend.value
-        val language=settings.language.value
-        // 检查结果按“App 版本 + 模型文件”记住：通过过就直接用，没通过过就直接走 CPU；重新选 NPU 或升级后才再查
-        val key=LocalModels.npuCheckKey(context)
-        val checked=settings.npuCheck(key)
-        val useNpu=requested==LocalBackend.Npu && LocalModels.npuSupported() && checked!=false
-        var fallback=when {
-            requested!=LocalBackend.Npu || useNpu -> ""
-            checked==false -> "NPU 识别暂时不可用，已自动改用 CPU（重新选一次 NPU 识别可再试）"
-            else -> "您的手机暂不支持 NPU 识别，已使用 CPU 识别"
-        }
-        if(useNpu){
-            if(!LocalModels.ready(context,LocalModels.npu))throw AsrException(AsrError.ModelMissing)
-            settings.setLocalStatus(if(checked==true) "正在使用：NPU 识别" else "正在试用 NPU 识别…")
-            try {return call(audio,LocalBackend.Npu,language).also{if(checked!=true)settings.recordNpuCheck(key,true);settings.setLocalStatus("正在使用：NPU 识别")}}
-            catch(e:CancellationException){throw e}
-            catch(e:Exception){
-                if(e is AsrException && (e.type in setOf(AsrError.Speakers, AsrError.Audio) || e.detail in LOCAL_INTERRUPTION_REASONS))throw e
-                // 记下芯片和原因，诊断日志里能看到为什么没用上 NPU（#64）
-                app.resound.diagnostics.FailureNotes.record("transcribe/local/LocalAsrProvider.kt:npu ${LocalModels.soc()} ${LocalModels.npu.id}", e)
-                // 通过过的偶发失败只回退这一次，不记成“不可用”
-                if(checked!=true)settings.recordNpuCheck(key,false)
-                fallback="NPU 识别暂时不可用，已自动改用 CPU"
+
+    override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult {
+        val checkKey = LocalModels.npuCheckKey(context)
+        val facts = settings.localFacts(checkKey)
+        val language = settings.language.value
+        val request = Any()
+        val showStatus: (String) -> Unit = { settings.setLocalStatus(request, it) }
+        try {
+            when (LocalEngine.choose(facts)) {
+                null -> throw AsrException(AsrError.ModelMissing, detail = LocalEngine.status(facts))
+                LocalBackend.Cpu -> {
+                    showStatus(LocalEngine.status(facts))
+                    return call(audio, LocalBackend.Cpu, language, showStatus)
+                }
+                LocalBackend.Npu -> {
+                    showStatus(if (facts.npuCheck == true) "正在使用：NPU 识别" else "正在试用 NPU 识别…")
+                    val result = try {
+                        call(audio, LocalBackend.Npu, language, showStatus)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        if (e is AsrException && (e.type == AsrError.Speakers || e.type == AsrError.Audio ||
+                                e.type == AsrError.Interrupted || e.detail in LOCAL_INTERRUPTION_REASONS)) throw e
+                        FailureNotes.record("transcribe/local/LocalAsrProvider.kt:npu ${LocalModels.soc()} ${LocalModels.npu.id}", e)
+                        // 已通过检查的 NPU 偶发失败只影响本次请求。
+                        if (facts.npuCheck != true) settings.recordNpuCheck(checkKey, false)
+                        if (!settings.modelReady(LocalBackend.Cpu)) {
+                            throw AsrException(AsrError.ModelMissing, detail = "NPU 识别这次没成功，请先下载 CPU 模型")
+                        }
+                        showStatus("NPU 这次没成功，已改用 CPU")
+                        return call(audio, LocalBackend.Cpu, language, showStatus)
+                    }
+                    if (facts.npuCheck != true) settings.recordNpuCheck(checkKey, true)
+                    return result
+                }
             }
+        } finally {
+            settings.clearLocalStatus(request)
         }
-        if(!LocalModels.ready(context,LocalModels.cpu)){
-            settings.setLocalStatus(if(fallback.isNotBlank()) "NPU 识别暂时不可用，请先下载 CPU 模型" else "请先下载 CPU 模型")
-            throw AsrException(AsrError.ModelMissing)
-        }
-        settings.setLocalStatus(if(fallback.isNotBlank()) fallback else "正在使用：CPU 识别")
-        return call(audio,LocalBackend.Cpu,language).also{settings.setLocalStatus(if(fallback.isNotBlank())fallback else "正在使用：CPU 识别")}
     }
-    private suspend fun call(audio:AsrAudio,backend:LocalBackend,language:LocalAsrLanguage):AsrResult =
+
+    private suspend fun call(audio: AsrAudio, backend: LocalBackend, language: LocalAsrLanguage, showStatus: (String) -> Unit): AsrResult =
         withContext(LocalResumeRequest(LocalResumeFiles.hash(hotwords().joinToString("\u0000").toByteArray()))) {
-            correction.apply(LocalAsrConnection.get(context).recognize(audio,backend,language){settings.setLocalStatus(it);PipelineProgress.detail(it)})
+            correction.apply(LocalAsrConnection.get(context).recognize(audio, backend, language) {
+                showStatus(it)
+                PipelineProgress.detail(it)
+            })
         }
 }

@@ -1,23 +1,28 @@
 package app.resound.transcribe
 
-import app.resound.diagnostics.FailureNotes
-
-import app.resound.digest.HeaderEntry
-import app.resound.digest.ServiceHeaders
-import app.resound.transcribe.local.LocalBackend
-import app.resound.transcribe.local.LocalModels
-
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import app.resound.diagnostics.FailureNotes
+import app.resound.digest.HeaderEntry
+import app.resound.digest.ServiceHeaders
 import app.resound.transcribe.local.LocalAsrLanguage
+import app.resound.transcribe.local.LocalBackend
+import app.resound.transcribe.local.LocalEngine
+import app.resound.transcribe.local.LocalFacts
+import app.resound.transcribe.local.LocalModels
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -111,7 +116,6 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
     val source get() = preferences.source
     val backend get() = preferences.backend
     val language get() = preferences.language
-    val localStatus get() = preferences.localStatus
     val modelRevision get() = preferences.modelRevision
     val customEndpoint get() = customSettings.endpoint
     val customModel get() = customSettings.model
@@ -120,18 +124,54 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
     val customPrompt get() = customSettings.customPrompt
     fun setLanguage(value: LocalAsrLanguage) = preferences.setLanguage(value)
     fun npuCheck(key: String) = preferences.npuCheck(key)
-    fun recordNpuCheck(key: String, ok: Boolean) = preferences.recordNpuCheck(key, ok)
+    fun recordNpuCheck(key: String, ok: Boolean) {
+        preferences.recordNpuCheck(key, ok)
+        refreshLocal(localFacts())
+    }
     fun setCustomPrompt(on: Boolean) = customSettings.setPrompt(on)
     private val _ready = MutableStateFlow(false)
     override val ready = _ready.asStateFlow()
+    // 保留各请求自己的进度，结束时只清除本次的提示。
+    private data class LocalStatus(val idle: String, val requests: Map<Any, String> = emptyMap()) {
+        val text get() = requests.values.lastOrNull() ?: idle
+    }
+    private val status = MutableStateFlow(LocalStatus(""))
+    @OptIn(ExperimentalForInheritanceCoroutinesApi::class)
+    val localStatus: StateFlow<String> = object : StateFlow<String> {
+        override val value get() = status.value.text
+        override val replayCache get() = listOf(value)
+        override suspend fun collect(collector: FlowCollector<String>): Nothing {
+            status.map { it.text }.distinctUntilChanged().collect(collector)
+            awaitCancellation()
+        }
+    }
     private val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
         preferences.localPreferenceChanged(); refreshReady()
     }
-    init { localPrefs.registerOnSharedPreferenceChangeListener(listener) }
+    init {
+        if (localPrefs.contains("actual")) localPrefs.edit().remove("actual").apply()
+        localPrefs.registerOnSharedPreferenceChangeListener(listener)
+    }
     fun downloadStatus(backend: LocalBackend) = localPrefs.getString("download-${backend.name}", "未下载")!!
     fun modelReady(backend: LocalBackend) = LocalModels.ready(context, LocalModels.spec(backend))
     fun download(backend: LocalBackend, retry: Boolean = false) = LocalModels.enqueue(context, backend, retry)
-    fun setLocalStatus(value: String) = preferences.setLocalStatus(value)
+    internal fun localFacts(checkKey: String = LocalModels.npuCheckKey(context)): LocalFacts {
+        val supported = LocalModels.npuSupported()
+        return LocalFacts(
+            wish = backend.value,
+            npuSupported = supported,
+            npuReady = supported && modelReady(LocalBackend.Npu),
+            cpuReady = modelReady(LocalBackend.Cpu),
+            npuCheck = npuCheck(checkKey),
+        )
+    }
+    internal fun setLocalStatus(request: Any, value: String) {
+        status.update { it.copy(requests = it.requests + (request to value)) }
+    }
+    internal fun clearLocalStatus(request: Any) {
+        val idle = LocalEngine.status(localFacts())
+        status.update { it.copy(idle = idle, requests = it.requests - request) }
+    }
     fun setSource(value: TranscribeSource) = preferences.setSource(value)
     fun setBackend(value: LocalBackend) = preferences.setBackend(value)
     fun saveCustom(endpoint: String, model: String, mode: CustomEndpointMode = endpointMode.value) = customSettings.save(endpoint, model, mode)
@@ -161,7 +201,7 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
         if (source.value == TranscribeSource.Doubao && _plan.value) ":plan" else ""
     internal fun credential(source: TranscribeSource) = if (source == TranscribeSource.Local) "local-model" else readKey(source)
     internal fun ready(source: TranscribeSource): Boolean = when (source) {
-        TranscribeSource.Local -> modelReady(if (backend.value == LocalBackend.Npu && LocalModels.npuSupported()) backend.value else LocalBackend.Cpu)
+        TranscribeSource.Local -> LocalEngine.choose(localFacts()) != null
         TranscribeSource.Doubao -> runCatching { readKey(source).isNotBlank() || headers(source.name).any { it.value.isNotBlank() } }.onFailure {
             FailureNotes.record("transcribe/AndroidTranscribeSettings.kt:88", it)
         }.getOrDefault(false)
@@ -171,10 +211,14 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
     }
     fun credential() = if(source.value==TranscribeSource.Local) "local-model" else readKey()
     private fun keyField() = keyFieldFor(source.value)
-    fun refreshReady() { _ready.value=if(source.value==TranscribeSource.Local) {
-        if(backend.value==LocalBackend.Npu && LocalModels.npuSupported()) modelReady(LocalBackend.Npu)
-        else modelReady(LocalBackend.Cpu)
-    } else usable()
+    private fun refreshLocal(facts: LocalFacts) {
+        if (source.value == TranscribeSource.Local) _ready.value = LocalEngine.choose(facts) != null
+        val idle = LocalEngine.status(facts)
+        status.update { it.copy(idle = idle) }
+    }
+    fun refreshReady() {
+        refreshLocal(localFacts())
+        if (source.value != TranscribeSource.Local) _ready.value = usable()
         _hasKey.value = usable()
         customSettings.refresh()
     }

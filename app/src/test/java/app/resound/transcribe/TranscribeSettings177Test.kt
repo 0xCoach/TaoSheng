@@ -50,7 +50,7 @@ class TranscribeSettings177Test {
         shadowOf(Looper.getMainLooper()).idle()
         out += "local=${state()}/npu=${s.npuCheck("synthetic")}/revisionChanged=${s.modelRevision.value > 0}"
         s.recordNpuCheck("new", false); out += "npuRecorded=${s.npuCheck("new")}/${local.getString("npuCheck", null)}"
-        s.setLocalStatus("合成状态"); s.setCustomPrompt(true); s.setIntervalMinutes(60); s.setWifiOnly(false)
+        s.setLocalStatus(this, "合成状态"); s.setCustomPrompt(true); s.setIntervalMinutes(60); s.setWifiOnly(false)
         s.setSource(TranscribeSource.Custom); commits = 0
         s.saveCustomAll(" https://example.invalid/asr?group=1 ", " synthetic-model ", "", CustomEndpointMode.Full)
         out += "custom=${state()}/endpoint=${s.customEndpoint}/model=${s.customModel}/commits=$commits"

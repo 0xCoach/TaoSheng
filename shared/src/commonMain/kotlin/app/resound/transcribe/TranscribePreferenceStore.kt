@@ -42,8 +42,6 @@ class TranscribePreferenceStore(
         _language.value = value
         onChanged()
     }
-    private val _localStatus = MutableStateFlow(readLocalString("actual", "尚未运行；首次转写会检查加速能力")!!)
-    val localStatus = _localStatus.asStateFlow()
     private val _modelRevision = MutableStateFlow(0)
     val modelRevision = _modelRevision.asStateFlow()
     /** 记住的 NPU 检查结果：true 通过、false 没通过、null 还没查过（或版本、模型变了） */
@@ -53,12 +51,16 @@ class TranscribePreferenceStore(
         else -> null
     }
     fun recordNpuCheck(key: String, ok: Boolean) { saveLocalString("npuCheck", "${if (ok) "pass" else "fail"}:$key") }
-    fun setLocalStatus(value: String) { _localStatus.value=value;saveLocalString("actual", value) }
     fun setSource(value: TranscribeSource) { saveString("source", value.name);_source.value=value
         if(!contains("realtime"))_realtime.value=value==TranscribeSource.Local
         sourceChanged();refreshReady();onChanged() }
-    fun setBackend(value: LocalBackend) { saveString("backend", value.name);_backend.value=value;clearNpuCheck();setLocalStatus(if(value==LocalBackend
-        .Npu) "已选择 NPU 识别" else "已选择 CPU 识别");refreshReady();onChanged() }
+    fun setBackend(value: LocalBackend) {
+        saveString("backend", value.name)
+        _backend.value = value
+        clearNpuCheck()
+        refreshReady()
+        onChanged()
+    }
     private val _interval = MutableStateFlow(readInt("interval", 30).takeIf { it in MIN_INTERVAL..MAX_INTERVAL } ?: 30)
     val intervalMinutes = _interval.asStateFlow()
     /** 实时转写：录完一段就转。没手动设过时，本机默认开、云端默认关（云端每段都上传，更耗电和流量） */

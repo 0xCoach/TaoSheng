@@ -39,7 +39,7 @@ class SpeakerDeviceTest {
         val result = LocalAsrProvider(context,settings).recognize(AsrAudio(file,"ogg",30392),"local-model") { fail("must not upload") }
         assertTrue(result.sentences.isNotEmpty())
         assertTrue(result.sentences.any { it.speakerTag != null })
-        assertTrue(settings.localStatus.value.contains("NPU · 检查通过"))
+        assertEquals("正在使用：NPU 识别", settings.localStatus.value)
         File(context.filesDir,"speaker-transcript.json").writeText(JSONArray().apply { result.sentences.forEach {
             put(JSONObject().put("startMs",it.startMillis).put("endMs",it.endMillis).put("text",it.text).put("speaker",it.speakerTag))
         } }.toString(2))

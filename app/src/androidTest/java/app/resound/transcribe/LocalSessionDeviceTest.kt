@@ -90,7 +90,7 @@ class LocalSessionDeviceTest {
             settings.recordNpuCheck(LocalModels.npuCheckKey(context), false)
             val fallback = LocalAsrProvider(context,settings).recognize(AsrAudio(short,"ogg",3007),"local") { fail("must not upload") }
             assertTrue(fallback.sentences.isNotEmpty())
-            assertTrue(settings.localStatus.value.contains("回退 CPU"))
+            assertTrue(settings.localStatus.value.contains("改用 CPU"))
             val cpu = requireNotNull(connection.lastMetrics)
             assertEquals(batch.pid,cpu.pid); assertEquals(2,cpu.modelLoads)
             for(spec in listOf(LocalModels.cpu,LocalModels.npu))assertTrue(ModelVerification.matches(LocalModels.directory(context,spec),spec))

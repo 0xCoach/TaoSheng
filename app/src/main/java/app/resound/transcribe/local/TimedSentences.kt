@@ -65,6 +65,7 @@ class TimedSentences {
             if(punctuation)flush()
         }
         flush()
-        return (out+coarse).sortedBy { it.startMillis }
+        // 卡 228：零散短行的通用兜底（只动有逐字时间的结果）
+        return (ShortLines.merge(out)+coarse).sortedBy { it.startMillis }
     }
 }

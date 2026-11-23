@@ -107,7 +107,7 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
         { key, value -> prefs.edit().putInt(key, value).commit() }, localPrefs::getString,
         { key, value -> localPrefs.edit().putString(key, value).apply() },
         { localPrefs.edit().remove("npuCheck").apply() },
-        ::sourceChanged, ::refreshReady)
+        ::sourceChanged, ::refreshReady, { prefs.contains("encryptedKey") || prefs.contains("planEncryptedKey") })
     val source get() = preferences.source
     val backend get() = preferences.backend
     val language get() = preferences.language

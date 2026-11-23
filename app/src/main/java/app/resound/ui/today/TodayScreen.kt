@@ -278,6 +278,7 @@ fun TodayScreen(
                     WakeWordNotice(captureStatus.state == CaptureState.Listening || captureStatus.state == CaptureState.Recording, topGap = 12.dp)
                     WhatsNewNotice(topGap = 12.dp)
                     DeepThinkingNotice(topGap = 12.dp)
+                    DefaultBackupNotice(topGap = 12.dp)
                     RemoteNoticeCards(topGap = 12.dp)
                     // 卡 219：最近一次重做/合并，关掉任务后也能撤销
                     app.resound.ui.redo.RedoUndoCard(transcribe = false, topGap = 12.dp)

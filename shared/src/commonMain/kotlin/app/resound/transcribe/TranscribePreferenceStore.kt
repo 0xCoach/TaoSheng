@@ -20,10 +20,15 @@ class TranscribePreferenceStore(
     private val saveLocalString: (String, String) -> Unit,
     private val clearNpuCheck: () -> Unit,
     private val sourceChanged: () -> Unit, private val refreshReady: () -> Unit,
+    /** 从没存过转写方式时，是否已经填过豆包密钥（老用户一直在用豆包） */
+    hasCloudKey: () -> Boolean = { false },
 ) {
-    private val _source = MutableStateFlow(runCatching { TranscribeSource.valueOf(readString("source", "Doubao")!!) }.onFailure {
+    // 卡 223：没存过转写方式的默认用本机识别（不用密钥）；填过豆包密钥的老用户仍是豆包。第一次决定后存下
+    private val _source = MutableStateFlow(if (!contains("source")) {
+        (if (hasCloudKey()) TranscribeSource.Doubao else TranscribeSource.Local).also { saveString("source", it.name) }
+    } else runCatching { TranscribeSource.valueOf(readString("source", "Local")!!) }.onFailure {
         FailureNotes.record("transcribe/TranscribePreferenceStore.kt:25", it)
-    }.getOrDefault(TranscribeSource.Doubao))
+    }.getOrDefault(TranscribeSource.Local))
     val source = _source.asStateFlow()
     private val _backend = MutableStateFlow(runCatching { LocalBackend.valueOf(readString("backend", "Npu")!!) }.onFailure {
         FailureNotes.record("transcribe/TranscribePreferenceStore.kt:27", it)

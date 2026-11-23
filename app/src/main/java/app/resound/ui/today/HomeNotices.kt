@@ -431,6 +431,38 @@ fun DeepThinkingNotice(topGap: Dp = 0.dp) {
     }
 }
 
+/** 卡 223：默认自动打开的本机备份，第一次备份成功后提示一次在哪、能防什么、不能防什么 */
+@Composable
+fun DefaultBackupNotice(topGap: Dp = 0.dp) {
+    if (!AppGraph.isBackupReady) return
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("backup", Context.MODE_PRIVATE) }
+    var pending by remember { mutableStateOf(prefs.getBoolean(app.resound.backup.AndroidBackupRepository.DEFAULT_NOTICE, false)) }
+    val local by AppGraph.backup.local.collectAsStateWithLifecycle()
+    if (!pending || local.lastAt == null || !local.downloads) return
+    fun dismiss() { prefs.edit().putBoolean(app.resound.backup.AndroidBackupRepository.DEFAULT_NOTICE, false).apply(); pending = false }
+    val c = Rs.colors
+    Spacer(Modifier.height(topGap))
+    RsCard(padding = PaddingValues(horizontal = 18.dp, vertical = 16.dp)) {
+        Row(verticalAlignment = Alignment.Top) {
+            Text("🗂", style = RsType.headline)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("记录已自动备份到 ${local.folder}", style = RsType.body, color = c.text)
+                Spacer(Modifier.height(4.dp))
+                Text("每晚备份一次，保留最近 7 份。卸载重装、清除数据后可以从这里找回；但手机丢了或坏了会一起没，建议再开一个云端备份（坚果云免费）。",
+                    style = RsType.caption, color = c.textSecondary)
+                Spacer(Modifier.height(12.dp))
+                Row {
+                    Pill("开云端备份", filled = true) { dismiss(); ShellNav.openSettings(SettingsPage.Backup) }
+                    Spacer(Modifier.width(8.dp))
+                    Pill("知道了", filled = false) { dismiss() }
+                }
+            }
+        }
+    }
+}
+
 /** 卡 214：开着推录音、到期录音推不上去被扣满 7 天时提醒；“不等了，直接删”要再点一次 */
 @Composable
 fun HeldRecordingsNotice(topGap: Dp = 0.dp) {

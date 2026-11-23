@@ -49,13 +49,14 @@ class AndroidBackupRepository internal constructor(
     private val mutableLocal = MutableStateFlow(readLocal())
     override val local = mutableLocal.asStateFlow()
     private fun downloadsSelected() = prefs.getBoolean("localDownloads", false)
-    private fun readLocal() = LocalBackupState(if (downloadsSelected()) DownloadsBackupFiles.LABEL else prefs.getString("localFolderName", null),
+    private fun readLocal() = LocalBackupState(if (downloadsSelected()) DownloadsBackupFiles.label(context) else prefs.getString("localFolderName", null),
         prefs.getBoolean("localAuto", false), prefs.getInt("localKeep", 7), false,
         prefs.getLong("localLastAt", 0).takeIf { it > 0 }, prefs.getLong("localLastBytes", -1).takeIf { it >= 0 },
         prefs.getInt("localCount", -1).takeIf { it >= 0 },
         if (!downloadsSelected() && (folderAccess() in setOf(LocalFolderAccess.NeedsReauthorize, LocalFolderAccess.Unsupported) ||
             prefs.getString("localFolderError", null) == LocalBackupFiles.INACCESSIBLE)) LocalBackupFiles.INACCESSIBLE else prefs.getString("localError", null),
-        folderAccess = folderAccess(), sessionOnly = !downloadsSelected() && prefs.getString("localTree", null)?.let { localFiles.sessionOnly(Uri.parse(it)) } == true)
+        folderAccess = folderAccess(), sessionOnly = !downloadsSelected() && prefs.getString("localTree", null)?.let { localFiles.sessionOnly(Uri.parse(it)) } == true,
+        downloads = downloadsSelected())
     private fun folderAccess(): LocalFolderAccess? {
         if (downloadsSelected()) return LocalFolderAccess.Ok
         val tree = prefs.getString("localTree", null)?.let(Uri::parse)
@@ -77,7 +78,20 @@ class AndroidBackupRepository internal constructor(
     }
     private fun schedule() = scheduler.schedule(state.value.enabled && state.value.hasPassword && state.value.account != null,
         local.value.auto && (downloadsSelected() || prefs.contains("localTree")))
-    init { schedule() }
+    init { defaultLocalBackup(); schedule() }
+    /**
+     * 卡 223：小白不会选文件夹，默认就备份。新装的、以及从没设过任何备份（云端没填、本机没选文件夹）的老用户，
+     * 自动存到 Download（下载）/TaoSheng、每晚一次；第一次备份成功后首页提示一次。设过备份的一律不动。只做一次。
+     */
+    private fun defaultLocalBackup() {
+        if (prefs.getBoolean(DEFAULT_DONE, false)) return
+        val configured = prefs.getBoolean("enabled", false) || cloud.account != null || downloadsSelected() || prefs.contains("localTree")
+        check(prefs.edit().apply {
+            if (!configured) putBoolean("localDownloads", true).putBoolean("localAuto", true)
+                .putString("localFolderName", DownloadsBackupFiles.label(context)).putBoolean(DEFAULT_NOTICE, true)
+        }.putBoolean(DEFAULT_DONE, true).commit())
+        if (!configured) refreshLocal()
+    }
     @Synchronized override fun saveCredentials(account: String, appPassword: String) =
         saveCloud(CloudKind.Nutstore, account, appPassword)
     @Synchronized override fun saveCloud(kind: CloudKind, account: String, secret: String?, webDavUrl: String?, s3: S3Settings?) {
@@ -264,7 +278,7 @@ class AndroidBackupRepository internal constructor(
         check(prefs.edit().apply {
             if (!downloadsSelected()) remove("localLastAt").remove("localLastBytes").remove("localCount")
         }.putBoolean("localDownloads", true).remove("localTree")
-            .putString("localFolderName", DownloadsBackupFiles.LABEL)
+            .putString("localFolderName", DownloadsBackupFiles.label(context))
             .remove("localError").remove("localFolderError").commit())
         refreshLocal(); schedule()
     }
@@ -382,5 +396,10 @@ class AndroidBackupRepository internal constructor(
             } finally { if (!readOnly) refreshLocal(false) }
         }
     }
-    companion object { private val gate = Mutex() }
+    internal companion object {
+        private val gate = Mutex()
+        const val DEFAULT_DONE = "localDefault223"
+        /** 首页提示“已自动备份到 Download/TaoSheng”：自动打开的才提示，第一次备份成功后显示 */
+        const val DEFAULT_NOTICE = "localDefaultNotice"
+    }
 }

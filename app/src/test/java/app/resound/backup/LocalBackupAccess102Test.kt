@@ -34,6 +34,8 @@ class LocalBackupAccess102Test {
         WorkManagerTestInitHelper.initializeTestWorkManager(context, Configuration.Builder().build())
         db = CaptureDatabase.open(context)
         root = File(context.cacheDir, "access102").apply { deleteRecursively(); mkdirs() }
+        // 这里只测“自己选文件夹”的行为；卡 223 的默认下载目录备份另见 DownloadsBackup123Test
+        context.getSharedPreferences("backup", 0).edit().putBoolean(AndroidBackupRepository.DEFAULT_DONE, true).commit()
     }
     @After fun cleanup() { db.close(); root.deleteRecursively(); BackupScheduler(context).cancel() }
     private fun repository(files: LocalBackupFiles) = AndroidBackupRepository(context, db, localFiles = files,

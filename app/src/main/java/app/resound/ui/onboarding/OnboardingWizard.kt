@@ -163,7 +163,7 @@ private fun ColumnScope.Welcome(onStart: () -> Unit, onRestore: () -> Unit) {
         modifier = Modifier.fillMaxWidth().padding(top = 14.dp).springClick(onRestore))
 }
 
-private fun metered(context: Context) =
+internal fun metered(context: Context) =
     runCatching { context.getSystemService(ConnectivityManager::class.java).isActiveNetworkMetered }.getOrDefault(false)
 
 @Composable

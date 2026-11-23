@@ -311,6 +311,10 @@ private fun ActionRow(title: String, subtitle: String, action: String, onClick: 
 /** 本机列表里的条目在名字前加这个标记，恢复时据此走本机恢复 */
 private const val LOCAL_TAG = "local:"
 
+/** 系统文件夹选择器默认打开 Download/TaoSheng（没有这个文件夹时系统会打开别处） */
+private val DOWNLOADS_TAOSHENG: android.net.Uri =
+    android.net.Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADownload%2FTaoSheng")
+
 /** 本机备份：选文件夹、每晚自动、只留最新几份、立即备份、导出一份、从文件恢复 */
 @Composable
 private fun LocalBackupSection(repo: BackupRepository, cache: BackupPageCache, l: app.resound.backup.LocalBackupState, onRestoreAll: () -> Unit, onRestore: (app.resound.backup.RemoteBackup) -> Unit) {
@@ -376,13 +380,19 @@ private fun LocalBackupSection(repo: BackupRepository, cache: BackupPageCache, l
             ActionRow("备份文件夹需要重新授权", "系统收回了「${l.folder}」的访问权限，在弹出的页面里再选一次这个文件夹即可", "授权") { pickFolder.launch(null) }
         l.folderAccess == app.resound.backup.LocalFolderAccess.Unsupported ->
             ActionRow("换一个备份文件夹", "这个位置不能写入，请在 Download 里新建一个文件夹再选", "选择") { pickFolder.launch(null) }
-        else -> ActionRow("备份文件夹", l.folder ?: "建议在 Download 里新建 Resound", if (l.folder == null) "选择" else "更换") { pickFolder.launch(null) }
+        else -> ActionRow("备份文件夹", l.folder ?: "建议在 Download（下载）里新建 TaoSheng", if (l.folder == null) "选择" else "更换") { pickFolder.launch(null) }
+    }
+    if (l.downloads) Text("存在这台手机上：卸载重装、清除数据后能找回；手机丢了或坏了会一起没，建议再开一个云端备份。",
+        style = RsType.caption, color = c.textTertiary, modifier = Modifier.padding(horizontal = 4.dp))
+    // 卡 223：重装后安卓不让新安装读旧安装存在 Download 里的文件，列表是空的；要用系统选择器选那个文件夹才能读到
+    if (summary == null) ActionRow("找回以前的备份", "重装过 App？在弹出的页面里打开 Download（下载）/TaoSheng，选日期最新的那个文件夹，再点“从本机文件夹恢复全部”", "去选") {
+        pickFolder.launch(DOWNLOADS_TAOSHENG)
     }
     // 卡 123：选文件夹那一套在有些手机上用不了（如鸿蒙的安卓兼容层），提供不用选文件夹的位置
-    val downloads = l.folder == app.resound.backup.DownloadsBackupFiles.LABEL
+    val downloads = l.downloads
     if (!downloads) {
-        val stuck = l.folderAccess == app.resound.backup.LocalFolderAccess.Unsupported || l.lastError?.contains("下载/备份") == true
-        if (stuck || l.folder == null) ActionRow("不用选文件夹", "直接存到 下载/备份，${if (stuck) "选文件夹用不了时用这个" else "有的手机选不了文件夹时用这个"}", "改用") {
+        val stuck = l.folderAccess == app.resound.backup.LocalFolderAccess.Unsupported || l.lastError?.contains("Download（下载）") == true
+        if (stuck || l.folder == null) ActionRow("不用选文件夹", "直接存到 Download（下载）/TaoSheng，${if (stuck) "选文件夹用不了时用这个" else "有的手机选不了文件夹时用这个"}", "改用") {
             cache.invalidateLocal(); repo.useDownloadsFolder(); folderEpoch++
         }
     }

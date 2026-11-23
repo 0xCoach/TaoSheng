@@ -115,13 +115,28 @@ internal class DownloadsBackupFiles(private val context: Context) : VolumeStore 
             .map { VolumeFile("$directory/${it.name}", it.bytes, it.modified) }
     }
     companion object {
-        const val ROOT = "Download/备份/"
-        const val LABEL = "下载/备份"
+        /** 卡 223：新装的存到 Download/TaoSheng/<开始日期>/，在文件管理器里一眼认得出 */
+        const val ROOT = "Download/TaoSheng/"
+        /** 卡 123 起已经选了“下载/备份”的安装继续用原来的位置，不搬文件 */
+        const val LEGACY_ROOT = "Download/备份/"
+        /** 给人看的位置；系统里真实文件夹叫 Download，中文文件管理器常显示成“下载”，两个都写 */
+        fun label(context: Context): String = if (legacyFile(context).exists()) "Download（下载）/备份" else "Download（下载）/TaoSheng"
+        private fun legacyFile(context: Context) = File(context.noBackupFilesDir, "downloads-backup-installation")
         @Synchronized private fun installationRoot(context: Context): String {
-            val file = File(context.noBackupFilesDir, "downloads-backup-installation")
-            val id = if (file.exists()) file.readText() else UUID.randomUUID().toString().also { file.writeText(it) }
-            require(id.matches(Regex("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}")))
-            return "$ROOT$id/"
+            val legacy = legacyFile(context)
+            if (legacy.exists()) {
+                val id = legacy.readText()
+                require(id.matches(Regex("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}")))
+                return "$LEGACY_ROOT$id/"
+            }
+            // 每次安装一个子文件夹，用开始备份的日期时间命名，看得懂；末尾 4 位随机码防止一分钟内卸载重装撞名
+            // （重装后安卓不让新安装改旧安装的文件，同名会被系统改名导致写入失败）
+            val file = File(context.noBackupFilesDir, "downloads-backup-folder")
+            val name = if (file.exists()) file.readText()
+                else (java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.ROOT).format(java.util.Date()) + "-" +
+                    UUID.randomUUID().toString().take(4)).also { file.writeText(it) }
+            require(name.matches(Regex("\\d{8}-\\d{4}-[a-f0-9]{4}")))
+            return "$ROOT$name/"
         }
     }
 }

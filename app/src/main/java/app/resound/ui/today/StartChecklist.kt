@@ -31,6 +31,7 @@ import app.resound.transcribe.TranscribeSource
 import app.resound.transcribe.local.LocalBackend
 import app.resound.transcribe.local.LocalModels
 import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.LaunchedEffect
 
 private class Step(
     val title: String, val hint: String, val done: Boolean, val page: SettingsPage,
@@ -76,6 +77,14 @@ fun StartChecklist(capture: CaptureController, hasLlmKey: Boolean, topGap: andro
     val c = Rs.colors
     val prepare = { prepareLocalAsr(context, settings) }
     val listening = status.state != CaptureState.Stopped && status.state != CaptureState.NoPermission
+    // 卡 223：跳过开箱向导（如点了"从备份恢复"又没恢复）的人，开始聆听后自动准备本机转写，和向导第 2 步一样；只自动一次
+    LaunchedEffect(listening, local, transcribeReady, asrDownloading) {
+        // 用流量时不自动下（约 170～330 MB），清单里的“一键准备本机转写”照常可点
+        if (listening && local && !transcribeReady && !asrDownloading && settings != null && !prefs.getBoolean(AUTO_PREPARED, false)
+            && !app.resound.ui.onboarding.metered(context)) {
+            prefs.edit().putBoolean(AUTO_PREPARED, true).apply(); prepare()
+        }
+    }
     val steps = listOf(
         Step("开始聆听", "允许麦克风和通知，有人说话才会录", listening, SettingsPage.Capture),
         Step("选择转写方式",
@@ -192,6 +201,7 @@ private fun SmallAction(text: String, filled: Boolean, onClick: () -> Unit) {
 }
 
 private const val DISMISSED = "startChecklistDismissed"
+private const val AUTO_PREPARED = "localAsrAutoPrepared"
 
 /**
  * 一键准备本机转写：适配过 NPU 的芯片两个都下（NPU 跑不起来时自动退回 CPU），同时下说话人模型并打开分人。

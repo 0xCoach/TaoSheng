@@ -76,7 +76,7 @@ class DownloadsBackup123Test {
     @Test fun downloadsBackupListsAndRestoresSelectedPointWithSettings() = runBlocking {
         val repo = repository()
         repo.useDownloadsFolder()
-        assertEquals("下载/备份", repo.local.value.folder)
+        assertEquals("Download（下载）/TaoSheng", repo.local.value.folder)
         assertEquals(LocalFolderAccess.Ok, repo.local.value.folderAccess)
         assertFalse(repo.local.value.sessionOnly)
         repo.setLocalAuto(true)
@@ -93,7 +93,7 @@ class DownloadsBackup123Test {
         db.testSql.query("SELECT title FROM ask_conversations WHERE id=1").use {
             assertTrue(it.moveToFirst()); assertEquals("before", it.getString(0))
         }
-        assertEquals("下载/备份", repository().local.value.folder)
+        assertEquals("Download（下载）/TaoSheng", repository().local.value.folder)
         assertTrue(repository().local.value.auto)
     }
     @Test fun retentionDeletesOnlyOwnedRecognizedFiles() = runBlocking {
@@ -135,12 +135,37 @@ class DownloadsBackup123Test {
         assertEquals(treeFolder.name, restored.local.value.folder)
         assertEquals(LocalFolderAccess.Ok, restored.local.value.folderAccess)
     }
+    @Test fun defaultBackup223TurnsOnDownloadsForUnconfiguredUsersOnce() {
+        val repo = repository()
+        assertTrue(repo.local.value.downloads); assertTrue(repo.local.value.auto)
+        assertEquals("Download（下载）/TaoSheng", repo.local.value.folder)
+        assertTrue(store.rootPath.matches(Regex("Download/TaoSheng/\\d{8}-\\d{4}-[a-f0-9]{4}/")))
+        val prefs = context.getSharedPreferences("backup", 0)
+        assertTrue(prefs.getBoolean(AndroidBackupRepository.DEFAULT_NOTICE, false))
+        // 用户自己关掉后，下次打开不会再被打开
+        repo.setLocalAuto(false)
+        assertFalse(repository().local.value.auto)
+    }
+    @Test fun defaultBackup223LeavesConfiguredUsersAlone() {
+        val prefs = context.getSharedPreferences("backup", 0)
+        prefs.edit().putBoolean("enabled", true).commit()
+        val repo = repository()
+        assertFalse(repo.local.value.downloads); assertFalse(repo.local.value.auto); assertNull(repo.local.value.folder)
+        assertFalse(prefs.getBoolean(AndroidBackupRepository.DEFAULT_NOTICE, false))
+    }
+    @Test fun legacyDownloadsInstallationKeepsOldFolder() {
+        File(context.noBackupFilesDir, "downloads-backup-folder").delete()
+        File(context.noBackupFilesDir, "downloads-backup-installation").writeText("12345678-1234-1234-1234-123456789abc")
+        assertEquals("Download/备份/12345678-1234-1234-1234-123456789abc/", DownloadsBackupFiles(context).rootPath)
+        assertEquals("Download（下载）/备份", DownloadsBackupFiles.label(context))
+    }
     @Test fun newInstallationSeesEmptyListWithoutError() = runBlocking {
         val repo = repository().apply { useDownloadsFolder() }
         repo.runLocalBackup(false); assertTrue(repo.localBackups().getOrThrow().isNotEmpty())
         // 系统卸载后撤销旧安装文件的所有权，文件本身仍留在下载目录。
         provider.forgetOwners()
         File(context.noBackupFilesDir, "downloads-backup-installation").delete()
+        File(context.noBackupFilesDir, "downloads-backup-folder").delete()
         val fresh = repository()
         assertTrue(fresh.localBackups().getOrThrow().isEmpty())
         assertNull(fresh.localSummary().getOrThrow()); assertNull(fresh.local.value.lastError)
@@ -202,7 +227,7 @@ class DownloadsBackup123Test {
         assertTrue(log.contains("resolve-directory IllegalStateException provider bridge rejected"))
         assertFalse(log.contains(address)); assertFalse(log.contains("short-key")); assertFalse(log.contains("abc123456"))
         assertFalse(log.contains("/storage")); assertTrue(BackupDiagnostics.safeReason(IllegalStateException(message)).length <= 200)
-        assertEquals("这个文件夹在本机用不了，可以改存到“下载/备份”", repo.local.value.lastError)
+        assertEquals("这个文件夹在本机用不了，可以改存到“Download（下载）/TaoSheng”", repo.local.value.lastError)
     }
 }
 

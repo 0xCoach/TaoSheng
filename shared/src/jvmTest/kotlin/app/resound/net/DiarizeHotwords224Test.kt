@@ -45,17 +45,18 @@ class DiarizeHotwords224Test {
     }
     @Test fun rejectedDefinitionRetriesPlainOnceAndRemembers() = runBlocking {
         val bodies = mutableListOf<String>()
-        val engine = MockEngine { r ->
+        // 每次新建引擎：客户端关闭时会连带关掉引擎，不能复用
+        fun engine() = MockEngine { r ->
             val b = r.body.toByteArray().decodeToString(); bodies += b
             if (b.contains("definition")) respond("Unrecognized request argument: definition", HttpStatusCode.BadRequest) else respond(ok)
         }
-        assertEquals(CustomCapability.Speakers, run(engine, listOf("巴塘")).customCapability)
+        assertEquals(CustomCapability.Speakers, run(engine(), listOf("巴塘")).customCapability)
         assertEquals(2, bodies.size); assertFalse(bodies[1].contains("definition"))
         bodies.clear()
-        run(engine, listOf("巴塘"))
+        run(engine(), listOf("巴塘"))
         assertEquals(1, bodies.size); assertFalse(bodies[0].contains("definition"))
         bodies.clear()
-        run(engine, listOf("巴塘"), url = "https://other.invalid/asr")
+        run(engine(), listOf("巴塘"), url = "https://other.invalid/asr")
         assertEquals(2, bodies.size)
     }
     @Test fun diarizeUnsupportedStillReportsAfterPlainRetry() = runBlocking {

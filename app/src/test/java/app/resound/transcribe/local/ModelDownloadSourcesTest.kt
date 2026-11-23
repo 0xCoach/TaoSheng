@@ -115,7 +115,7 @@ class ModelDownloadSourcesTest {
         assertEquals(2, server.requestCount)
     }
     @Test fun cancellationDoesNotStartBackup() = runCase { server, target ->
-        server.enqueue(MockResponse().setBody("abcdef").setHeadersDelay(5, TimeUnit.SECONDS))
+        server.enqueue(MockResponse().setBody("abcdef").setHeadersDelay(3, TimeUnit.SECONDS)) // 关闭服务器最多等 5 秒，延迟要比它短，否则偶发超时
         coroutineScope {
             val job = launch(Dispatchers.IO) { downloadModelFile(spec(server), target) }
             assertNotNull(withContext(Dispatchers.IO) { server.takeRequest(2, TimeUnit.SECONDS) })

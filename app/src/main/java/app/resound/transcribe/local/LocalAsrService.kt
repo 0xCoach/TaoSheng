@@ -130,7 +130,7 @@ class LocalAsrService : Service() {
                 speakerDecision=if(separateSpeakers)diarizer.lastDecision else "关闭"
                 phase="asr"
                 LocalResumeProgress(progressKey,turns.map { ResumeTurn(it.start,it.end,it.speaker) },speakerDecision,
-                    PauseChunks.split(pcm,turns).map { ResumeChunk(it.start,it.end,it.speaker,it.overlapSamples,it.groupStart) })
+                    PauseChunks.split(pcm).map { ResumeChunk(it.start,it.end,it.speaker,it.overlapSamples,it.groupStart) })
             }
             var progress=requireNotNull(saved)
             speakerDecision=progress.speakerDecision
@@ -138,11 +138,13 @@ class LocalAsrService : Service() {
             phase="asr"
             val chunks=progress.chunks.map { PauseChunks.Chunk(it.start,it.end,it.speaker,it.overlap,it.groupStart) }
             val sentences=TimedSentences()
+            // 卡 222：切块不再看说话人，每个字按时间查是谁说的
+            val tags=TurnTags(progress.turns,speakers)
             val detectedLanguages=linkedSetOf<String>()
             fun replay(value: ResumeDecoded, chunk: PauseChunks.Chunk) {
                 detectedLanguages.add(value.language)
                 sentences.append(OfflineRecognizerResult(value.text,value.tokens.toTypedArray(),
-                    value.timestampBits.map { Float.fromBits(it) }.toFloatArray(),value.language,"","",floatArrayOf()),chunk,value.tag)
+                    value.timestampBits.map { Float.fromBits(it) }.toFloatArray(),value.language,"","",floatArrayOf()),chunk,tags::at,value.tag)
             }
             progress.decoded.forEachIndexed { index,value -> replay(value,chunks[index]) }
             send(request,8){putString("reason","resume-start");putString("segment",segment);putInt("total",chunks.size);putInt("done",progress.decoded.size)}
@@ -158,7 +160,7 @@ class LocalAsrService : Service() {
                     rec.decode(stream)
                     val decoded=rec.getResult(stream)
                     val value=ResumeDecoded(decoded.text,decoded.tokens.toList(),decoded.timestamps.map { it.toBits() },
-                        decoded.lang,chunk.speaker?.toString() ?: if(speakers)"uncertain:${chunk.groupStart}" else null)
+                        decoded.lang,tags.dominant(chunk.start,chunk.end))
                     progress=progress.append(value)
                     files.save(progress)
                     replay(value,chunk)

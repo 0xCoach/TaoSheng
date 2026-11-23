@@ -10,10 +10,12 @@ class TimedSentences {
     private val coarse=mutableListOf<AsrSentence>()
     private var previousEnd=0L
     var timedChunks=0; private set
-    fun append(result: OfflineRecognizerResult, chunk: PauseChunks.Chunk, tag: String?) {
+    fun append(result: OfflineRecognizerResult, chunk: PauseChunks.Chunk, tag: String?) = append(result, chunk, { tag }, tag)
+    /** 卡 222：一块里可能有几个人说话，每个字按自己的时间查说话人（tagAt 的参数是整段录音里的毫秒） */
+    fun append(result: OfflineRecognizerResult, chunk: PauseChunks.Chunk, tagAt: (Long) -> String?, coarseTag: String?) {
         val base=chunk.start/16L;val end=chunk.end/16L
         if(result.tokens.isEmpty() || result.tokens.size!=result.timestamps.size || result.timestamps.any{!it.isFinite()}) {
-            if(result.text.any{it.isLetterOrDigit()})coarse+=AsrSentence(base,end,result.text.trim(),tag)
+            if(result.text.any{it.isLetterOrDigit()})coarse+=AsrSentence(base,end,result.text.trim(),coarseTag)
             previousEnd=end;return
         }
         timedChunks++
@@ -21,9 +23,11 @@ class TimedSentences {
             val text=raw.replace("▁"," ").replace("@@","")
             val at=(base+(result.timestamps[i]*1000).toLong()).coerceIn(base,end)
             val until=if(i+1<result.timestamps.size)minOf(at+400,(base+(result.timestamps[i+1]*1000).toLong()).coerceIn(at,end)) else minOf(end,at+400)
+            val tag=tagAt(at)
             text.map { UnitText(it.toString(),at,maxOf(at+1,until).coerceAtMost(end),tag) }
         }.toMutableList()
         if(chunk.overlapSamples>0 && units.isNotEmpty()) {
+            val tag=tagAt(base)
             val tailStart=units.indexOfLast { it.start<base-300 || it.tag!=tag }+1
             val oldIndices=(tailStart until units.size).filter { units[it].text.any(Char::isLetterOrDigit) }
             val old=oldIndices.map { units[it] }

@@ -25,11 +25,11 @@ class NightWakeTest {
         val s = night(sig("unlock", t(3, 0)), sig("screen", t(3, 0), t(3, 3)), sig("quiet", t(3, 5), t(3, 25)))
         assertEquals(NightTransition.Continue, NightRules.transition(config, s, input(t(3, 40))))
         assertNull(WakeRules.pending(s))
-        // 只看一眼还没睡回去：柱子先停在 3:00，等满 30 分钟才算起床
+        // 只看一眼还没睡回去：柱子先停在 3:00；卡 225 起夜里醒多久都不结束这一夜
         val awake = night(sig("unlock", t(3, 0)), sig("screen", t(3, 0), t(3, 3)))
         assertEquals(t(3, 0), WakeRules.pending(awake))
         assertEquals(NightTransition.Continue, NightRules.transition(config, awake, input(t(3, 20))))
-        assertEquals(NightTransition.Finish, NightRules.transition(config, awake, input(t(3, 31))))
+        assertEquals(NightTransition.Continue, NightRules.transition(config, awake, input(t(3, 31))))
     }
 
     @Test fun laterMorningUseCountsTheEarlierGetUpAndFinishedNightIsNotReopened() {

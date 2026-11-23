@@ -15,7 +15,7 @@ object NightThreads {
                 NightEventKind.Snore->if(settings.sharedRoom)"卧室里的疑似鼾声" else "疑似鼾声"
                 NightEventKind.Cough->if(settings.sharedRoom)"卧室里的疑似咳嗽/清嗓" else "疑似咳嗽/清嗓"
                 NightEventKind.SleepTalk->(if(e.mine)"疑似梦话" else "夜间人声")+(e.text?.let { "：“$it”" } ?: " 1 段（转写中）")
-                NightEventKind.Awake->"醒了"
+                NightEventKind.Awake->"醒了"+(e.text?.let { "（$it）" } ?: "")
                 NightEventKind.Gap->e.text ?: "没有记录"
                 NightEventKind.Playback->"手机在放声音"
                 NightEventKind.Turn->"疑似翻身"

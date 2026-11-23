@@ -44,7 +44,9 @@ object NightTuning {
     val calls: Int = 0, val inferenceMillis: Long = 0, val startBattery: Int? = null, val endBattery: Int? = null,
     val nap: Boolean = false, val deadline: Long? = null)
 data class NightInput(val at: Long, val minute: Int, val screenOffAt: Long?, val screenOnAt: Long?, val stillSince: Long?,
-    val lastVoiceAt: Long?, val pickedUp: Boolean, val charging: Boolean, val battery: Int?, val hot: Boolean, val playback: Boolean)
+    val lastVoiceAt: Long?, val pickedUp: Boolean, val charging: Boolean, val battery: Int?, val hot: Boolean, val playback: Boolean,
+    /** 卡 225：最近几晚的起床时刻（当地分钟，中位数）；不足 3 晚为 null */
+    val usualWakeMinute: Int? = null)
 enum class NightTransition { Wait, Enter, Confirm, Cancel, Continue, Finish }
 object NightRules {
     fun inWindow(minute: Int, start: Int, end: Int): Boolean = if(start < end) minute in start until end else minute >= start || minute < end
@@ -71,7 +73,7 @@ object NightRules {
             if(pickedUp || screenOnAt != null && at-screenOnAt >= 120_000) return NightTransition.Cancel
             val uninterruptedSince=maxOf(session.provisionalAt,session.signals.filter { it.kind=="screen" && it.end-it.start>60_000 }.maxOfOrNull { it.end } ?: session.provisionalAt)
             if(at-uninterruptedSince >= 1_200_000 && screenOffAt != null) return NightTransition.Confirm
-        } else if(at-session.confirmedAt >= 3*3_600_000 && WakeRules.decide(session,at,minute)!=null) return NightTransition.Finish
+        } else if(at-session.confirmedAt >= 3*3_600_000 && WakeRules.shouldFinish(session,at,minute,usualWakeMinute)) return NightTransition.Finish
         NightTransition.Continue
     }
     /** 这一夜结束后（整理中/已整理），同一个早上不再重新开始记录；中断的那一夜可以接着记 */
@@ -138,6 +140,36 @@ object WakeRules {
         return listOf(inside.any { it.kind=="unlock" }, inside.any { it.kind=="unplug" }, inside.any { it.kind=="alarm-off" },
             inside.count { it.kind=="pickup" }>=PICKUPS, screen>=SCREEN).count { it }
     }
+    /**
+     * 卡 225：夜里（18 点到早上 5 点）两段睡眠之间看手机，不管多久都只算“醒了”，不结束这一夜；
+     * 真起床了就等到 5 点以后按早上的规则收尾，起床时间仍取那一串动作的第一下。
+     */
+    const val EVENING_MINUTE = 18 * 60
+    private fun deepNight(minute: Int) = minute < MORNING_MINUTE || minute >= EVENING_MINUTE
+    /** 比平时起床早这么多分钟，或闹钟还要过半小时以上才响：像是醒来看一眼，先不当起床 */
+    const val EARLY_MARGIN = 60
+    const val ALARM_AHEAD = 1_800_000L
+    /** 偏早的醒来，连续醒着（没重新安静 15 分钟）这么久才算起床；更短就当“醒了一次”等回笼觉 */
+    const val EARLY_HOLD = 2_700_000L
+    /** 按开始醒的那一下 [start] 判断 */
+    fun early(session: NightSession, start: Long, at: Long, minute: Int, usualWakeMinute: Int?): Boolean {
+        val alarm = session.signals.lastOrNull { it.kind == "alarm" }?.value?.toLong()
+        if (alarm != null && alarm - start >= ALARM_AHEAD && alarm - start <= 6 * 3_600_000L) return true
+        return usualWakeMinute != null && minuteOf(start, at, minute) < usualWakeMinute - EARLY_MARGIN
+    }
+    /** 这一刻能不能把这一夜定为起床结束 */
+    fun shouldFinish(session: NightSession, at: Long, minute: Int, usualWakeMinute: Int? = null): Boolean {
+        if (deepNight(minute)) return false
+        val start = pending(session) ?: return false
+        if (early(session, start, at, minute, usualWakeMinute)) {
+            // 从 5 点或开始醒的那一下（取晚的）算起：半夜失眠到 5 点后又睡着，不会一到 5 点就被收尾
+            val morningStart = at - (minute - MORNING_MINUTE) * 60_000L
+            if (at - maxOf(start, morningStart) < EARLY_HOLD) return false
+        }
+        return decide(session, at, minute) != null
+    }
+    /** 最近几晚起床时刻的中位数（当地分钟）；不足 3 晚不猜 */
+    fun usualWake(minutes: List<Int>): Int? = if (minutes.size < 3) null else NightRules.median(minutes.map(Int::toLong)).toInt()
     /** 早上醒来后手机放着去洗漱，会像“又安静了”；不算回笼觉，往前 45 分钟内早上的动作也算这次起床 */
     const val LOOKBACK = 2_700_000L
     private fun morning(minute: Int) = minute>=MORNING_MINUTE && minute<15*60
@@ -165,6 +197,19 @@ object WakeRules {
 }
 data class SleepResult(val times: NightTimes,val awake: List<NightSpan>,val millis: Long,val count: Int)
 object SleepEstimate {
+    /** 卡 225：这次醒来里亮屏的总时长 */
+    fun phoneMillis(span: NightSpan, signals: List<NightSignal>) = NightRules.merge(signals.filter { it.kind == "screen" }
+        .mapNotNull { val a = maxOf(it.start, span.start); val b = minOf(it.end, span.end); if (b > a) NightSpan(a, b) else null }).sumOf { it.millis }
+    /** 醒来那条的说明：看手机 6 分 / 看了一眼手机 / 拿起手机 / 醒着说话 */
+    fun awakeText(span: NightSpan, signals: List<NightSignal>): String {
+        val phone = phoneMillis(span, signals)
+        return when {
+            phone >= 60_000 -> "看手机 ${NightRules.duration(phone)}"
+            phone > 0 -> "看了一眼手机"
+            signals.any { it.kind == "pickup" && it.start in span.start..span.end } -> "拿起手机"
+            else -> "醒着说话"
+        }
+    }
     fun calculate(session: NightSession,events: List<NightEvent>,end: Long,latency: Long=0,edited: NightTimes?=null): SleepResult {
         val signals=session.signals
         val waking=signals.filter { it.kind=="pickup" || it.kind=="screen" && it.end-it.start>=30_000 }

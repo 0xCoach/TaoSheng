@@ -46,6 +46,8 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
     private var stillSince: Long?=System.currentTimeMillis()
     @Volatile private var lastVoice=System.currentTimeMillis()
     private var lastWindow=0L
+    /** 卡 225：最近几晚的起床时刻，开始一夜时算一次 */
+    private var usualWake: Int?=null
     private var modelHeld=false
     private var sensorRegistered=false
     /** 夜里时间段内已关屏、或这一夜还在进行时才处理音频；白天不做任何窗口计算。由 pulse 每 10 秒更新。 */
@@ -198,7 +200,7 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
         }
         val floor=if (shouldSensor || session != null) owner.store.dao.notice("privacy-floor")?.at ?: Long.MIN_VALUE else Long.MIN_VALUE
         lastVoice=maxOf(lastVoice,floor)
-        val input=NightInput(at,minute,screenOff,screenOn,stillSince,lastVoice,picked,battery.isCharging,battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY).takeIf { it>=0 },power.currentThermalStatus>=PowerManager.THERMAL_STATUS_MODERATE,AppGraph.playback.state.value.playing)
+        val input=NightInput(at,minute,screenOff,screenOn,stillSince,lastVoice,picked,battery.isCharging,battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY).takeIf { it>=0 },power.currentThermalStatus>=PowerManager.THERMAL_STATUS_MODERATE,AppGraph.playback.state.value.playing,usualWake)
         if(session==null)while(points.tryReceive().isSuccess) Unit
         val inside = selected != null && window?.id == selected.id && at < (session?.deadline ?: Long.MAX_VALUE)
         val nap = window?.kind == SleepWindowKind.Nap
@@ -217,6 +219,7 @@ class NightCapture(private val owner: AndroidNight,parent: CoroutineScope): Auto
                     if (row.state == NightState.Interrupted.name) saved.interruptedUntil(at) else saved
                 } ?: NightSession(maxOf(screenOff ?: at, floor, bounds.start.coerceAtMost(at)), at, lastAt=at, startBattery=input.battery,
                     nap=nap, deadline=bounds.end)
+                usualWake = owner.store.usualWakeMinute(selected.recordKind, zones)
                 id = existing?.id ?: owner.store.create(current, date, selected)
                 session = current
                 activeWindow = selected

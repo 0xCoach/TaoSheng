@@ -73,6 +73,10 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
     fun setLive(value: NightLive) {status.value=value}
     fun summary(row: NightRow)=json.decodeFromString<NightSummary>(row.payload).copy(id=row.id)
     fun session(row: NightRow)=json.decodeFromString<NightSession>(row.signals)
+    /** 卡 225：最近 14 晚（已整理）的起床时刻中位数，当地分钟 */
+    suspend fun usualWakeMinute(kind: String, zones: app.resound.platform.ZoneHistory): Int? =
+        WakeRules.usualWake(dao.all().filter { it.kind == kind && it.state == NightState.Ready.name }.take(14)
+            .mapNotNull { summary(it).times?.wake }.map { NightRules.minute(it, zones) })
     override fun nights(from: LocalDate,to: LocalDate)=dao.nights(from.toString(),to.toString()).map { it.map(::summary) }
     override fun night(date: LocalDate): Flow<NightDetail?> = dao.observe().map { list->list.firstOrNull { it.date==date.toString() }?.let { detail(it.id) } }
     override fun naps(date: LocalDate) = dao.naps(date.toString()).map { rows -> rows.map(::summary) }
@@ -184,7 +188,7 @@ class NightStore(val db: CaptureDatabase,private val scope: CoroutineScope,initi
         val history=comparable.map(::summary)
         val corrections=comparable.mapNotNull { r->val s=summary(r);val original=session(r).originalTimes;s.times?.takeIf { it.editedOnset && original!=null }?.let { it.onset-original!!.onset } }
         val sleep=SleepEstimate.calculate(session,events,row.end,NightRules.latency(corrections),old.times)
-        sleep.awake.forEach { addEvent(id,NightEvent(0,NightEventKind.Awake,it.start,it.end,text="看手机或拿起手机")) }
+        sleep.awake.forEach { addEvent(id,NightEvent(0,NightEventKind.Awake,it.start,it.end,text=SleepEstimate.awakeText(it,session.signals))) }
         val (confidence,reasons)=NightPresentation.confidence(session,session.signals.filter { it.kind=="background" }.map { it.value.toInt() })
         val sound=events.filter { it.kind in setOf(NightEventKind.Snore,NightEventKind.Cough,NightEventKind.SleepTalk) }
         val s=old.copy(state=NightState.Ready,times=sleep.times,sleepMillis=sleep.millis,awakeCount=sleep.count,awakeMillis=sleep.awake.sumOf { it.millis },

@@ -26,21 +26,48 @@ data class InputDevice(
     val connected: Boolean,
 )
 
+/**
+ * 卡 223：“自动”列表里的一行。key 为 "type:Usb" 这样的一类设备（USB、有线、其他），或某台蓝牙设备的 [InputDevice.key]。
+ */
+@kotlinx.serialization.Serializable
+data class AutoInput(val key: String, val name: String, val kind: InputKind, val enabled: Boolean)
+
 /** 用户选哪个输入 */
 sealed interface InputChoice {
-    /** 手机麦克风（默认） */
+    /** 只用手机麦克风 */
     data object Phone : InputChoice
 
-    /** 有 USB / 有线麦克风就用（多个时用最近接上的），都没有用手机麦克风；不自动选蓝牙（卡 112） */
-    data object AutoExternal : InputChoice
-
     /**
-     * 卡 220（#63）：自动且含蓝牙。USB / 有线 > 蓝牙 LE Audio > 蓝牙通话 > 手机，同档用最近接上的。
-     * 蓝牙走通话通道，所以单独做一项，原来的 [AutoExternal] 不变。
+     * 卡 223：自动。从上往下，用第一个开着又接着的；都没有用手机麦克风（永远在最后，不能关）。
+     * 默认 USB、有线、其他外接麦开着；蓝牙按设备逐个开关，新连上的加到末尾、默认关
+     * （蓝牙走通话通道，会把听歌变成通话音质，卡 112）。
+     * [newBluetoothOn]：从旧版“自动（含蓝牙）”迁移过来的，新连上的蓝牙默认开，行为不变。
      */
-    data object AutoWithBluetooth : InputChoice
+    data class Auto(val order: List<AutoInput> = DEFAULT, val newBluetoothOn: Boolean = false) : InputChoice {
+        /** 把还不在列表里的蓝牙设备加到末尾 */
+        fun learn(devices: List<InputDevice>): Auto {
+            val fresh = devices.filter { (it.kind == InputKind.BluetoothLe || it.kind == InputKind.BluetoothCall) && order.none { e -> e.key == it.key } }
+                .distinctBy { it.key }
+            return if (fresh.isEmpty()) this else copy(order = order + fresh.map { AutoInput(it.key, it.name, it.kind, newBluetoothOn) })
+        }
+        fun toggle(key: String, on: Boolean) = copy(order = order.map { if (it.key == key) it.copy(enabled = on) else it })
+        /** 和上一行换位置 */
+        fun moveUp(key: String): Auto {
+            val i = order.indexOfFirst { it.key == key }
+            if (i <= 0) return this
+            return copy(order = order.toMutableList().apply { add(i - 1, removeAt(i)) })
+        }
+        /** 这一行对应的设备 */
+        fun matches(entry: AutoInput, device: InputDevice) =
+            if (entry.key.startsWith(TYPE)) device.kind.name == entry.key.removePrefix(TYPE) else device.key == entry.key
+        companion object {
+            const val TYPE = "type:"
+            fun typeEntry(kind: InputKind) = AutoInput(TYPE + kind.name, kind.title, kind, true)
+            val DEFAULT = listOf(typeEntry(InputKind.Usb), typeEntry(InputKind.Wired), typeEntry(InputKind.Other))
+        }
+    }
 
-    /** 指定某个设备；没接着时先用手机麦克风，接上自动切过去 */
+    /** 只用某台专用录音设备（录音卡等）；没接着时先用手机麦克风，接上自动切过去 */
     data class Device(val key: String, val name: String) : InputChoice
 }
 

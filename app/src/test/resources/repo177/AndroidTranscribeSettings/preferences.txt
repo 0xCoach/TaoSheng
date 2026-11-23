@@ -1,4 +1,4 @@
-initial=Doubao/Npu/Auto/Auto/false/30/false/true/旧状态/false/false/npu=true/null
+initial=Local/Npu/Auto/Auto/false/30/true/true/旧状态/false/false/npu=true/null
 localDefault=true/local-model
 cloudDefault=false
 explicit=false

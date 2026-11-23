@@ -10,6 +10,7 @@ import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.serialization.encodeToString
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.combine
 import app.resound.devices.*
@@ -17,21 +18,37 @@ import app.resound.devices.android.DeviceInputs
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-internal class InputPreferences(private val prefs: SharedPreferences) {
+/** 卡 223：两个“自动”合并成一个带顺序的列表；旧的选法读出来时换成等价的新选法 */
+internal class InputPreferences(private val prefs: SharedPreferences, private val newInstall: () -> Boolean = { false }) {
+    private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
     fun read(): InputChoice = when (prefs.getString("choice", null)) {
-        "auto" -> InputChoice.AutoExternal
-        "auto-bt" -> InputChoice.AutoWithBluetooth
-        "device" -> prefs.getString("key", null)?.takeIf { it.isNotBlank() }?.let {
-            InputChoice.Device(it, prefs.getString("name", it) ?: it)
+        "phone" -> InputChoice.Phone
+        "auto2" -> runCatching {
+            val order = json.decodeFromString<List<AutoInput>>(prefs.getString("order", null) ?: "[]")
+            InputChoice.Auto(order.ifEmpty { InputChoice.Auto.DEFAULT }, prefs.getBoolean("newBluetoothOn", false))
+        }.onFailure { FailureNotes.record("audio/AndroidInputDevices.kt:read", it) }.getOrDefault(InputChoice.Auto())
+        // 旧“自动”：只用 USB、有线；旧“自动（含蓝牙）”：新连上的蓝牙也自动用
+        "auto" -> InputChoice.Auto()
+        "auto-bt" -> InputChoice.Auto(newBluetoothOn = true)
+        "device" -> prefs.getString("key", null)?.takeIf { it.isNotBlank() }?.let { key ->
+            val name = prefs.getString("name", key) ?: key
+            // 专用录音设备仍是“只用这台”；以前指定的普通麦克风换成自动、排第一、开着
+            if (key.startsWith("CardDevice:")) InputChoice.Device(key, name)
+            else InputChoice.Auto(listOf(AutoInput(key, name, legacyKind(key), true)) + InputChoice.Auto.DEFAULT.filter { it.key != InputChoice.Auto.TYPE + legacyKind(key).name })
         } ?: InputChoice.Phone
-        else -> InputChoice.Phone
+        // 没选过：新装默认自动，从旧版升级的保持原来的手机麦克风
+        else -> if (newInstall()) InputChoice.Auto() else InputChoice.Phone
+    }
+    private fun legacyKind(key: String) = when (key.substringBefore(':')) {
+        "Bluetooth" -> InputKind.BluetoothCall
+        else -> InputKind.entries.find { it.name == key.substringBefore(':') } ?: InputKind.Other
     }
     fun write(choice: InputChoice) {
-        val edit = prefs.edit().remove("key").remove("name")
+        val edit = prefs.edit().remove("key").remove("name").remove("order").remove("newBluetoothOn")
         when (choice) {
             InputChoice.Phone -> edit.putString("choice", "phone")
-            InputChoice.AutoExternal -> edit.putString("choice", "auto")
-            InputChoice.AutoWithBluetooth -> edit.putString("choice", "auto-bt")
+            is InputChoice.Auto -> edit.putString("choice", "auto2").putString("order", json.encodeToString(choice.order))
+                .putBoolean("newBluetoothOn", choice.newBluetoothOn)
             is InputChoice.Device -> edit.putString("choice", "device").putString("key", choice.key).putString("name", choice.name)
         }
         check(edit.commit()) { "录音输入设置保存失败" }
@@ -41,7 +58,9 @@ internal class InputPreferences(private val prefs: SharedPreferences) {
 /** Application 持有，回调与进程同寿命；快照把选择和系统端口一次性发布给录音调度器。 */
 class AndroidInputDevices(context: Context) : InputDevices {
     private val manager = context.getSystemService(AudioManager::class.java)
-    private val prefs = InputPreferences(context.getSharedPreferences("inputs", Context.MODE_PRIVATE))
+    private val prefs = InputPreferences(context.getSharedPreferences("inputs", Context.MODE_PRIVATE)) {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).let { it.firstInstallTime == it.lastUpdateTime } }.getOrDefault(false)
+    }
     private val catalog = InputCatalog()
     private var cardRoutes = emptyList<InputRoute>()
     private var onChoice: (InputChoice) -> Unit = {}
@@ -81,6 +100,11 @@ class AndroidInputDevices(context: Context) : InputDevices {
         publish(catalog.update(ports) + cardRoutes)
     }
     private fun publish(routes: List<InputRoute>) {
+        // 卡 223：新连上的蓝牙设备记进“自动”列表（默认关），设置页才能单独打开它
+        (choice.value as? InputChoice.Auto)?.let { auto ->
+            val learned = auto.learn(routes.map { it.device })
+            if (learned != auto) { prefs.write(learned); mutableChoice.value = learned }
+        }
         mutableDevices.value = InputCatalog.visible(routes, choice.value)
         snapshots.value = InputSnapshot(choice.value, routes)
     }

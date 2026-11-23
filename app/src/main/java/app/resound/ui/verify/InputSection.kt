@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import app.resound.audio.AutoInput
 import app.resound.audio.InputChoice
 import app.resound.audio.InputDevice
 import app.resound.audio.InputDevices
@@ -33,7 +34,10 @@ import app.resound.audio.InputKind
 import app.resound.ui.theme.Rs
 import app.resound.ui.theme.RsType
 
-/** 录音与后台 → 录音输入：手机麦克风（默认）/ 自动用外接 / 指定某个系统认得的设备 */
+/**
+ * 录音与后台 → 录音输入。卡 223：只有一个“自动”——列表从上往下，用第一个开着又接着的；
+ * 蓝牙按设备逐个开关（默认关），↑ 和上一行换位置；手机麦克风永远在最后。另可选“只用手机麦克风”或只用某台专用录音设备。
+ */
 @Composable
 fun InputSection(inputs: InputDevices) {
     val c = Rs.colors
@@ -41,7 +45,8 @@ fun InputSection(inputs: InputDevices) {
     val devices by inputs.devices.collectAsStateWithLifecycle()
     val status by inputs.status.collectAsStateWithLifecycle()
     val external = devices.filter { it.kind != InputKind.Phone }
-    // 安卓 12 起用蓝牙耳机录音要“附近设备”权限；选的时候再要，拒绝了后台会退回手机麦克风
+    val cards = external.filter { it.kind == InputKind.CardDevice }
+    // 安卓 12 起用蓝牙耳机录音要“附近设备”权限；打开蓝牙那一行时再要，拒绝了后台会退回手机麦克风
     val context = androidx.compose.ui.platform.LocalContext.current
     var pending by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<InputChoice?>(null) }
     val askBluetooth = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -50,30 +55,40 @@ fun InputSection(inputs: InputDevices) {
     fun bluetoothDenied() = android.os.Build.VERSION.SDK_INT >= 31 &&
         androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) !=
             android.content.pm.PackageManager.PERMISSION_GRANTED
-    fun pick(next: InputChoice) {
-        val needs = when (next) {
-            is InputChoice.Device -> devices.firstOrNull { it.key == next.key }?.let { isBluetooth(it.kind) } == true
-            // 卡 220（#63）：含蓝牙的自动选的时候就要权限，否则蓝牙麦静默用不上
-            InputChoice.AutoWithBluetooth -> true
-            InputChoice.AutoExternal -> false
-            InputChoice.Phone -> false
-        } && bluetoothDenied()
-        if (needs) { pending = next; askBluetooth.launch(android.Manifest.permission.BLUETOOTH_CONNECT) } else inputs.choose(next)
+    fun pick(next: InputChoice, needsBluetooth: Boolean = false) {
+        if (needsBluetooth && bluetoothDenied()) { pending = next; askBluetooth.launch(android.Manifest.permission.BLUETOOTH_CONNECT) } else inputs.choose(next)
     }
+    val auto = choice as? InputChoice.Auto
     Section("录音输入") {
         RsCard(padding = PaddingValues(vertical = 4.dp)) {
-            ChoiceRow("手机麦克风", "默认", "手", c.textSecondary, choice == InputChoice.Phone) { pick(InputChoice.Phone) }
+            ChoiceRow("自动", "接上就用，拔掉换回手机", "自", c.accent, auto != null) {
+                if (auto == null) pick(InputChoice.Auto().learn(external))
+            }
             Divider()
-            ChoiceRow("自动", "接上 USB 或有线麦克风就用它，拔掉换回手机", "自", c.accent, choice == InputChoice.AutoExternal) { pick(InputChoice.AutoExternal) }
-            Divider()
-            ChoiceRow("自动（含蓝牙）", "USB、有线优先，其次蓝牙麦克风；都断开换回手机", "蓝", Color(0xFF4F86C6),
-                choice == InputChoice.AutoWithBluetooth) { pick(InputChoice.AutoWithBluetooth) }
-            external.forEach { d ->
+            ChoiceRow("只用手机麦克风", "不管接了什么都用手机", "手", c.textSecondary, choice == InputChoice.Phone) { pick(InputChoice.Phone) }
+            cards.forEach { d ->
                 Divider()
-                ChoiceRow(d.name, if (d.connected) d.kind.title else "${d.kind.title} · 没接着",
+                ChoiceRow("只用 ${d.name}", if (d.connected) d.kind.title else "${d.kind.title} · 没接着",
                     kindGlyph(d.kind), kindColor(d.kind), (choice as? InputChoice.Device)?.key == d.key, dim = !d.connected) {
                     pick(InputChoice.Device(d.key, d.name))
                 }
+            }
+        }
+        if (auto != null) {
+            Text("自动时从上往下，用第一个开着又接着的：", style = RsType.caption, color = c.textSecondary,
+                modifier = Modifier.padding(start = 4.dp, top = 12.dp, bottom = 6.dp))
+            RsCard(padding = PaddingValues(vertical = 4.dp)) {
+                auto.order.forEachIndexed { index, entry ->
+                    val connected = external.any { it.connected && auto.matches(entry, it) }
+                    val using = auto.matches(entry, status.using)
+                    if (index > 0) Divider()
+                    AutoRow(index + 1, entry, connected, using, canMoveUp = index > 0,
+                        onToggle = { on -> pick(auto.toggle(entry.key, on), needsBluetooth = on && isBluetooth(entry.kind)) },
+                        onMoveUp = { pick(auto.moveUp(entry.key)) })
+                }
+                Divider()
+                AutoRow(auto.order.size + 1, AutoInput("mic", "手机麦克风", InputKind.Phone, true), true,
+                    status.using.kind == InputKind.Phone, canMoveUp = false, onToggle = null, onMoveUp = {})
             }
         }
         Column(Modifier.padding(start = 4.dp, end = 4.dp, top = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -82,12 +97,12 @@ fun InputSection(inputs: InputDevices) {
                 Text("  正在用：${status.using.name}", style = RsType.subhead, color = c.text)
             }
             status.note?.let { Text(it, style = RsType.caption, color = c.warning) }
-            if (choice == InputChoice.AutoWithBluetooth && bluetoothDenied())
-                Text("没给“附近设备”权限，蓝牙麦克风用不上；再点一次“自动（含蓝牙）”去授权。", style = RsType.caption, color = c.warning)
-            if (choice == InputChoice.AutoWithBluetooth && status.using.kind == InputKind.Phone)
-                Text("连上蓝牙麦克风后会自动切过去；蓝牙走通话通道，音质一般。", style = RsType.caption, color = c.textTertiary)
+            if (auto != null && auto.order.any { it.enabled && isBluetooth(it.kind) } && bluetoothDenied())
+                Text("没给“附近设备”权限，蓝牙麦克风用不上；把蓝牙那一行关掉再打开，可以重新授权。", style = RsType.caption, color = c.warning)
+            if (auto != null && auto.order.any { isBluetooth(it.kind) })
+                Text("蓝牙麦克风走通话通道，音质一般；开着时听歌也会变成通话音质，所以新连上的默认不自动用，要用就打开它。", style = RsType.caption, color = c.textTertiary)
             if (external.isEmpty()) Text("插上 Type-C 麦克风或领夹麦接收器、连上蓝牙耳机后，会出现在这里。", style = RsType.caption, color = c.textTertiary)
-            if (status.using.kind == InputKind.BluetoothCall)
+            if (status.using.kind == InputKind.BluetoothCall && auto == null)
                 Text("蓝牙耳机走的是通话通道：音质一般，开着时听歌也会变成通话音质。", style = RsType.caption, color = c.textTertiary)
             if (status.using.kind != InputKind.Phone)
                 Text("换了麦克风，头几天“认出我”可能不准，在原话里多标几句“这是我”就好。", style = RsType.caption, color = c.textTertiary)
@@ -119,6 +134,33 @@ fun InputSection(inputs: InputDevices) {
                 }
             }
         }
+    }
+}
+
+/** 自动列表一行：序号、名字、状态（正在用 / 没接着）、开关、↑。手机麦克风那行没有开关 */
+@Composable
+private fun AutoRow(number: Int, entry: AutoInput, connected: Boolean, using: Boolean, canMoveUp: Boolean,
+                    onToggle: ((Boolean) -> Unit)?, onMoveUp: () -> Unit) {
+    val c = Rs.colors
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(36.dp).clip(CircleShape).background(kindColor(entry.kind).copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+            Text("$number", style = RsType.subhead.copy(fontWeight = FontWeight.SemiBold), color = kindColor(entry.kind))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            val isType = entry.key.startsWith(InputChoice.Auto.TYPE)
+            Text(entry.name, style = RsType.body.copy(fontWeight = FontWeight.SemiBold), color = if (entry.enabled) c.text else c.textTertiary)
+            Text(when {
+                using -> "✓ 正在用"
+                onToggle == null -> "上面都没接时用"
+                isType -> if (connected) "接着" else "接上就用"
+                connected -> "${entry.kind.title} · 接着"
+                else -> "${entry.kind.title} · 没接着"
+            }, style = RsType.caption, color = if (using) c.good else c.textTertiary)
+        }
+        if (canMoveUp) Text("↑", style = RsType.headline, color = c.accent,
+            modifier = Modifier.clip(CircleShape).springClick(onMoveUp).padding(horizontal = 12.dp, vertical = 4.dp))
+        if (onToggle != null) RsToggle(entry.enabled, onToggle)
     }
 }
 

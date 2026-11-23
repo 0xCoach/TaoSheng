@@ -9,14 +9,10 @@ internal data class InputSnapshot(val choice: InputChoice, val routes: List<Inpu
     val playbackYield: Boolean = false, val pauseForPlayback: Boolean = false) {
     fun selected(): InputRoute = when (val value = choice) {
         InputChoice.Phone -> InputRoute(InputDevices.PHONE)
-        // 卡 112：自动不选蓝牙。蓝牙录音要占通话模式，会让语音输入法等拿不到话筒；要用蓝牙请在列表里指定
-        InputChoice.AutoExternal -> routes.firstOrNull { it.device.kind != InputKind.BluetoothLe && it.device.kind != InputKind.BluetoothCall && it.device
-            .kind != InputKind.CardDevice && it.device.connected }
-            ?: InputRoute(InputDevices.PHONE)
-        // 卡 220（#63）：routes 已按最近接上排序，同档里取第一个
-        InputChoice.AutoWithBluetooth -> listOf(setOf(InputKind.Usb, InputKind.Wired, InputKind.Other), setOf(InputKind.BluetoothLe), setOf(InputKind.BluetoothCall))
-            .firstNotNullOfOrNull { tier -> routes.firstOrNull { it.device.kind in tier && it.device.connected } }
-            ?: InputRoute(InputDevices.PHONE)
+        // 卡 223：从上往下，用第一个开着又接着的；同一类里 routes 已按最近接上排序。专用录音设备不在自动列表里
+        is InputChoice.Auto -> value.order.filter { it.enabled }.firstNotNullOfOrNull { entry ->
+            routes.firstOrNull { it.device.connected && it.device.kind != InputKind.CardDevice && value.matches(entry, it.device) }
+        } ?: InputRoute(InputDevices.PHONE)
         is InputChoice.Device -> routes.find { it.device.key == value.key && it.device.connected } ?: InputRoute(InputDevices.PHONE)
     }
 }

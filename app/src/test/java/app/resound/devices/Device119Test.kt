@@ -198,9 +198,9 @@ class Device119Test {
             link.pcm(0); link.pcm(1)
             until { managed.devices.value.single().status == DeviceStatus.Live }
             assertEquals(key, selected().key)
-            // 原匹配测试里 AutoExternal 不自动抢占专用设备的断言继续保留。
+            // 原匹配测试里“自动”不自动抢占专用设备的断言继续保留（卡 223 合并后的自动同样不选）。
             val route = InputRoute(InputDevice(key, row.name, InputKind.CardDevice, true))
-            assertEquals(InputDevices.PHONE, InputSnapshot(InputChoice.AutoExternal, listOf(route)).selected().device)
+            assertEquals(InputDevices.PHONE, InputSnapshot(InputChoice.Auto(), listOf(route)).selected().device)
             managed.forget(row.address); until { managed.devices.value.isEmpty() && link.closed }
         } finally { job.cancelAndJoin() }
     }

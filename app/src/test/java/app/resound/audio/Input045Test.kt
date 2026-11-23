@@ -59,15 +59,17 @@ class Input045Test {
         val prefs = context.getSharedPreferences("inputs",Context.MODE_PRIVATE)
         prefs.edit().clear().commit()
         assertEquals(InputChoice.Phone,InputPreferences(prefs).read())
-        val chosen = InputChoice.Device(usb.device.key,usb.device.name)
+        // 卡 223：“只用某台”只留给专用录音设备
+        val chosen = InputChoice.Device("CardDevice:AA:BB","录音卡")
         InputPreferences(prefs).write(chosen)
         assertEquals(chosen,InputPreferences(prefs).read())
         val dir = File(context.cacheDir,"input-settings").apply { mkdirs() }
         BackupSettings.capture(context,dir) { _,_ -> "" }
-        InputPreferences(prefs).write(InputChoice.AutoExternal)
-        assertEquals(InputChoice.AutoExternal,InputPreferences(prefs).read())
-        InputPreferences(prefs).write(InputChoice.AutoWithBluetooth)
-        assertEquals(InputChoice.AutoWithBluetooth,InputPreferences(prefs).read())
+        InputPreferences(prefs).write(InputChoice.Auto())
+        assertEquals(InputChoice.Auto(),InputPreferences(prefs).read())
+        val custom = InputChoice.Auto(newBluetoothOn = true).learn(listOf(InputDevice("Bluetooth:DJI","DJI",InputKind.BluetoothLe,true))).moveUp("Bluetooth:DJI")
+        InputPreferences(prefs).write(custom)
+        assertEquals(custom,InputPreferences(prefs).read())
         BackupSettings.apply(context,dir) { _,_,_ -> }
         assertEquals(chosen,InputPreferences(prefs).read())
     }
@@ -75,14 +77,16 @@ class Input045Test {
     @Test fun selectionHonorsPhoneAutomaticAndMissingDevice() {
         val routes = listOf(wired,usb)
         assertEquals("mic",InputSnapshot(InputChoice.Phone,routes).selected().device.key)
-        assertEquals(wired,InputSnapshot(InputChoice.AutoExternal,routes).selected())
+        // 卡 223：按列表顺序（默认 USB 在有线前面），不再是“最后接上的优先”
+        assertEquals(usb,InputSnapshot(InputChoice.Auto(),routes).selected())
+        assertEquals(wired,InputSnapshot(InputChoice.Auto().moveUp("type:Wired"),routes).selected())
         assertEquals(usb,InputSnapshot(InputChoice.Device(usb.device.key,"DJI"),routes).selected())
         assertEquals("mic",InputSnapshot(InputChoice.Device("missing","未连接"),routes).selected().device.key)
     }
 
     @Test fun disconnectFinishesSpeechImmediatelyAndReconnectIsDebounced() = runBlocking {
         var now = 0L
-        val snapshots = MutableStateFlow(InputSnapshot(InputChoice.AutoExternal,listOf(usb)))
+        val snapshots = MutableStateFlow(InputSnapshot(InputChoice.Auto(),listOf(usb)))
         val started = Channel<String>(Channel.UNLIMITED)
         val ended = Channel<Pair<String,Boolean>>(Channel.UNLIMITED)
         val task = launch {
@@ -101,22 +105,22 @@ class Input045Test {
         }
         try {
             assertEquals(usb.device.key,withTimeout(2000) { started.receive() })
-            snapshots.value = InputSnapshot(InputChoice.AutoExternal,emptyList())
+            snapshots.value = InputSnapshot(InputChoice.Auto(),emptyList())
             assertEquals(usb.device.key to true,withTimeout(1000) { ended.receive() })
             assertEquals("mic",withTimeout(1000) { started.receive() })
-            snapshots.value = InputSnapshot(InputChoice.AutoExternal,listOf(usb.copy(portId=11)))
+            snapshots.value = InputSnapshot(InputChoice.Auto(),listOf(usb.copy(portId=11)))
             assertNull(withTimeoutOrNull(100) { started.receive() })
-            snapshots.value = InputSnapshot(InputChoice.AutoExternal,emptyList())
+            snapshots.value = InputSnapshot(InputChoice.Auto(),emptyList())
             yield()
             now = 3001
-            snapshots.value = InputSnapshot(InputChoice.AutoExternal,listOf(usb.copy(portId=12)))
+            snapshots.value = InputSnapshot(InputChoice.Auto(),listOf(usb.copy(portId=12)))
             assertEquals("mic" to true,withTimeout(1000) { ended.receive() })
             assertEquals(usb.device.key,withTimeout(1000) { started.receive() })
         } finally { task.cancelAndJoin() }
     }
 
     @Test fun sourceFailureFallsBackWithoutMicRetryOrReopeningFailedDevice() = runBlocking {
-        val snapshots = MutableStateFlow(InputSnapshot(InputChoice.AutoExternal,listOf(usb)))
+        val snapshots = MutableStateFlow(InputSnapshot(InputChoice.Auto(),listOf(usb)))
         val started = Channel<Pair<String,String?>>(Channel.UNLIMITED)
         var finished = false
         val task = launch {
@@ -134,7 +138,7 @@ class Input045Test {
             val result = withTimeout(1000) { started.receive() }
             assertEquals("mic",result.first)
             assertTrue(result.second!!.contains("DJI"))
-            snapshots.value = InputSnapshot(InputChoice.AutoExternal,listOf(usb,wired))
+            snapshots.value = InputSnapshot(InputChoice.Auto(),listOf(usb,wired))
             assertNull(withTimeoutOrNull(100) { started.receive() })
         } finally { task.cancelAndJoin() }
     }

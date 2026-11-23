@@ -34,7 +34,8 @@ class LocalLanguage093Test {
 
     @Test fun unknownStoredLanguageFallsBackAndDoesNotAffectCloudIdentity() {
         val context = RuntimeEnvironment.getApplication()
-        context.getSharedPreferences("transcribe", 0).edit().putString("localLanguage", "unknown").commit()
+        // 测的是云端转写的标识（卡 223 起没存过时默认本机识别，这里明确选豆包）
+        context.getSharedPreferences("transcribe", 0).edit().putString("localLanguage", "unknown").putString("source", "Doubao").commit()
         val settings = AndroidTranscribeSettings(context)
         assertEquals(LocalAsrLanguage.Auto, settings.language.value)
         val before = settings.identity()

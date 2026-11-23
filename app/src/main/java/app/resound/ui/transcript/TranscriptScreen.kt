@@ -1194,7 +1194,7 @@ private fun CustomTranscribeForm(advanced: app.resound.transcribe.AndroidTranscr
             }
         }
         Spacer(Modifier.height(6.dp))
-        Text(if (diarized) "要 diarized_json 格式，需模型支持（如 OpenAI 的 gpt-4o-transcribe-diarize），不支持时会提示改回自动。"
+        Text(if (diarized) "要 diarized_json 格式，需模型支持（如 OpenAI 的 gpt-4o-transcribe-diarize），不支持时会提示改回自动。热词另放在 definition 字段，服务不认会自动不带。"
             else "按服务默认格式返回；多数模型只出文字，带逐句时间。", style = RsType.caption, color = c.textTertiary)
     } }
     Spacer(Modifier.height(14.dp))

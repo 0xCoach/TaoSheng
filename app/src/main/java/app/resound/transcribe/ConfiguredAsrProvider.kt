@@ -48,10 +48,11 @@ class CustomAsrProvider(private val settings: AndroidTranscribeSettings, private
                 qwenRecognize(network, urls.single(), key, headers, upload, audio.durationMillis, model,
                     if (attachPrompt) hotwords() else emptyList(), beforeAudio, audio.separateSpeakers)
             } else {
-                val prompt = if (mode == CustomEndpointMode.Auto || attachPrompt) Hotwords.customPrompt(hotwords()) else null
+                val sendHotwords = mode == CustomEndpointMode.Auto || attachPrompt
+                val prompt = if (sendHotwords) Hotwords.customPrompt(hotwords()) else null
                 customRecognize(network, urls, key, headers, upload, audio.durationMillis, model, prompt,
                     java.util.UUID.randomUUID().toString(), beforeAudio, audio.separateSpeakers,
-                    settings.customFormats(endpoint, model, mode), speakerFormat)
+                    settings.customFormats(endpoint, model, mode), speakerFormat, if (sendHotwords) hotwords() else emptyList())
             }
         } catch(e:kotlinx.coroutines.CancellationException){throw e}
         catch(e:AsrException){throw e}

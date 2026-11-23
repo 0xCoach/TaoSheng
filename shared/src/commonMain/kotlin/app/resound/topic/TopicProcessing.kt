@@ -23,7 +23,9 @@ import app.resound.topic.core.TopicBlockNote
     val blocksTotal: Int = 0, val blocksDone: Int = 0, val blocksFailed: Int = 0,
     val waitingTranscribe: Int = 0, val waitingVoiceprint: Int = 0, val waitingNetwork: Boolean = false,
     val lastProgressAt: Long = 0, val organizedUntil: Long? = null,
-    val blockNotes: List<TopicBlockNote> = emptyList(), val stalledReason: String? = null) {
+    val blockNotes: List<TopicBlockNote> = emptyList(), val stalledReason: String? = null,
+    /** 卡 227：整理中的暂定标题，取已整理块里的第一件事，和最后合成标题的规则一致。 */
+    val title: String? = null) {
     val readableNotes: List<String> get() {
         val summaries = notes.filterKeys { it.startsWith("整理纪要:") }
         val extracts = notes.filterKeys { it.startsWith("提取要点:") }

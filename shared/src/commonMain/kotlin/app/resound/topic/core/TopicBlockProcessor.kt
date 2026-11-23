@@ -65,6 +65,7 @@ class TopicBlockProcessor(
             waitingVoiceprint = voices, waitingNetwork = network, organizedUntil = until, blockNotes = notes,
             notes = notes.filter { it.text.isNotBlank() }.associate { "整理纪要:${it.index}" to it.text },
             completed = done, total = blocks.size, stalledReason = reason.takeIf { stalled },
+            title = TopicGenerationRules.eventTitle(blocks.flatMap { b -> state.blocks[b.index]?.result?.events.orEmpty() }),
             phase = if (waiting) reason else state.progress.phase)))
     }
     private suspend fun <T : Any> bounded(block: suspend () -> T): T {

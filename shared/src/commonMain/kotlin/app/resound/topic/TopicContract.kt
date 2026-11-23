@@ -13,6 +13,8 @@ data class Topic(
     val repeat: Set<DayOfWeek>, val spans: List<TopicSpan>, val marks: List<TopicMark>,
     val eventId: Long?, val cardId: Long?, val error: String?, val revision: Long,
     val quietOverride: Boolean,
+    /** 卡 227：整理完合成的那件事的标题（没填名字时用来认专题）；用户起了名字或还没整理完时为空。 */
+    val title: String? = null,
 )
 data class TopicReplacedEvent(val id: Long, val title: String, val startAt: Long, val endAt: Long, val starred: Boolean)
 data class TopicReplacePreview(

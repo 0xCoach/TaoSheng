@@ -157,9 +157,10 @@ import java.time.ZoneId
             app.resound.ui.skills.SkillIcon(kindIcon(t.kind), 40.dp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(topicLabel(t), style = RsType.headline, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val title = topicTitle(t, progress)
+                Text(title, style = RsType.headline, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(3.dp))
-                Text(listOfNotNull(formatClock(start), duration.takeIf { minutes > 0 }, t.kind.title.takeIf { !t.name.isNullOrBlank() }).joinToString(" · "),
+                Text(listOfNotNull(formatClock(start), duration.takeIf { minutes > 0 }, t.kind.title.takeIf { title != t.kind.title }).joinToString(" · "),
                     style = RsType.subhead.copy(fontFeatureSettings = "tnum"), color = c.textTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.width(8.dp))

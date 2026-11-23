@@ -63,7 +63,7 @@ object TopicProcessingRules {
     fun pending(t: Topic) = t.status in setOf(TopicStatus.Ended, TopicStatus.Summarizing, TopicStatus.Failed)
     fun history(rows: List<Topic>, query: String = "", needsAttention: Boolean = false): List<Topic> = rows
         .filter { (!needsAttention || it.status == TopicStatus.Failed) &&
-            (query.isBlank() || (it.name.orEmpty() + it.kind.title).contains(query.trim(), ignoreCase = true)) }
+            (query.isBlank() || (it.name.orEmpty() + it.title.orEmpty() + it.kind.title).contains(query.trim(), ignoreCase = true)) }
         .sortedWith(compareByDescending<Topic> { it.spans.minOfOrNull { span -> span.startAt } ?: it.plannedStartAt ?: it.createdAt }.thenByDescending { it.id })
 }
 class TopicRequestContext(val id: Long, val phase: String, val block: Int, val total: Int) : AbstractCoroutineContextElement(Key) {

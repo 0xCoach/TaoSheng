@@ -69,6 +69,9 @@ object TopicUi {
 
 private val zone get() = ZoneId.systemDefault()
 fun topicLabel(t: Topic) = t.name?.takeIf { it.isNotBlank() } ?: t.kind.title
+/** 卡 227：专题记录和详情的标题。用户起的名字 → 整理出的标题 → 整理中的暂定标题 → 类型。进行中的提示行仍用 [topicLabel]。 */
+fun topicTitle(t: Topic, progress: TopicProgress? = null) = t.name?.takeIf { it.isNotBlank() }
+    ?: t.title?.takeIf { it.isNotBlank() } ?: progress?.title?.takeIf { it.isNotBlank() } ?: t.kind.title
 private fun minutesText(ms: Long): String {
     val m = (ms / 60_000).coerceAtLeast(0)
     return if (m < 60) "$m 分钟" else if (m % 60 == 0L) "${m / 60} 小时" else "${m / 60} 小时 ${m % 60} 分"
@@ -395,7 +398,7 @@ fun TopicSheet(id: Long, onDismiss: () -> Unit) {
         }
     }
 
-    RsSheet(topicLabel(t), onDismiss = onDismiss, fixedHeight = true, trailing = {
+    RsSheet(topicTitle(t, progress), onDismiss = onDismiss, fixedHeight = true, trailing = {
         if (canEdit) Text("⋯", style = RsType.title, color = c.textSecondary, modifier = Modifier.springClick { adjusting = !adjusting }.padding(10.dp))
     }) {
         LinkText("‹ 专题记录") {

@@ -60,8 +60,15 @@ class TopicRulesRepository(
     private suspend fun checkConflict(start: Long, end: Long, except: Long? = null, repeat: Set<DayOfWeek> = emptySet()) {
         requireTopic(!TopicPolicy.conflicts(start, end, repeat, dao.all().filter { it.row.id != except }, zone()), TopicPolicy.CONFLICT)
     }
+    /** 卡 227：没起名字的已完成专题，带上合成那件事的标题，列表和搜索都能认出是哪一场。 */
+    private suspend fun titled(g: TopicGroup): Topic {
+        val t = g.topic()
+        if (!t.name.isNullOrBlank()) return t
+        val title = g.row.eventId?.let { id -> runCatching { dao.event(id)?.title }.getOrNull() }?.trim()?.takeIf { it.isNotEmpty() }
+        return if (title == null) t else t.copy(title = title)
+    }
     override fun observeHistory(): Flow<List<Topic>> = dao.observeAll().map { rows ->
-        TopicProcessingRules.history(rows.map { it.topic() })
+        TopicProcessingRules.history(rows.map { titled(it) })
     }.distinctUntilChanged()
     override fun observeProgress(topicId: Long) = checkpoints.observe(topicId)
 
@@ -70,9 +77,9 @@ class TopicRulesRepository(
         val end = date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone()).toEpochMilliseconds()
         return dao.observeAll().map { rows -> rows.filter { g -> g.spans.any {
             TopicPolicy.overlaps(it.startAt, it.endAt ?: g.deadline(), start, end)
-        } || g.row.createdAt in start until end }.map { it.topic() } }
+        } || g.row.createdAt in start until end }.map { titled(it) } }
     }
-    override fun observe(topicId: Long) = dao.observeAll().map { rows -> rows.firstOrNull { it.row.id == topicId }?.topic() }.distinctUntilChanged()
+    override fun observe(topicId: Long) = dao.observeAll().map { rows -> rows.firstOrNull { it.row.id == topicId }?.let { titled(it) } }.distinctUntilChanged()
     override fun observeScheduled() = dao.observeAll().map { rows -> rows.filter { it.row.status == "Scheduled" }
         .sortedBy { it.row.plannedStartAt }.map { it.topic() } }.distinctUntilChanged()
 

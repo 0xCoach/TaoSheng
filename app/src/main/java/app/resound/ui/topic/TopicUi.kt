@@ -205,7 +205,6 @@ internal fun ChoicePill(text: String, on: Boolean, modifier: Modifier = Modifier
 internal fun TopicStartPanel(initialKind: TopicKind = TopicKind.Meeting, onStarted: () -> Unit) {
     val c = Rs.colors
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     var kind by remember { mutableStateOf(initialKind) }
     var name by remember { mutableStateOf("") }
     var minutes by remember { mutableIntStateOf(60) }
@@ -233,19 +232,22 @@ internal fun TopicStartPanel(initialKind: TopicKind = TopicKind.Meeting, onStart
     ActionButton(if (busy) "正在开始…" else "开始${if (kind == TopicKind.Call) "访谈" else kind.title}", ActionKind.Primary, enabled = !busy) {
             if (busy) return@ActionButton
             busy = true
-            scope.launch {
-                val r = runCatching { AppGraph.topics.start(kind, name.trim().ifEmpty { null }, if (unlimited) null else minutes) }.getOrNull()
+            val app = context.applicationContext
+            val title = name.trim().ifEmpty { null }
+            val duration = if (unlimited) null else minutes
+            val chosen = kind
+            TopicStartLauncher.launch({ AppGraph.topics.start(chosen, title, duration) }, { r ->
                 busy = false
                 val msg = when {
                     r == null -> "没开始成功，请再试一次"
                     r.error != null -> r.error
                     r.recordingDisabled -> "专题已开始，但录音没开，记得打开聆听"
                     r.quietOverride -> "专题已开始，这段时间原本设为不录音，专题期间照常录"
-                    else -> "${kind.title}专题已开始，往前多算了 2 分钟"
+                    else -> "${chosen.title}专题已开始，往前多算了 2 分钟"
                 }
-                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                if (r?.topicId != null) { if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.setLastTopicKind(kind); onStarted() }
-            }
+                Toast.makeText(app, msg, Toast.LENGTH_SHORT).show()
+                if (r?.topicId != null) { if (AppGraph.isQuickPrefsReady) AppGraph.quickPrefs.setLastTopicKind(chosen); onStarted() }
+            })
     }
 
 }

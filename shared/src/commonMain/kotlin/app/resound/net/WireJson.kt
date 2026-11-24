@@ -33,7 +33,12 @@ class Obj private constructor(private val fields: MutableMap<String, Any?>) {
     fun optBoolean(key: String, fallback: Boolean = false) = fields[key]?.toString()?.lowercase()?.toBooleanStrictOrNull() ?: fallback
     fun element(): JsonObject = JsonObject(fields.mapValues { wrap(it.value) })
     override fun toString() = wire(element())
-    companion object { val NULL = JsonNull }
+    companion object {
+        // ObjC 里 NULL 是宏，导出给 Swift 时改名
+        @OptIn(kotlin.experimental.ExperimentalObjCName::class)
+        @kotlin.native.ObjCName("nullValue")
+        val NULL = JsonNull
+    }
 }
 class Arr private constructor(private val items: MutableList<Any?>, unused: Unit) {
     constructor() : this(mutableListOf(), Unit)

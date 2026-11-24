@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
+
 plugins {
     id("org.jetbrains.kotlin.multiplatform")
     id("org.jetbrains.kotlin.plugin.serialization")
@@ -16,8 +18,15 @@ kotlin {
     }
     // 默认不配置 Native 目标；Xcode 就绪后由负责人显式启用。
     if (providers.gradleProperty("taosheng.ios").orNull == "true") {
-        iosArm64()
-        iosSimulatorArm64()
+        // Swift 侧链接用的静态框架；XCFramework 由 tools/build_ios_framework.sh 产出
+        val xcf = XCFramework("TaoShengCore")
+        listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
+            target.binaries.framework {
+                baseName = "TaoShengCore"
+                isStatic = true
+                xcf.add(this)
+            }
+        }
     }
     sourceSets {
         commonMain.dependencies {

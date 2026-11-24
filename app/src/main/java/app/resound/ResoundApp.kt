@@ -8,6 +8,7 @@ import app.resound.push.attachSubscriptions
 import app.resound.push.attachFootprint
 import app.resound.push.attachDayThread
 import app.resound.push.attachScreenTime
+import app.resound.runtime.createCoreRuntime
 
 import android.app.Application
 import app.resound.capture.*
@@ -28,7 +29,8 @@ class ResoundApp : Application() {
     internal val pipelineScheduler by lazy { app.resound.transcribe.PipelineScheduler(this) }
     val inputs by lazy { app.resound.audio.AndroidInputDevices(this) }
     internal lateinit var cardDevices: app.resound.devices.android.DeviceInputs
-    val database by lazy { CaptureDatabase.open(this) }
+    private val captureDatabase = lazy { CaptureDatabase.open(this) }
+    val database by captureDatabase
     val store by lazy { CaptureStore(this, database.capture()) }
     val quietSchedule by lazy { AndroidQuietSchedule(store.prefs, arm = { AndroidQuietSchedule.arm(this, it) }, changed = CaptureService::recheck) }
     val playbackSession = PlaybackSession()
@@ -58,16 +60,19 @@ class ResoundApp : Application() {
         private set
     override fun onCreate() {
         super.onCreate()
-        AppGraph.platform = app.resound.platform.PlatformServices(
+        val platform = app.resound.platform.PlatformServices(
             now = app.resound.platform.SystemNow,
             zone = app.resound.platform.SystemZone,
             logger = app.resound.platform.AndroidLogger,
             keyValueStore = app.resound.platform.PrefsKeyValueStore(getSharedPreferences("platform", MODE_PRIVATE)),
             files = app.resound.platform.LocalFileStore(app.resound.platform.AndroidDispatchers),
             dispatchers = app.resound.platform.AndroidDispatchers,
+            entitlements = app.resound.platform.AndroidEntitlements,
         )
+        val core = createCoreRuntime(platform, captureDatabase)
+        AppGraph.platform = core.platform
         AppGraph.markSettings = app.resound.marks.AndroidMarkSettings(getSharedPreferences("marks", MODE_PRIVATE))
-        AppGraph.marks = app.resound.marks.MarkRepository(database, AppGraph.platform.now::now,
+        AppGraph.marks = app.resound.marks.MarkRepository(core.database, AppGraph.platform.now::now,
             { AppGraph.markSettings.range.value }, { topicId, markId -> AppGraph.topics.unmark(topicId, markId) })
         val crashes = app.resound.diagnostics.CrashRecords(this)
         crashes.installHandler()

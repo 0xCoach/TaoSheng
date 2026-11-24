@@ -33,11 +33,17 @@ kotlin {
             api("io.ktor:ktor-client-okhttp:3.3.3")
         }
         if (providers.gradleProperty("taosheng.ios").orNull == "true") {
-            // 配置阶段 iosMain 还没由默认层级生成，直接给两个 iOS 目标各自的源码集加 Darwin 引擎
+            // 配置阶段 iosMain 还没由默认层级生成，直接给两个 iOS 目标各自的源码集加平台依赖
             val iosArm64Main by getting
             val iosSimulatorArm64Main by getting
-            iosArm64Main.dependencies { implementation("io.ktor:ktor-client-darwin:3.3.3") }
-            iosSimulatorArm64Main.dependencies { implementation("io.ktor:ktor-client-darwin:3.3.3") }
+            iosArm64Main.dependencies {
+                implementation("io.ktor:ktor-client-darwin:3.3.3")
+                implementation("androidx.sqlite:sqlite-bundled:2.6.2")
+            }
+            iosSimulatorArm64Main.dependencies {
+                implementation("io.ktor:ktor-client-darwin:3.3.3")
+                implementation("androidx.sqlite:sqlite-bundled:2.6.2")
+            }
         }
         jvmTest.dependencies {
             implementation("io.ktor:ktor-client-mock:3.3.3")

@@ -44,12 +44,6 @@ object AndroidDispatchers : AppDispatchers {
     override val default = Dispatchers.Default
 }
 
-/** 安卓装配容器，仅暴露共用插口。 */
-data class PlatformServices(
-    val now: NowMillis,
-    val zone: ZoneProvider,
-    val logger: Logger,
-    val keyValueStore: KeyValueStore,
-    val files: FileStore,
-    val dispatchers: AppDispatchers,
-)
+internal object AndroidEntitlements : Entitlements {
+    override fun has(feature: ProFeature): Boolean = true
+}

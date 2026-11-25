@@ -4,7 +4,9 @@ import android.app.Application
 import android.content.Context
 import app.resound.platform.AndroidDispatchers
 import app.resound.platform.AndroidEntitlements
+import app.resound.platform.AndroidKeyValueStores
 import app.resound.platform.AndroidLogger
+import app.resound.platform.AndroidSecretVault
 import app.resound.platform.LocalFileStore
 import app.resound.platform.PlatformServices
 import app.resound.platform.PrefsKeyValueStore
@@ -75,6 +77,8 @@ class SharedCore231Test {
             files = LocalFileStore(AndroidDispatchers),
             dispatchers = AndroidDispatchers,
             entitlements = AndroidEntitlements,
+            keyValueStores = AndroidKeyValueStores(context),
+            secretVault = AndroidSecretVault(context),
         )
         val core = createCoreRuntime(platform, database)
         assertSame(platform, core.platform)

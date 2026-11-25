@@ -5,6 +5,8 @@ import app.resound.diagnostics.FailureNotes
 import app.resound.transcribe.fetchRemoteModels
 
 import android.content.Context
+import app.resound.platform.AndroidKeyValueStores
+import app.resound.platform.KeyValueStores
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class AndroidDigestSettings internal constructor(
     context: Context, private val client: LlmClient, val providers: AndroidLlmProviders,
     private val recordUsage: suspend (LlmReply) -> Unit = {},
+    stores: KeyValueStores = AndroidKeyValueStores(context),
 ) : DigestSettings {
     constructor(context: Context, client: LlmClient, recordUsage: suspend (LlmReply) -> Unit = {}) :
         this(context, client, AndroidLlmProviders(context, client, recordUsage), recordUsage)
@@ -24,11 +27,12 @@ class AndroidDigestSettings internal constructor(
     val failoverEnabled get() = failover.enabled
     fun setFailoverEnabled(enabled: Boolean) = failover.setEnabled(enabled)
     val timing = AndroidDigestTiming(context)
-    private val prefs = context.getSharedPreferences("digest", Context.MODE_PRIVATE)
+    private val prefs = stores.open("digest")
+    private val transcribePrefs = stores.open("transcribe")
     private val preferences = DigestPreferenceStore(prefs::getBoolean, prefs::getInt,
-        { context.getSharedPreferences("transcribe", Context.MODE_PRIVATE).getInt("interval", 30) },
-        { key, value -> prefs.edit().putBoolean(key, value).commit() },
-        { key, value -> prefs.edit().putInt(key, value).commit() },
+        { transcribePrefs.getInt("interval", 30) },
+        { key, value -> prefs.commit { putBoolean(key, value) } },
+        { key, value -> prefs.commit { putInt(key, value) } },
         { context.packageManager.getPackageInfo(context.packageName, 0).let { it.firstInstallTime == it.lastUpdateTime } })
     override val includeSituation get() = preferences.includeSituation
     override fun setIncludeSituation(on: Boolean) = preferences.setIncludeSituation(on)
@@ -77,7 +81,7 @@ class AndroidDigestSettings internal constructor(
 
     override fun headers(presetId: String) = providers.headers(presetId)
     override fun saveHeaders(presetId: String, headers: List<HeaderEntry>) = providers.saveHeaders(presetId, headers)
-    fun canUseWithoutKey(preset: LlmPreset) = preset.allowsEmptyKey() || providers.hasHeaderAuth(preset.id)
+    fun canUseWithoutKey(preset: LlmPreset) = providers.canUseWithoutKey(preset)
 
     override fun setPreset(id: String) {
         providers.ensureLegacy(id)

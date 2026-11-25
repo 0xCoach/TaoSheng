@@ -22,6 +22,38 @@ interface KeyValueStore {
     fun putBoolean(key: String, value: Boolean)
 }
 
+fun interface KeyValueStores {
+    fun open(group: String): GroupedKeyValueStore
+}
+
+interface GroupedKeyValueStore {
+    fun contains(key: String): Boolean
+    fun getString(key: String, default: String?): String?
+    fun getStrings(key: String): List<String>
+    fun getLong(key: String, default: Long): Long
+    fun getInt(key: String, default: Int): Int
+    fun getBoolean(key: String, default: Boolean): Boolean
+
+    /** 同组原子提交。编辑回调抛错或返回提交失败时，保留原值。 */
+    fun commit(edit: KeyValueEdit.() -> Unit): Boolean
+}
+
+interface KeyValueEdit {
+    fun putString(key: String, value: String?)
+    fun putStrings(key: String, value: List<String>)
+    fun putLong(key: String, value: Long)
+    fun putInt(key: String, value: Int)
+    fun putBoolean(key: String, value: Boolean)
+}
+
+/** 缺少密钥时返回空串。平台不可把密钥或密文写进日志和异常。 */
+interface SecretVault {
+    fun read(group: String, key: String): String
+    fun write(group: String, key: String, value: String)
+    fun remove(group: String, key: String)
+    fun has(group: String, key: String): Boolean
+}
+
 /** 不透明编号或路径字符串，由平台解释。 */
 data class FileRef(val id: String)
 

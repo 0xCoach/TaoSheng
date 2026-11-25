@@ -9,4 +9,6 @@ data class PlatformServices(
     val files: FileStore,
     val dispatchers: AppDispatchers,
     val entitlements: Entitlements,
+    val keyValueStores: KeyValueStores,
+    val secretVault: SecretVault,
 )

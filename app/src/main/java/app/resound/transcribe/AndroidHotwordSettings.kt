@@ -1,43 +1,27 @@
 package app.resound.transcribe
 
-import app.resound.diagnostics.FailureNotes
-
 import android.content.Context
 import app.resound.data.VoiceprintDao
+import app.resound.diagnostics.FailureNotes
+import app.resound.platform.AndroidKeyValueStores
+import app.resound.platform.KeyValueStores
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.*
-import org.json.JSONArray
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
-object Hotwords {
-    fun normalize(words: List<String>, limit: Int = 200): List<String> = words.asSequence()
-        .map(String::trim).filter { it.codePointCount(0, it.length) in 1..20 && it.none(Char::isISOControl) }
-        .distinct().take(limit).toList()
-    fun merge(manual: List<String>, automatic: List<String>) = normalize(manual + automatic, Int.MAX_VALUE)
-    // 当前使用 bigmodel_nostream，热词直传上限 5000 词。
-    fun doubao(words: List<String>) = words.take(5000)
-    fun customPrompt(words: List<String>): String = if (words.isEmpty()) "" else
-        ("可能出现的词：" + words.joinToString("、")).take(200).let {
-            if (it.lastOrNull()?.isHighSurrogate() == true) it.dropLast(1) else it
-        }
-}
+class AndroidHotwordSettings(stores: KeyValueStores, dao: VoiceprintDao, scope: CoroutineScope) : HotwordSettings {
+    constructor(context: Context, dao: VoiceprintDao, scope: CoroutineScope) :
+        this(AndroidKeyValueStores(context), dao, scope)
 
-class AndroidHotwordSettings(context: Context, dao: VoiceprintDao, scope: CoroutineScope) : HotwordSettings {
-    private val prefs = context.getSharedPreferences("transcribe", Context.MODE_PRIVATE)
-    private val current = MutableStateFlow(runCatching {
-        val array = JSONArray(prefs.getString("hotwords", "[]"))
-        Hotwords.normalize((0 until array.length()).map { array.getString(it) })
-    }.onFailure {
+    private val preferences = HotwordPreferenceStore(stores) {
         FailureNotes.record("transcribe/AndroidHotwordSettings.kt:24", it)
-    }.getOrDefault(emptyList()))
-    override val words = current.asStateFlow()
+    }
+    override val words = preferences.words
     override val automatic = dao.observePeople().map { people ->
         Hotwords.normalize(people.map { it.name }.filterNot { it == "我" }, Int.MAX_VALUE)
     }.stateIn(scope, SharingStarted.Eagerly, emptyList())
-    override fun setWords(words: List<String>) {
-        val normalized = Hotwords.normalize(words)
-        check(prefs.edit().putString("hotwords", JSONArray(normalized).toString()).commit()) { "热词保存失败" }
-        current.value = normalized
-    }
+    override fun setWords(words: List<String>) = preferences.setWords(words)
     var topicWords: () -> List<String> = { emptyList() }
     fun merged() = Hotwords.merge(words.value, automatic.value + topicWords())
 }

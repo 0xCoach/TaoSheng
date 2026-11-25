@@ -68,6 +68,8 @@ class ResoundApp : Application() {
             files = app.resound.platform.LocalFileStore(app.resound.platform.AndroidDispatchers),
             dispatchers = app.resound.platform.AndroidDispatchers,
             entitlements = app.resound.platform.AndroidEntitlements,
+            keyValueStores = app.resound.platform.AndroidKeyValueStores(this),
+            secretVault = app.resound.platform.AndroidSecretVault(this),
         )
         val core = createCoreRuntime(platform, captureDatabase)
         AppGraph.platform = core.platform
@@ -123,7 +125,7 @@ class ResoundApp : Application() {
         AppGraph.capture = controller
         AppGraph.quietSchedule = quietSchedule
         AppGraph.voiceInput = AndroidVoiceInputCapture(this, database, scope)
-        val settings = AndroidTranscribeSettings(this)
+        val settings = AndroidTranscribeSettings(this, platform.keyValueStores, platform.secretVault)
         val scheduler = TranscribeScheduler(this, settings)
         transcribeScheduler = scheduler
         segmentFiles.onSaved = {
@@ -131,7 +133,7 @@ class ResoundApp : Application() {
             if (database.topics().pendingAudio() > 0) scheduler.runNow()
             else scheduler.segmentSaved(database.transcribe().pendingMillis())
         }
-        val hotwords = AndroidHotwordSettings(this, database.voiceprint(), scope)
+        val hotwords = AndroidHotwordSettings(platform.keyValueStores, database.voiceprint(), scope)
         AppGraph.hotwords = hotwords
         hotwords.topicWords = { if (AppGraph.isTopicsReady) app.resound.topic.TopicPolicy.words(AppGraph.topics.current.value?.takeIf { app.resound.topic.TopicPolicy.activeAt(it, System.currentTimeMillis()) }?.name) else emptyList() }
         AppGraph.importer = app.resound.importer.AndroidAudioImporter(this, scope, fingerprints = database.folderImports())
@@ -282,13 +284,17 @@ class ResoundApp : Application() {
             } finally { file.delete() }
         }
         settings.onChanged = { scheduler.settingsChanged(scope) }
-        val serviceHeaders = app.resound.digest.ServiceHeaders(this)
+        val serviceHeaders = app.resound.digest.ServiceHeaders(platform.secretVault)
         val jsonStreamSupport = app.resound.digest.AndroidJsonStreamSupport(this)
         val llm = LlmClient(streamSupport = jsonStreamSupport, requestHeaders = serviceHeaders::forPreset, diagnostics = app.resound.diagnostics.LlmDiagnostics(this))
-        val digestSettings = AndroidDigestSettings(this, llm) { reply ->
+        val recordLlmUsage: suspend (app.resound.digest.LlmReply) -> Unit = { reply ->
             database.memory().addUsage(java.time.LocalDate.now().toString(), reply.promptTokens,
                 reply.completionTokens, app.resound.usage.UsagePurpose.Other)
         }
+        val providers = app.resound.digest.AndroidLlmProviders(
+            this, llm, platform.keyValueStores, platform.secretVault, serviceHeaders, recordLlmUsage,
+        )
+        val digestSettings = AndroidDigestSettings(this, llm, providers, recordLlmUsage, platform.keyValueStores)
         AppGraph.llmFailover = digestSettings.failover
         val (things, thingExtraction) = app.resound.things.createThings(this, database, scope, digestSettings) { AppGraph.prompts.text("things") }
         AppGraph.things = things

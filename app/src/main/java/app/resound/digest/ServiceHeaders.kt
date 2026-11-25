@@ -1,10 +1,8 @@
 package app.resound.digest
 
-import app.resound.diagnostics.FailureNotes
-
-import app.resound.net.decodeNetworkHeaders
-import app.resound.net.encodeNetworkHeaders
 import app.resound.net.validateNetworkHeaders
+import app.resound.platform.AndroidSecretVault
+import app.resound.platform.SecretVault
 
 import android.content.Context
 import okhttp3.Request
@@ -23,27 +21,22 @@ internal fun Request.Builder.serviceHeaders(key: String, headers: List<HeaderEnt
 
 /** 与普通 API 密钥使用同一个 Keystore 容器；备份按 secrets.json 解密导出、恢复时重新加密。 */
 class ServiceHeaders internal constructor(
-    private val read: (String) -> String,
-    private val write: (String, String) -> Unit,
-    private val remove: (String) -> Unit,
+    private val vault: SecretVault,
+    transcription: Boolean = false,
 ) {
-    private constructor(store: SecretStore) : this(store::read, store::write, store::remove)
-    constructor(context: Context, transcription: Boolean = false) : this(SecretStore(context,
-        if (transcription) "transcribe-header-secrets" else "digest-secrets",
-        if (transcription) "resound-asr-headers-aes-v1" else "resound-llm-aes-v1"))
+    constructor(context: Context, transcription: Boolean = false) : this(AndroidSecretVault(context), transcription)
+    internal constructor(read: (String) -> String, write: (String, String) -> Unit, remove: (String) -> Unit) :
+        this(object : SecretVault {
+            override fun read(group: String, key: String) = read(key)
+            override fun write(group: String, key: String, value: String) = write(key, value)
+            override fun remove(group: String, key: String) = remove(key)
+            override fun has(group: String, key: String) = read(key).isNotEmpty()
+        })
 
-    fun headers(id: String): List<HeaderEntry> = try {
-        read("headers-$id").takeIf { it.isNotEmpty() }?.let { text ->
-            decodeNetworkHeaders(text)
-        }.orEmpty()
-    } catch (caught: Exception) {
-        FailureNotes.record("digest/ServiceHeaders.kt:37", caught)
-        throw IllegalStateException("请求头安全读取失败，请重新保存或恢复备份") }
-
-    fun save(id: String, headers: List<HeaderEntry>) {
-        validateHeaders(headers)
-        if (headers.isEmpty()) remove("headers-$id") else write("headers-$id", encodeNetworkHeaders(headers))
-    }
+    private val group = if (transcription) "transcribe-header-secrets" else "digest-secrets"
+    internal val settings = SecretHeaders(vault, group)
+    fun headers(id: String) = settings.headers(id)
+    fun save(id: String, headers: List<HeaderEntry>) = settings.save(id, headers)
 
     fun forPreset(preset: LlmPreset): List<HeaderEntry> = forService(preset.id, preset.baseUrl)
     fun forService(id: String, baseUrl: String): List<HeaderEntry> {
@@ -53,7 +46,9 @@ class ServiceHeaders internal constructor(
     }
 
     private fun session(): String = synchronized(SESSION_LOCK) {
-        read("opencode-session").ifEmpty { UUID.randomUUID().toString().also { write("opencode-session", it) } }
+        vault.read(group, "opencode-session").ifEmpty {
+            UUID.randomUUID().toString().also { vault.write(group, "opencode-session", it) }
+        }
     }
 
     companion object {

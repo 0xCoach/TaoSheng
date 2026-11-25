@@ -11,10 +11,17 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /** 用系统安全区（Android Keystore）的 AES-GCM 密钥加密后存本地；任何地方都不回显明文。 */
-class SecretStore(context: Context, prefsName: String, private val alias: String) {
+class SecretStore internal constructor(
+    context: Context,
+    prefsName: String,
+    private val alias: String,
+    private val keyForAlias: ((String) -> SecretKey)?,
+) {
+    constructor(context: Context, prefsName: String, alias: String) : this(context, prefsName, alias, null)
     private val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
 
     private fun secret(): SecretKey {
+        keyForAlias?.let { return it(alias) }
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (store.getKey(alias, null) as? SecretKey)?.let { return it }
         return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore").apply {

@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import app.resound.ui.ScrollTopButton
@@ -149,6 +150,15 @@ fun TranscriptScreen(
     LaunchedEffect(order) { selection.retain(order); if (order.isEmpty() && selection.active) selection.exit() }
     androidx.activity.compose.BackHandler(selection.active) { selection.exit() }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    // 录音段之前依次是：队列卡、转写设置、[热词]、“录音原话”标题、环境音行
+    fun segmentItemIndex(i: Int) = i + 4 + (if (app.resound.AppGraph.isHotwordsReady) 1 else 0)
+    // 右侧小时刻度（和记忆页同一套）：录音多时点小时跳到那个小时的第一段，按住拖动逐段预览第一句
+    val hourSlots = remember(segments) {
+        segments.orEmpty().groupBy { java.time.Instant.ofEpochMilli(it.startAt).atZone(java.time.ZoneId.systemDefault()).hour }
+            .map { (h, segs) -> app.resound.ui.items.HourSlot(h, segs.map { s ->
+                app.resound.ui.items.RailEntry(s.segmentId, "${formatClock(s.startAt)}  ${s.lines.firstOrNull()?.text ?: "没有原话"}") }) }
+    }
+    val showIndex = !selection.active && segments.orEmpty().size >= 6 && hourSlots.size >= 3
     // 播放卡片“回到原话”：切到那天并滚到正在播的那段
     val focus = PlayerNav.transcriptFocus
     LaunchedEffect(focus) {
@@ -167,8 +177,7 @@ fun TranscriptScreen(
         val (d, segId) = focus ?: return@LaunchedEffect
         if (d != date) return@LaunchedEffect
         val i = segments?.indexOfFirst { it.segmentId == segId } ?: return@LaunchedEffect
-        // 录音段之前依次是：队列卡、转写设置、[热词]、“录音原话”标题、环境音行
-        if (i >= 0) { listState.animateScrollToItem(i + 4 + (if (app.resound.AppGraph.isHotwordsReady) 1 else 0)); PlayerNav.transcriptFocus = null }
+        if (i >= 0) { listState.animateScrollToItem(segmentItemIndex(i)); PlayerNav.transcriptFocus = null }
     }
     var viewport by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
     var boxTop by remember { mutableStateOf(0f) }
@@ -189,7 +198,8 @@ fun TranscriptScreen(
     LazyColumn(
         Modifier.fillMaxSize().onGloballyPositioned { viewport = it.boundsInRoot() },
         state = listState,
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomPadding + 24.dp + if (selection.active) 120.dp else 0.dp),
+        // 有小时刻度时右边多留出刻度的宽度
+        contentPadding = PaddingValues(start = 16.dp, end = if (showIndex) 40.dp else 16.dp, top = 8.dp, bottom = bottomPadding + 24.dp + if (selection.active) 120.dp else 0.dp),
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
         item {
@@ -243,12 +253,28 @@ fun TranscriptScreen(
                     haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                     if (selection.active) selection.rangeTo(id, order) else selection.start(id)
                 },
-                onTap = { selection.toggle(id, order) })
+                onTap = { selection.toggle(id, order) },
+                onPlay = { LinePlayer.play(context, seg.lines.sortedBy { it.startAt }, 0, PlaySource.Transcript(date)) },
+                onCopy = {
+                    val text = seg.lines.sortedBy { it.startAt }.joinToString("\n") { l -> "${lineTime(l.startAt)} ${speakerLabel(l)}：${l.text}" }
+                    (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+                        .setPrimaryClip(android.content.ClipData.newPlainText("原话", text))
+                    Toast.makeText(context, "已复制这段原话", Toast.LENGTH_SHORT).show()
+                },
+                onSelect = { selection.start(id) })
           }
         }
     }
     // 原话很长时滑下去要上滑很久：右侧淡入“↑”，点一下回到顶部；多选时让给底部操作栏
-    if (!selection.active) ScrollTopButton(listState, bottomPadding)
+    if (!selection.active) ScrollTopButton(listState, bottomPadding, end = if (showIndex) 52.dp else 20.dp)
+    if (showIndex) {
+        val scope = rememberCoroutineScope()
+        val currentKey by remember { androidx.compose.runtime.derivedStateOf { listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key is Long }?.key } }
+        app.resound.ui.items.HourIndex(hourSlots, currentKey, Modifier.align(Alignment.TopEnd).padding(top = 120.dp, bottom = bottomPadding + 20.dp, end = 4.dp)) { key ->
+            val i = order.indexOf(key)
+            if (i >= 0) scope.launch { listState.scrollToItem(segmentItemIndex(i)) }
+        }
+    }
     ReachHereChip(reach, selection, boxTop, reach != null && order.indexOf(reach) < order.indexOf(selection.anchor)) { selection.rangeTo(it, order) }
     // 底部两行：✕ · 已选 N 段 · 共几分钟 · 全选 / 播放 · 导出 · 复制原话 · 删除
     SegmentSelectBar(selection, order, chosen, bottomPadding, onTop = { bottomEdge = it },
@@ -762,7 +788,8 @@ private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Bo
                         onAllowPlaybackDigest: () -> Unit,
                         onRetry: () -> Unit = {}, onDelete: () -> Unit = {},
                         /** 多选时是否选中；不在多选为 null */
-                        selected: Boolean? = null, onLongPress: () -> Unit = {}, onTap: () -> Unit = {}) {
+                        selected: Boolean? = null, onLongPress: () -> Unit = {}, onTap: () -> Unit = {},
+                        onPlay: () -> Unit = {}, onCopy: () -> Unit = {}, onSelect: () -> Unit = {}) {
     val c = Rs.colors
     val bg by animateColorAsState(if (selected == true) c.accentSoft else c.card, label = "segSel")
     // 长按整张卡进入多选；多选时点卡片勾选（原话里的点按播放等暂停）
@@ -784,6 +811,8 @@ private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Bo
                 modifier = Modifier.weight(1f),
             )
             StatusChip(seg)
+            // 长按才有的操作放一个看得见的入口：播放、复制、多选，并提示长按一句话还能做什么
+            if (selected == null) SegmentMenu(seg, onPlay, onCopy, onSelect)
         }
         Spacer(Modifier.height(10.dp))
         AnimatedContent(seg.status, transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(150)) }, label = "segBody") { status ->
@@ -804,6 +833,24 @@ private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Bo
     // 多选时整张卡盖一层：点 = 勾选，长按 = 选到这段（原话里的点按播放暂停）
     if (selected != null) Box(Modifier.matchParentSize().combinedClickable(
         interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onTap, onLongClick = onLongPress))
+    }
+}
+
+@Composable
+private fun SegmentMenu(seg: SegmentTranscript, onPlay: () -> Unit, onCopy: () -> Unit, onSelect: () -> Unit) {
+    val c = Rs.colors
+    var open by remember { mutableStateOf(false) }
+    val hasLines = seg.lines.isNotEmpty()
+    Box {
+        Text("⋯", style = RsType.headline, color = c.textSecondary,
+            modifier = Modifier.padding(start = 6.dp).clip(CircleShape).springClick { open = true }.padding(horizontal = 10.dp, vertical = 2.dp))
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.card) {
+            if (hasLines && seg.audioAvailable) DropdownMenuItem(text = { Text("播放这段", style = RsType.body, color = c.text) }, onClick = { open = false; onPlay() })
+            if (hasLines) DropdownMenuItem(text = { Text("复制这段原话", style = RsType.body, color = c.text) }, onClick = { open = false; onCopy() })
+            DropdownMenuItem(text = { Text("多选（导出、删除、重新转写）", style = RsType.body, color = c.text) }, onClick = { open = false; onSelect() })
+            if (hasLines) Text("长按一句话：修改文字、标说话人、加入热词", style = RsType.caption, color = c.textTertiary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).widthIn(max = 220.dp))
+        }
     }
 }
 

@@ -311,7 +311,11 @@ internal fun LazyListScope.dayDiary(
         }
     }
     if (lines.isNotEmpty()) {
-        item(key = "linesHead") { Box(gap) { LinesHeader(lines.size, linesOpen, onToggleLines) } }
+        item(key = "linesHead") { Box(gap) { LinesHeader(lines.size, linesOpen, onToggleLines) {
+            // 原话页（设置 → 语音转写）能播放、改说话人、导出；打开同一天，停在这天最新的一段
+            app.resound.ui.transcript.PlayerNav.transcriptFocus = date to lines.maxBy { it.startAt }.segmentId
+            app.resound.ui.ShellNav.openSettings(app.resound.ui.settings.SettingsPage.Transcript)
+        } } }
         if (linesOpen) keysOut?.addAll(lines.map { "line${it.id}" })
         if (linesOpen) items(lines, key = { "line${it.id}" }) { Box(Modifier.padding(bottom = 12.dp)) { LineRow(it) } }
     }
@@ -473,7 +477,7 @@ private fun EmptyDay(date: LocalDate) {
 }
 
 @Composable
-private fun LinesHeader(n: Int, open: Boolean, onToggle: () -> Unit) {
+private fun LinesHeader(n: Int, open: Boolean, onToggle: () -> Unit, onOpenPage: () -> Unit) {
     val c = Rs.colors
     val arrow by animateFloatAsState(if (open) 90f else 0f, spring(stiffness = Spring.StiffnessMediumLow), label = "lines")
     RsCard(Modifier.springClick(onToggle), padding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
@@ -482,6 +486,9 @@ private fun LinesHeader(n: Int, open: Boolean, onToggle: () -> Unit) {
             Spacer(Modifier.width(8.dp))
             Text("$n 句", style = RsType.subhead, color = c.textTertiary)
             Spacer(Modifier.weight(1f))
+            Text("去原话页", style = RsType.caption.copy(fontWeight = FontWeight.Medium), color = c.accent,
+                modifier = Modifier.clip(CircleShape).background(c.accentSoft).springClick(onOpenPage).padding(horizontal = 10.dp, vertical = 4.dp))
+            Spacer(Modifier.width(10.dp))
             Text("›", style = RsType.title, color = c.textTertiary, modifier = Modifier.rotate(arrow))
         }
     }

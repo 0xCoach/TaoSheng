@@ -507,7 +507,7 @@ $env:JAVA_HOME = 'C:\Users\你的用户名\.jdks\你的JDK21目录'
 - 可以自用、学习、研究、修改，也可以在公司内部使用；不得用于与涛声竞争的商业产品或服务。
 - 每个版本发布满两年后自动转为 [MIT](https://opensource.org/license/mit) 许可。
 - **v0.3.1 及之前**的版本按 MIT 许可发布，继续适用 MIT；此前按 MIT 合入的贡献见 [NOTICE.md](NOTICE.md)。
-- 想参与贡献请先看 [CONTRIBUTING.md](CONTRIBUTING.md)，首次提 PR 需签署 [CLA](CLA.md)。
+- 想参与贡献请先看 [CONTRIBUTING.md](CONTRIBUTING.md)，代码贡献须签署 [CLA 2.0](CLA.md)。
 
 <div align="center">
 

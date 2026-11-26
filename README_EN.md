@@ -510,7 +510,7 @@ Source-available under [FSL-1.1-MIT](LICENSE.md) © 2026 0xCoach
 - Free to use, study, modify and use internally; not for commercial products or services that compete with TaoSheng.
 - Each version automatically becomes available under the [MIT](https://opensource.org/license/mit) license two years after its release.
 - Versions **up to and including v0.3.1** were released under MIT and remain so; contributions merged under MIT are listed in [NOTICE.md](NOTICE.md).
-- See [CONTRIBUTING.md](CONTRIBUTING.md) before contributing; first-time pull requests require signing the [CLA](CLA.md).
+- See [CONTRIBUTING.md](CONTRIBUTING.md) before contributing; code contributions require signing [CLA v2.0](CLA.md).
 
 <div align="center">
 

@@ -4,13 +4,13 @@
 
 ## 提交 PR 之前
 
-1. **签署贡献者许可协议（CLA）**：第一次提 PR 时，机器人会在 PR 下留言，请阅读 [CLA.md](CLA.md)，同意的话回复：
+1. **签署贡献者协议（CLA）**：请在提交代码前阅读 [CLA.md](CLA.md)。机器人会在 PR 下提示尚未签署本版本的贡献者，同意的话回复：
 
    ```
-   I have read the CLA Document and I hereby sign the CLA
+   I agree to the TaoSheng CLA v2.0 and its copyright assignment terms
    ```
 
-   同一个 GitHub 账号只需签一次。你保留自己贡献的著作权；CLA 允许项目按当前或今后的许可（包括商业许可）发布包含你贡献的软件。未签署的 PR 无法合入。
+   每个 GitHub 账号只需签署 2.0 版一次。**提交的代码经项目合入时，你享有且依法可转让的著作财产权无偿转让给维护者 0xCoach 本人。** 旧版签署记录不能代替 2.0 版签署。
 
 2. **许可**：涛声按 [FSL-1.1-MIT](LICENSE.md) 提供（v0.3.1 及之前为 MIT，见 [NOTICE.md](NOTICE.md)）。你的贡献会随项目按该许可发布。
 
@@ -32,7 +32,7 @@
 
 Thanks for helping improve TaoSheng! Issues, pull requests and on-device test reports are all welcome.
 
-1. **Sign the CLA**: on your first pull request a bot will ask you to read [CLA.md](CLA.md) and reply with `I have read the CLA Document and I hereby sign the CLA`. You sign once per GitHub account and keep the copyright in your work; the CLA lets the project distribute your contribution under current or future licenses, including commercial ones. Pull requests without a signed CLA cannot be merged.
+1. **Sign the CLA**: read [CLA.md](CLA.md) before submitting code. If you agree, reply to the bot on your pull request with `I agree to the TaoSheng CLA v2.0 and its copyright assignment terms`. Each GitHub account signs v2.0 once. **When your code is merged, the copyright economic rights you own and can legally transfer in it pass to 0xCoach personally, free of charge.** A previous version’s signature does not count for v2.0.
 2. **License**: TaoSheng is available under [FSL-1.1-MIT](LICENSE.md) (versions up to v0.3.1 are MIT; see [NOTICE.md](NOTICE.md)).
 3. **Conventions**: read [AGENTS.md](AGENTS.md) first. Shared business rules go in the `:shared` module; run only the tests relevant to your change plus `python3 tools/check_shared.py` and `./gradlew :shared:check`.
 4. **Discuss large changes in an issue first.**

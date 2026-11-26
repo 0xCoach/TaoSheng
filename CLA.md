@@ -27,7 +27,7 @@ I agree to the TaoSheng CLA v2.0 and its copyright assignment terms
 
 签署后，你向项目提交代码供合入，即同意按本条转让。**每项转让在对应代码合入项目时生效，无需为每次贡献另行签署。转让在全球范围及该权利的剩余保护期内有效，转让价款为零，无需支付。**
 
-转让包括你对该代码贡献依法享有并可转让的全部著作财产权，包括复制、发行、出租、信息网络传播、修改、改编、翻译、汇编，以及《中华人民共和国著作权法》第十条第一款第五项至第十七项中适用于该贡献的可转让权利。受让人可在取得的权利范围内使用、修改、发布、许可或转让该贡献，可按开源、源码公开或商业许可发布含该贡献的软件，并可依法办理相关权属登记。
+转让包括你对该代码贡献依法享有并可转让的全部著作财产权，包括复制、发行、出租、信息网络传播、修改、改编、翻译、汇编，以及《中华人民共和国著作权法》第十条第一款第五项至第十七项中适用于该贡献的可转让权利。受让人可在取得的权利范围内使用、修改、发布、许可或转让该贡献，可按开源、源码公开、商业或专有许可发布含该贡献的软件，包括闭源商业发布。受让人也可为以后发布的软件版本变更许可条款，并可依法办理相关权属登记。
 
 依法不可转让的权利由原权利人保留，包括署名权。第三方代码及其许可、依法须保留的声明和此前已有效授予的许可，按各自条款处理。
 
@@ -60,7 +60,7 @@ I agree to the TaoSheng CLA v2.0 and its copyright assignment terms
 
 After signing, by submitting code for inclusion you agree to assign rights under this section. **Each assignment takes effect when the project merges the relevant code, without a separate signature for each contribution. The assignment is worldwide for the remaining term of protection. It is made free of charge and no payment is due.**
 
-You assign all copyright economic rights you own and can legally transfer in that Code Contribution. This includes transferable rights of reproduction, distribution, rental, communication through information networks, modification, adaptation, translation, and compilation, and the transferable rights applicable to the contribution under Items 5 through 17 of Article 10(1) of the Copyright Law of the People’s Republic of China. Within the assigned rights, the Recipient may use, modify, publish, license, or assign the contribution, release software containing it under open-source, source-available, or commercial terms, and apply to register the relevant rights.
+You assign all copyright economic rights you own and can legally transfer in that Code Contribution. This includes transferable rights of reproduction, distribution, rental, communication through information networks, modification, adaptation, translation, and compilation, and the transferable rights applicable to the contribution under Items 5 through 17 of Article 10(1) of the Copyright Law of the People’s Republic of China. Within the assigned rights, the Recipient may use, modify, publish, license, or assign the contribution and release software containing it under open-source, source-available, commercial, or proprietary terms, including closed-source commercial releases. The Recipient may also change the license terms for later releases and apply to register the relevant rights.
 
 Rights that cannot legally be transferred, including the right of attribution, stay with the original holder. Third-party code and licenses, legally required notices, and previously granted valid licenses remain subject to their applicable terms.
 

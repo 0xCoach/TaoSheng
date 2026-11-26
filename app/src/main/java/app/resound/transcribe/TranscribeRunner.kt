@@ -35,6 +35,8 @@ class TranscribeRunner(
     private val afterSegment: suspend (SegmentEntity) -> Unit = {},
     private val recordSpeed: (TranscribeSource?, Long, Long) -> Unit = { _, _, _ -> },
     private val topicTraining: suspend (Long) -> Boolean = { false },
+    private val doubaoFallback: () -> Boolean = { false },
+    private val customFallbackCredential: () -> String? = { null },
 ) {
     internal var localResume: app.resound.transcribe.local.LocalResumeQueue? = null
 
@@ -89,6 +91,7 @@ class TranscribeRunner(
                 var outcome = "Failed"
                 var error: AsrError? = null
                 var logId: String? = null
+                var primaryAttemptRecorded = false
                 try {
                     if (!File(candidate.path).isFile) throw AsrException(AsrError.Audio, detail = "录音文件已不存在")
                     if (!candidate.redoPending && heavy.withLock { beforeTranscribe(candidate) } && dao.finishEnvSkip(candidate.id, now()) > 0) {
@@ -99,17 +102,35 @@ class TranscribeRunner(
                     val distinguish = if (training) false else candidate.separateSpeakers ?: separateSpeakers(candidate.startAt)
                     if (training) dao.topicTraining(candidate.id)
                     dao.rememberSpeakers(candidate.id, distinguish)
-                    val selectedProvider = if (selected != null && provider is ConfiguredAsrProvider) object : AsrProvider { override suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit) = provider.recognize(selected, audio, key, beforeAudio) } else provider
+                    val file = File(candidate.path)
+                    val audio = AsrAudio(file, file.extension, (candidate.endAt - candidate.startAt).coerceAtLeast(0),
+                        separateSpeakers = distinguish, pcmFile = sharedPcm?.find(file), speakerCount = candidate.speakerCount)
                     if (selected == TranscribeSource.Local) localResume?.begin(candidate.id)
-                    suspend fun recognize() = selectedProvider.recognize(AsrAudio(File(candidate.path), File(candidate.path).extension, (candidate.endAt - candidate.startAt).coerceAtLeast(0), separateSpeakers = distinguish, pcmFile = sharedPcm?.find(File(candidate.path)), speakerCount = candidate.speakerCount), credential) {
+                    suspend fun reserve() {
                         check(dao.findSegment(candidate.id) != null)
-                        reserved = (candidate.endAt - candidate.startAt).coerceAtLeast(0)
+                        reserved = audio.durationMillis
                         dao.reserveAudio(today(), reserved, candidate.id)
                     }
-                    val result = if (selected == TranscribeSource.Local) heavy.withLock { recognize() } else recognize()
+                    suspend fun recognize() = if (selected != null && provider is SourceAsrProvider)
+                        provider.recognize(selected, audio, credential, ::reserve) else provider.recognize(audio, credential, ::reserve)
+                    var result = if (selected == TranscribeSource.Local) heavy.withLock { recognize() } else recognize()
+                    val primaryElapsed = (now() - began).coerceAtLeast(0)
                     withContext(NonCancellable) { dao.recordTokens(today(), result.inputTokens, result.outputTokens) }
-                    recordSpeed(selected, (candidate.endAt - candidate.startAt).coerceAtLeast(0), (now() - began).coerceAtLeast(1))
+                    recordSpeed(selected, audio.durationMillis, primaryElapsed.coerceAtLeast(1))
                     logId = TranscribePolicy.safeLogId(result.logId, credential)
+                    if (provider is SourceAsrProvider && TranscribePolicy.shouldTryCustomFallback(selected, candidate.asrSource != null || candidate.redoPending, result, doubaoFallback())
+                        && sourceNetwork(TranscribeSource.Custom)) {
+                        customFallbackCredential()?.let { customKey ->
+                            dao.attempt(AsrAttemptEntity(segmentId = candidate.id, at = began, result = "Empty",
+                                errorType = null, elapsedMillis = primaryElapsed, sentMillis = reserved, logId = logId))
+                            primaryAttemptRecorded = true
+                            val fallback = recognizeCustomFallback(provider, candidate.id, audio, customKey)
+                            if (fallback != null && fallback.sentences.isNotEmpty()) {
+                                result = fallback
+                                logId = TranscribePolicy.safeLogId(fallback.logId, customKey)
+                            }
+                        }
+                    }
                     outcome = if (result.sentences.isEmpty()) "Empty" else "Done"
                     val lines = result.sentences.map { line ->
                         TranscriptLineEntity(segmentId = candidate.id, startAt = candidate.startAt + line.startMillis,
@@ -151,7 +172,7 @@ class TranscribeRunner(
                     sharedPcm?.release(File(candidate.path))
                     withContext(NonCancellable) {
                         currentCoroutineContext()[SegmentTimings]?.outcome = outcome
-                        dao.attempt(AsrAttemptEntity(segmentId = candidate.id, at = began, result = outcome,
+                        if (!primaryAttemptRecorded) dao.attempt(AsrAttemptEntity(segmentId = candidate.id, at = began, result = outcome,
                             errorType = error?.name, elapsedMillis = (now() - began).coerceAtLeast(0), sentMillis = reserved, logId = logId))
                         progress.withLock { updateProgress(candidates.size, ++done) }
                     }
@@ -186,6 +207,46 @@ class TranscribeRunner(
         }
     }
     private enum class RoundDecision { Continue, Stop, Retry }
+
+    private suspend fun recognizeCustomFallback(provider: SourceAsrProvider, segmentId: Long, audio: AsrAudio, key: String): AsrResult? {
+        val began = now()
+        var sentMillis = 0L
+        var result: AsrResult? = null
+        var error: AsrError? = null
+        var logId: String? = null
+        try {
+            result = provider.recognize(TranscribeSource.Custom, audio, key) {
+                check(dao.findSegment(segmentId) != null)
+                // 用量按每次上传计：补位又把整段发了一次，同样预占。
+                sentMillis = audio.durationMillis
+                dao.reserveAudio(today(), sentMillis, segmentId)
+            }
+            logId = result.logId
+        } catch (e: CancellationException) {
+            error = AsrError.Interrupted
+            throw e
+        } catch (e: Exception) {
+            error = (e as? AsrException)?.type ?: AsrError.Storage
+            logId = (e as? AsrException)?.logId
+        } finally {
+            val elapsed = (now() - began).coerceAtLeast(0)
+            val outcome = when {
+                result == null -> "CustomFallbackFailed"
+                result.sentences.isEmpty() -> "CustomFallbackEmpty"
+                else -> "CustomFallbackDone"
+            }
+            withContext(NonCancellable) {
+                dao.attempt(AsrAttemptEntity(segmentId = segmentId, at = began, result = outcome, errorType = error?.name,
+                    elapsedMillis = elapsed, sentMillis = sentMillis, logId = TranscribePolicy.safeLogId(logId, key)))
+                if (result != null) {
+                    dao.recordTokens(today(), result.inputTokens, result.outputTokens)
+                    recordSpeed(TranscribeSource.Custom, audio.durationMillis, elapsed.coerceAtLeast(1))
+                }
+            }
+        }
+        return result
+    }
+
     suspend fun test(audio: AsrAudio, credential: String, onResult: (AsrResult) -> Unit = {}): Result<String> = gate.withLock {
         val began = now()
         var reserved = 0L

@@ -61,6 +61,21 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
         _plan.value = on
         refreshReady(); onChanged()
     }
+    private val _doubaoFallback = MutableStateFlow(prefs.getBoolean("doubaoFallback", false))
+    val doubaoFallback = _doubaoFallback.asStateFlow()
+    fun setDoubaoFallback(on: Boolean) {
+        check(prefs.edit().putBoolean("doubaoFallback", on).commit()) { "保存失败，请重试" }
+        _doubaoFallback.value = on
+        onChanged()
+    }
+
+    /** null 表示不能补位（没配地址/模型，或密钥读取失败）；免密或只用请求头鉴权的服务传空字符串，与 ready(Custom) 口径一致。 */
+    internal fun customFallbackCredential(): String? {
+        if (customEndpoint.isBlank() || customModel.isBlank()) return null
+        return runCatching { readKey(TranscribeSource.Custom) }
+            .onFailure { FailureNotes.record("transcribe/customFallbackKey", it) }.getOrNull()
+    }
+
     private fun keyFieldFor(source: TranscribeSource) = when {
         source == TranscribeSource.Custom -> CustomAsrSettings.keyField(customApi.value)
         _plan.value -> "planEncryptedKey"

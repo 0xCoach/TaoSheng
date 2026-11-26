@@ -6,4 +6,9 @@ import java.io.File
 interface AsrProvider {
     suspend fun recognize(audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult
 }
+
+/** 显式选择服务时，凭据只交给该来源。 */
+interface SourceAsrProvider : AsrProvider {
+    suspend fun recognize(source: TranscribeSource, audio: AsrAudio, key: String, beforeAudio: suspend () -> Unit): AsrResult
+}
 data class AsrAudio(val file: File, val format: String, val durationMillis: Long, val separateSpeakers: Boolean = true, val pcmFile: File? = null, val speakerCount: Int? = null)

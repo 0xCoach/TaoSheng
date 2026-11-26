@@ -506,6 +506,23 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
         }
         // 卡 116：豆包和自定义转写服务各存一组请求头；本地转写不联网，不需要
         if (advanced != null && !local) app.resound.ui.settings.TranscribeHeaders(source)
+        // 豆包对远处、小声的话常整段不出字；开着就把这段交给「自定义」里配好的服务再转一次
+        if (advanced != null && source == TranscribeSource.Doubao) {
+            val fallback by advanced.doubaoFallback.collectAsStateWithLifecycle()
+            val customReady = advanced.customEndpoint.isNotBlank() && advanced.customModel.isNotBlank()
+            Divider()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("豆包没听出字时用自定义服务补", style = RsType.body, color = c.text)
+                    Text(when {
+                        !fallback -> "远处、小声的话豆包常整段不出字。开着就把这段交给「自定义」里配好的服务（如千问）再转一次，补的那次另算费用"
+                        customReady -> "已开：豆包没出字的段会再交给自定义服务转一次，补的那次另算费用"
+                        else -> "已开，但「自定义」还没填好地址和模型，暂时不会补"
+                    }, style = RsType.caption, color = c.textSecondary)
+                }
+                Toggle(fallback) { advanced.setDoubaoFallback(it) }
+            }
+        }
     }
 
     // ② 什么时候转

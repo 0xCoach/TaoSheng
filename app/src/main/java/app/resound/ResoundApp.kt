@@ -252,6 +252,7 @@ class ResoundApp : Application() {
         transcribeRunner = TranscribeRunner(database.transcribe(), ConfiguredAsrProvider(this, settings, hotwords::merged),
             settings::credential, transcripts::updateState,
             sourceReady = settings::ready, sourceKey = settings::credential, sourceNetwork = sourceNetwork, recordSpeed = asrChooser::record,
+            doubaoFallback = { settings.doubaoFallback.value }, customFallbackCredential = settings::customFallbackCredential,
             recordTiming = { PipelineTimes.recordSegment(this, it) },
             defaultSource = { settings.source.value }, separateSpeakers = asrSpeed::effectiveSeparateSpeakers, topicTraining = database.topics()::trainingAt,
             beforeTranscribe = envSound::beforeTranscribe,

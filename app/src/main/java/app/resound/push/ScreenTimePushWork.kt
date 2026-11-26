@@ -36,50 +36,47 @@ class ScreenTimePushWork(context: Context, params: WorkerParameters) : Coroutine
 
 internal object ScreenTimePushScheduler {
     private const val NAME = "push-screen-time"
-    fun plan(context: Context, at: Long?) {
-        val wm = WorkManager.getInstance(context)
-        if (at == null) { wm.cancelUniqueWork(NAME); return }
-        wm.enqueueUniqueWork(NAME, ExistingWorkPolicy.REPLACE, OneTimeWorkRequestBuilder<ScreenTimePushWork>()
-            .setInitialDelay((at - System.currentTimeMillis()).coerceAtLeast(0), TimeUnit.MILLISECONDS)
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-            .build())
+    fun plan(context: Context, at: Long?) = scheduleDailyPush<ScreenTimePushWork>(context, NAME, at)
+}
+
+internal inline fun <reified W : ListenableWorker> scheduleDailyPush(context: Context, name: String, at: Long?) {
+    val work = WorkManager.getInstance(context)
+    if (at == null) {
+        work.cancelUniqueWork(name)
+        return
     }
+    val after = (at - System.currentTimeMillis()).coerceAtLeast(0L)
+    val network = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+    val request = OneTimeWorkRequestBuilder<W>().setInitialDelay(after, TimeUnit.MILLISECONDS).setConstraints(network).build()
+    work.enqueueUniqueWork(name, ExistingWorkPolicy.REPLACE, request)
 }
 
 private val isoOffset: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX")
 
 internal fun screenTimePayload(report: ScreenTimeReport, zone: java.time.ZoneId): JSONObject {
-    fun iso(ms: Long): String = java.time.Instant.ofEpochMilli(ms).atZone(zone).format(isoOffset)
+    val clock = isoOffset.withZone(zone)
+    fun iso(ms: Long): String = clock.format(java.time.Instant.ofEpochMilli(ms))
     return JSONObject()
         .put("schemaVersion", 1)
         .put("date", report.date.toString())
         .put("coverageUntil", report.result.coverageUntil?.let(::iso) ?: JSONObject.NULL)
         .put("totalMinutes", report.totalMinutes)
-        .put("apps", JSONArray().also { arr ->
-            report.apps.forEach { app ->
-                arr.put(JSONObject().put("package", app.pkg).put("name", app.name).put("minutes", app.minutes))
-            }
-        })
-        .put("timeline", JSONArray().also { arr ->
-            report.result.sessions.forEach { session ->
-                arr.put(JSONObject().put("package", session.pkg).put("name", session.name)
-                    .put("start", iso(session.from)).put("end", iso(session.until)))
-            }
-        })
-        .put("devicePlayback", JSONArray().also { arr ->
-            report.result.devicePlayback.forEach { item ->
-                arr.put(JSONObject().put("package", item.pkg).put("name", item.name)
-                    .put("title", item.title ?: JSONObject.NULL)
-                    .put("subtitle", item.subtitle ?: JSONObject.NULL)
-                    .put("start", iso(item.from)).put("end", iso(item.until)))
-            }
-        })
-        .put("gaps", JSONArray().also { arr ->
-            report.result.gaps.forEach { gap ->
-                arr.put(JSONObject().put("code", gap.code).put("source", gap.source)
-                    .put("from", iso(gap.from)).put("until", iso(gap.until)).put("fix", gap.fix))
-            }
-        })
+        .put("apps", JSONArray(report.apps.map { app ->
+            JSONObject().put("package", app.pkg).put("name", app.name).put("minutes", app.minutes)
+        }))
+        .put("timeline", JSONArray(report.result.sessions.map { session ->
+            JSONObject().put("package", session.pkg).put("name", session.name)
+                .put("start", iso(session.from)).put("end", iso(session.until))
+        }))
+        .put("devicePlayback", JSONArray(report.result.devicePlayback.map { item ->
+            JSONObject().put("package", item.pkg).put("name", item.name)
+                .put("title", item.title ?: JSONObject.NULL).put("subtitle", item.subtitle ?: JSONObject.NULL)
+                .put("start", iso(item.from)).put("end", iso(item.until))
+        }))
+        .put("gaps", JSONArray(report.result.gaps.map { gap ->
+            JSONObject().put("code", gap.code).put("source", gap.source)
+                .put("from", iso(gap.from)).put("until", iso(gap.until)).put("fix", gap.fix)
+        }))
 }
 
 internal suspend fun buildScreenTimeMessage(

@@ -68,43 +68,66 @@ enum class DeviceRetentionBlock { None, Disabled, Protected, HistoricalNotAdopte
     IndependentBackupRequired, BackupChanged, WrongDevice, RecordingOrUnknown, LowBatteryOrUnknown,
     RetentionPeriod, ObservationPeriod, AlreadyGone, ResultNeedsReconciliation, DifferentInstallation }
 
-fun deviceArchiveEnrolled(record: DeviceArchiveRecord, settings: DeviceRetentionSettings, now: Long): Boolean =
-    record.id in settings.adoptedHistory || (settings.enabledAtMillis?.let { since ->
-        record.startedAtMillis?.let { start -> start >= since && start+record.durationMillis <= now+300_000 } == true
-    } == true)
+fun deviceArchiveEnrolled(record: DeviceArchiveRecord, settings: DeviceRetentionSettings, now: Long): Boolean {
+    if (settings.adoptedHistory.contains(record.id)) return true
+    val enabledAt = settings.enabledAtMillis ?: return false
+    val began = record.startedAtMillis ?: return false
+    // 重新发现旧文件时不自动纳入清理。设备时钟允许五分钟偏差。
+    return began >= enabledAt && began + record.durationMillis <= now + CLOCK_TOLERANCE_MS
+}
 
 fun deviceRetentionBlock(record: DeviceArchiveRecord, settings: DeviceRetentionSettings, now: Long,
                          currentIdentity: String, installation: String, backupDestination: String?,
-                         deviceStopped: Boolean, battery: Int?, automatic: Boolean = true): DeviceRetentionBlock {
-    if (automatic && !settings.enabled) return DeviceRetentionBlock.Disabled
-    if (record.deletion in setOf(DeviceDeleteState.Gone,DeviceDeleteState.RemovedElsewhere)) return DeviceRetentionBlock.AlreadyGone
-    if (record.deletion != DeviceDeleteState.Present) return DeviceRetentionBlock.ResultNeedsReconciliation
-    if (record.installation != installation) return DeviceRetentionBlock.DifferentInstallation
-    if (record.deviceIdentity != currentIdentity) return DeviceRetentionBlock.WrongDevice
-    if (record.protected) return DeviceRetentionBlock.Protected
-    val recordedEnd = record.startedAtMillis?.plus(record.durationMillis)
-    // First discovery of an old file after enabling must not opt that old file in.
-    if (!deviceArchiveEnrolled(record,settings,now))
-        return DeviceRetentionBlock.HistoricalNotAdopted
-    fun hash(value: String) = value.length == 64 && value.all { it in "0123456789abcdef" }
-    if (record.sourceBytes <= 0 || record.archiveBytes <= 0 || record.decodedSamples <= 0 ||
-        !hash(record.sourceSha256) || !hash(record.archiveSha256)) return DeviceRetentionBlock.IncompleteArchive
-    if (!record.imported) return DeviceRetentionBlock.ImportPending
-    val backup = record.backup ?: return DeviceRetentionBlock.IndependentBackupRequired
-    if (backup.archiveSha256 != record.archiveSha256 || backup.archiveBytes != record.archiveBytes ||
-        backup.verifiedAtMillis <= 0 || backup.manifestPath.isBlank() || backup.objectPath.isBlank())
+                         deviceStopped: Boolean, battery: Int?, automatic: Boolean = true): DeviceRetentionBlock = when {
+    automatic && !settings.enabled -> DeviceRetentionBlock.Disabled
+    record.deletion == DeviceDeleteState.Gone || record.deletion == DeviceDeleteState.RemovedElsewhere -> DeviceRetentionBlock.AlreadyGone
+    record.deletion != DeviceDeleteState.Present -> DeviceRetentionBlock.ResultNeedsReconciliation
+    record.installation != installation -> DeviceRetentionBlock.DifferentInstallation
+    record.deviceIdentity != currentIdentity -> DeviceRetentionBlock.WrongDevice
+    record.protected -> DeviceRetentionBlock.Protected
+    !deviceArchiveEnrolled(record, settings, now) -> DeviceRetentionBlock.HistoricalNotAdopted
+    !record.hasCompleteArchive() -> DeviceRetentionBlock.IncompleteArchive
+    !record.imported -> DeviceRetentionBlock.ImportPending
+    else -> backupAndDeviceBlock(record, settings, now, backupDestination, deviceStopped, battery)
+}
+
+private fun DeviceArchiveRecord.hasCompleteArchive(): Boolean {
+    fun validChecksum(value: String) = value.length == 64 && value.all { it in '0'..'9' || it in 'a'..'f' }
+    return sourceBytes > 0 && archiveBytes > 0 && decodedSamples > 0 && validChecksum(sourceSha256) && validChecksum(archiveSha256)
+}
+
+private fun backupAndDeviceBlock(
+    record: DeviceArchiveRecord,
+    settings: DeviceRetentionSettings,
+    now: Long,
+    destination: String?,
+    stopped: Boolean,
+    battery: Int?,
+): DeviceRetentionBlock {
+    val receipt = record.backup
+    if (receipt == null || receipt.archiveSha256 != record.archiveSha256 || receipt.archiveBytes != record.archiveBytes ||
+        receipt.verifiedAtMillis <= 0 || receipt.manifestPath.isBlank() || receipt.objectPath.isBlank()) {
         return DeviceRetentionBlock.IndependentBackupRequired
-    if (backupDestination == null || backup.destination != backupDestination) return DeviceRetentionBlock.BackupChanged
-    if (!deviceStopped) return DeviceRetentionBlock.RecordingOrUnknown
+    }
+    if (receipt.destination != destination || destination == null) return DeviceRetentionBlock.BackupChanged
+    if (!stopped) return DeviceRetentionBlock.RecordingOrUnknown
     if (battery == null || battery !in 30..100) return DeviceRetentionBlock.LowBatteryOrUnknown
-    val closed = recordedEnd?.takeIf { it > 0 && it <= now + 300_000 } ?: record.firstSeenClosedAtMillis
-    if (now < closed) return DeviceRetentionBlock.RetentionPeriod
-    val delay = settings.cleanupDelayHours
-    if (delay == null && now - closed < settings.keepDays * 86_400_000L) return DeviceRetentionBlock.RetentionPeriod
-    if (now < backup.verifiedAtMillis || now - backup.verifiedAtMillis < (delay ?: settings.observationHours) * 3_600_000L)
+
+    val end = record.startedAtMillis?.plus(record.durationMillis)
+    val finished = if (end != null && end > 0 && end <= now + CLOCK_TOLERANCE_MS) end else record.firstSeenClosedAtMillis
+    val delayHours = settings.cleanupDelayHours
+    val age = now - finished
+    if (now < finished || delayHours == null && age < settings.keepDays * DAY_MS) return DeviceRetentionBlock.RetentionPeriod
+    val elapsed = now - receipt.verifiedAtMillis
+    if (now < receipt.verifiedAtMillis || elapsed < (delayHours ?: settings.observationHours) * HOUR_MS) {
         return DeviceRetentionBlock.ObservationPeriod
+    }
     return DeviceRetentionBlock.None
 }
+
+private const val CLOCK_TOLERANCE_MS = 300_000L
+private const val HOUR_MS = 3_600_000L
+private const val DAY_MS = 86_400_000L
 
 fun deviceImportCoverageComplete(duration: Long, ranges: List<Pair<Long,Long>>): Boolean {
     if (duration <= 0) return false

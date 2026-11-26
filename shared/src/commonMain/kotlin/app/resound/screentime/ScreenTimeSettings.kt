@@ -20,31 +20,35 @@ class ScreenTimeSettings(
     /** 时间线事件下面标“当时在用 某 App”。 */
     val eventInUse = _eventInUse.asStateFlow()
 
-    fun setShowOnHome(on: Boolean) { check(persist(mapOf(HOME_KEY to on), emptyMap(), emptyMap())); _showOnHome.value = on }
-    fun setEventInUse(on: Boolean) { check(persist(mapOf(EVENT_IN_USE_KEY to on), emptyMap(), emptyMap())); _eventInUse.value = on }
+    fun setShowOnHome(on: Boolean) = storeFlag(HOME_KEY, _showOnHome, on)
+
+    fun setEventInUse(on: Boolean) = storeFlag(EVENT_IN_USE_KEY, _eventInUse, on)
+
+    private fun storeFlag(key: String, value: MutableStateFlow<Boolean>, on: Boolean) {
+        check(persist(mapOf(key to on), emptyMap(), emptyMap()))
+        value.value = on
+    }
+
     val enabled = _enabled.asStateFlow()
 
     fun setEnabled(on: Boolean) {
-        val was = _enabled.value
-        val longs = mutableMapOf<String, Long>()
-        val strings = mutableMapOf<String, String>()
-        // 从关到开时记录打开时刻：拉取起点与 disabled 缺口都以此为界，关闭期间不补采。
-        if (!was && on) {
-            val onAt = now()
-            longs[ENABLED_AT_KEY] = onAt
-            val offAt = readLong(DISABLED_AT_KEY, 0)
-            if (offAt > 0L && offAt < onAt) {
-                val current = disabledWindows()
-                if (current.none { it.first == offAt && it.second == onAt }) {
-                    strings[DISABLED_WINDOWS_KEY] =
-                        (current + (offAt to onAt)).joinToString(";") { "${it.first},${it.second}" }
-                }
-            }
+        val transition = when {
+            on == _enabled.value -> emptyMap()
+            on -> mapOf(ENABLED_AT_KEY to now())
+            else -> mapOf(DISABLED_AT_KEY to now())
         }
-        // 从开到关时记录关闭时刻：disabled 缺口从这里起算，关闭前仍开着的使用不丢。
-        if (was && !on) longs[DISABLED_AT_KEY] = now()
-        check(persist(mapOf(KEY to on), longs, strings))
+        val history = transition[ENABLED_AT_KEY]?.let(::closedWindow).orEmpty()
+        check(persist(mapOf(KEY to on), transition, history))
         _enabled.value = on
+    }
+
+    private fun closedWindow(enabledAt: Long): Map<String, String> {
+        val from = disabledAt
+        if (from <= 0 || from >= enabledAt) return emptyMap()
+        val stopped = from to enabledAt
+        val ranges = disabledWindows()
+        if (stopped in ranges) return emptyMap()
+        return mapOf(DISABLED_WINDOWS_KEY to (ranges + stopped).joinToString(";") { (a, b) -> "$a,$b" })
     }
 
     /** 最近一次从关到开的时刻（毫秒）；从未打开为 0。 */
@@ -57,12 +61,14 @@ class ScreenTimeSettings(
     fun disabledWindows(): List<Pair<Long, Long>> {
         val raw = readString(DISABLED_WINDOWS_KEY, "")
         if (raw.isEmpty()) return emptyList()
-        return raw.split(';').mapNotNull { part ->
-            val bits = part.split(',')
-            if (bits.size != 2) return@mapNotNull null
-            val from = bits[0].toLongOrNull() ?: return@mapNotNull null
-            val until = bits[1].toLongOrNull() ?: return@mapNotNull null
-            if (from < until) from to until else null
+        return buildList {
+            for (entry in raw.split(';')) {
+                val separator = entry.indexOf(',')
+                if (separator < 0) continue
+                val from = entry.substring(0, separator).toLongOrNull() ?: continue
+                val until = entry.substring(separator + 1).toLongOrNull() ?: continue
+                if (from < until) add(from to until)
+            }
         }
     }
 

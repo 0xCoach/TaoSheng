@@ -88,12 +88,11 @@ interface ScreenTimeDao {
     suspend fun commitPull(events: List<ScreenEventRow>, names: List<ScreenAppNameRow>, coveredUntil: Long,
                            gaps: List<ScreenCoverageGapRow>) {
         val floor = state(SCREEN_SOURCE)?.floor ?: 0L
-        val kept = retainPullAfterFloor(events, names, gaps, floor)
-        if (kept.events.isNotEmpty()) insertEvents(kept.events)
-        if (kept.names.isNotEmpty()) upsertNames(kept.names)
-        for (gap in kept.gaps) recordGap(gap)
-        if (insertStateRow(ScreenPullStateRow(SCREEN_SOURCE, coveredUntil, 0)) == -1L)
-            updateCoveredUntil(SCREEN_SOURCE, coveredUntil)
+        val (visibleEvents, visibleLabels, visibleGaps) = retainPullAfterFloor(events, names, gaps, floor)
+        if (visibleEvents.isNotEmpty()) insertEvents(visibleEvents)
+        if (visibleLabels.isNotEmpty()) upsertNames(visibleLabels)
+        for (gap in visibleGaps) recordGap(gap)
+        advanceCoveredUntil(SCREEN_SOURCE, coveredUntil)
     }
 
     @Query("SELECT * FROM playback_rows WHERE sessionKey = :sessionKey AND untilAt IS NULL LIMIT 1")
@@ -166,19 +165,21 @@ internal fun retainPullAfterFloor(
     floor: Long,
 ): FloorFilteredPull {
     if (floor <= 0L) return FloorFilteredPull(events, names, gaps)
-    val keptEvents = events.filter { it.at >= floor }
-    val keptPkgs = keptEvents.map { it.pkg }.toSet()
-    val keptNames = names.filter { it.pkg in keptPkgs }
-    val keptGaps = gaps.mapNotNull { gap ->
-        val from = maxOf(gap.fromAt, floor)
-        when {
-            gap.untilAt <= floor -> null
-            from >= gap.untilAt -> null
-            from == gap.fromAt -> gap
-            else -> gap.copy(fromAt = from)
+    val packages = HashSet<String>()
+    val visible = buildList {
+        for (event in events) {
+            if (event.at < floor) continue
+            add(event)
+            packages.add(event.pkg)
         }
     }
-    return FloorFilteredPull(keptEvents, keptNames, keptGaps)
+    val bounds = buildList {
+        for (gap in gaps) {
+            val start = maxOf(floor, gap.fromAt)
+            if (start < gap.untilAt) add(if (start == gap.fromAt) gap else gap.copy(fromAt = start))
+        }
+    }
+    return FloorFilteredPull(visible, names.filter { it.pkg in packages }, bounds)
 }
 
 /** 删除 [from, until) 后缺口还该留下的片段。完全落在区间内的去掉；只重叠一部分的裁短或拆成两端。 */
@@ -186,10 +187,11 @@ internal fun remainingGapsAfterDelete(
     gaps: List<ScreenCoverageGapRow>,
     from: Long,
     until: Long,
-): List<ScreenCoverageGapRow> = gaps.flatMap { gap ->
-    when {
-        gap.untilAt <= from || gap.fromAt >= until -> listOf(gap)
-        else -> buildList {
+): List<ScreenCoverageGapRow> = buildList {
+    for (gap in gaps) {
+        if (gap.untilAt <= from || gap.fromAt >= until) {
+            add(gap)
+        } else {
             if (gap.fromAt < from) add(gap.copy(id = 0, untilAt = from))
             if (gap.untilAt > until) add(gap.copy(id = 0, fromAt = until))
         }

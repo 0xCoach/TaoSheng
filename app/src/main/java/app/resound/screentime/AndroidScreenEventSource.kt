@@ -12,16 +12,13 @@ class AndroidScreenEventSource(private val context: Context) : ScreenEventSource
 
     override fun permitted(): Boolean = guess.permitted()
 
-    override suspend fun since(from: Long, until: Long): List<RawScreenEvent> {
-        val out = mutableListOf<RawScreenEvent>()
-        val events = stats.queryEvents(from, until)
-        val event = UsageEvents.Event()
-        while (events.hasNextEvent()) {
-            events.getNextEvent(event)
-            val pkg = event.packageName ?: continue
-            out += RawScreenEvent(event.timeStamp, pkg, event.className, event.eventType)
+    override suspend fun since(from: Long, until: Long): List<RawScreenEvent> = buildList {
+        val query = stats.queryEvents(from, until)
+        val cursor = UsageEvents.Event()
+        while (query.getNextEvent(cursor)) {
+            val name = cursor.packageName ?: continue
+            add(RawScreenEvent(cursor.timeStamp, name, cursor.className, cursor.eventType))
         }
-        return out
     }
 
     override suspend fun appNames(pkgs: Set<String>): Map<String, String> = appLabels(context, pkgs)

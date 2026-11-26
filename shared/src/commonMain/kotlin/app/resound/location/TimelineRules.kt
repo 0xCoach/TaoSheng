@@ -25,54 +25,80 @@ class TimelineRules(private val meters: (Double, Double, Double, Double) -> Doub
 
     }
 
+    private data class VisitedPlace(
+        val lat: Double, val lng: Double, val stays: List<Stay>, val duration: Long, val nightDuration: Long,
+    )
+
     fun groups(stays: List<Stay>, dayStart: Long, isHome: (Double, Double) -> Boolean = { _, _ -> false }): List<PlaceGroup> {
-        val buckets = ArrayList<MutableList<Stay>>()
-        for (s in stays) {
-            val hit = buckets.firstOrNull { b -> meters(b[0].lat, b[0].lng, s.lat, s.lng) <= TrackRules.STAY_RADIUS_M }
-            if (hit != null) hit += s else buckets += mutableListOf(s)
+        val byLocation = ArrayList<MutableList<Stay>>()
+        for (stay in stays) {
+            val group = byLocation.firstOrNull { candidates ->
+                val first = candidates[0]
+                meters(first.lat, first.lng, stay.lat, stay.lng) <= TrackRules.STAY_RADIUS_M
+            }
+            if (group == null) byLocation.add(arrayListOf(stay)) else group.add(stay)
         }
-        // 夜里 = 当天 0–6 点和 22–24 点；累计至少 1 小时才认作家
-        fun night(s: Stay): Long = overlap(s.start, s.end, dayStart, dayStart + 6 * HOUR) + overlap(s.start, s.end, dayStart + 22 * HOUR, dayStart + 24 * HOUR)
-        // 手动标过家就以手动为准；否则夜里待得最久的地方
-        val homeBucket = buckets.firstOrNull { b -> isHome(b.map { it.lat }.average(), b.map { it.lng }.average()) }
-            ?: buckets.maxByOrNull { b -> b.sumOf(::night) }?.takeIf { b -> b.sumOf(::night) >= HOUR }
-        return buckets.sortedByDescending { b -> b.sumOf { it.end - it.start } }.mapIndexed { i, b ->
-            PlaceGroup(i, b.map { it.lat }.average(), b.map { it.lng }.average(), b, b === homeBucket)
+        val places = byLocation.map { group ->
+            var latitude = 0.0
+            var longitude = 0.0
+            var duration = 0L
+            var night = 0L
+            for (stay in group) {
+                latitude += stay.lat
+                longitude += stay.lng
+                duration += stay.end - stay.start
+                night += overlap(stay.start, stay.end, dayStart, dayStart + 6 * HOUR) +
+                    overlap(stay.start, stay.end, dayStart + 22 * HOUR, dayStart + 24 * HOUR)
+            }
+            VisitedPlace(latitude / group.size, longitude / group.size, group, duration, night)
+        }
+        val home = places.firstOrNull { isHome(it.lat, it.lng) }
+            ?: places.maxByOrNull { it.nightDuration }?.takeIf { it.nightDuration >= HOUR }
+        return places.sortedByDescending { it.duration }.mapIndexed { index, place ->
+            PlaceGroup(index, place.lat, place.lng, place.stays, place === home)
         }
     }
 
     /** points 已按时间排好序。to 一般是当天结束，今天则传“现在”。 */
     fun build(points: List<LocationPoint>, stays: List<Stay>, from: Long, to: Long, isHome: (Double, Double) -> Boolean = { _, _ -> false }): DayTimeline {
-        val groups = groups(stays, from, isHome)
-        if (points.isEmpty() || to <= from) return DayTimeline(if (to > from) listOf(Span(from, to, SpanKind.Gap)) else emptyList(), groups)
-        val raw = ArrayList<Span>()
-        fun add(a: Long, b: Long, kind: SpanKind, g: Int? = null) {
-            val s = a.coerceIn(from, to); val e = b.coerceIn(from, to)
-            if (e > s) raw += Span(s, e, kind, g)
+        val places = groups(stays, from, isHome)
+        if (to <= from) return DayTimeline(emptyList(), places)
+        if (points.isEmpty()) return DayTimeline(listOf(Span(from, to, SpanKind.Gap)), places)
+        val spans = ArrayList<Span>()
+        fun append(start: Long, end: Long, kind: SpanKind, group: Int? = null) {
+            val clippedFrom = maxOf(from, start)
+            val clippedUntil = minOf(to, end)
+            if (clippedUntil <= clippedFrom) return
+            val previous = spans.lastOrNull()
+            if (previous != null && previous.end == clippedFrom && previous.kind == kind && previous.group == group) {
+                spans[spans.lastIndex] = previous.copy(end = clippedUntil)
+            } else {
+                spans.add(Span(clippedFrom, clippedUntil, kind, group))
+            }
         }
-        fun between(a: Long, b: Long) {
-            // a..b 之间按相邻点间隔分成“路上”或“没记录”
-            val inner = points.filter { it.at in (a + 1) until b }.map { it.at }
-            val marks = listOf(a) + inner + b
-            for (i in 0 until marks.size - 1) add(marks[i], marks[i + 1], if (marks[i + 1] - marks[i] > GAP_MS) SpanKind.Gap else SpanKind.Move)
+        fun movement(start: Long, end: Long) = append(start, end, if (end - start > GAP_MS) SpanKind.Gap else SpanKind.Move)
+        fun between(start: Long, end: Long) {
+            var previous = start
+            for (point in points) {
+                if (point.at in (start + 1) until end) {
+                    movement(previous, point.at)
+                    previous = point.at
+                }
+            }
+            movement(previous, end)
         }
-        add(from, points.first().at, SpanKind.Gap)
+        append(from, points.first().at, SpanKind.Gap)
         var cursor = points.first().at
-        for (s in stays) {
-            between(cursor, s.start)
-            add(s.start, s.end, SpanKind.Stay, groups.first { s in it.stays }.index)
-            cursor = s.end
+        for (stay in stays) {
+            between(cursor, stay.start)
+            val group = places.first { stay in it.stays }
+            append(stay.start, stay.end, SpanKind.Stay, group.index)
+            cursor = stay.end
         }
         val last = points.last().at
         between(cursor, last)
-        add(last, to, if (to - last > GAP_MS) SpanKind.Gap else SpanKind.Move)
-        // 合并相邻同类
-        val merged = ArrayList<Span>()
-        for (s in raw) {
-            val p = merged.lastOrNull()
-            if (p != null && p.kind == s.kind && p.group == s.group && p.end == s.start) merged[merged.size - 1] = p.copy(end = s.end) else merged += s
-        }
-        return DayTimeline(merged, groups)
+        movement(last, to)
+        return DayTimeline(spans, places)
     }
 
     private fun overlap(a: Long, b: Long, c: Long, d: Long) = maxOf(0L, minOf(b, d) - maxOf(a, c))

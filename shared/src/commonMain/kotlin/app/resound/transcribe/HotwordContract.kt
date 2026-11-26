@@ -2,7 +2,7 @@ package app.resound.transcribe
 
 import kotlinx.coroutines.flow.StateFlow
 
-/** 热词：让转写认准你的称呼、常见人名和专有名词。界面由 Claude 做。 */
+/** 热词设置，用于帮助转写识别称呼、人名和专有名词。 */
 interface HotwordSettings {
     /** 手动加的词（去重、按添加顺序） */
     val words: StateFlow<List<String>>

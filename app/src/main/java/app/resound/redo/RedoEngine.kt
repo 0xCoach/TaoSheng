@@ -59,20 +59,35 @@ internal class RedoEngine(
         return out
     }
 
-    /**
-     * 合并的取料：只取选中事件自己的原话（按 eventId 关联），不按时间范围捞——
-     * 否则中间没选中的事会被顺带卷进来重做。
-     */
+    /** 合并以选中事件的 ID 为边界。时间范围只用于技能卡的重建。 */
     suspend fun selectMerge(request: RedoRequest): MergeSelection {
-        val events = request.eventIds.distinct().mapNotNull { db.memory().event(it) }.sortedBy { it.startAt }
-        val lines = if (events.isEmpty()) emptyList()
-            else dao.eventLines(events.map { it.id }).distinctBy { it.id }.sortedBy { it.startAt }
-        return MergeSelection(events, lines)
+        val memory = db.memory()
+        val selected = buildList {
+            for (id in request.eventIds.toSet()) {
+                memory.event(id)?.let { add(it) }
+            }
+        }.sortedBy { it.startAt }
+        if (selected.isEmpty()) return MergeSelection(emptyList(), emptyList())
+
+        val related = LinkedHashMap<Long, TranscriptLineEntity>()
+        for (line in dao.eventLines(selected.map { it.id })) {
+            if (!related.containsKey(line.id)) related[line.id] = line
+        }
+        return MergeSelection(selected, related.values.sortedBy { it.startAt })
     }
 
     /** 相邻两条事件之间的最大间隔；不足两条为 0。 */
-    private fun maxGap(events: List<MemoryEventEntity>): Long =
-        events.sortedBy { it.startAt }.zipWithNext().maxOfOrNull { (a, b) -> b.startAt - a.endAt } ?: 0L
+    private fun maxGap(events: List<MemoryEventEntity>): Long {
+        if (events.size < 2) return 0
+        var largest = Long.MIN_VALUE
+        var previousEnd = events.first().endAt
+        for (index in 1..events.lastIndex) {
+            val current = events[index]
+            largest = maxOf(largest, current.startAt - previousEnd)
+            previousEnd = current.endAt
+        }
+        return largest
+    }
 
 
     suspend fun estimate(request: RedoRequest): RedoEstimate {
@@ -107,14 +122,16 @@ internal class RedoEngine(
         if (scope.transcribes) put("segments", "id IN (${s.segments.map { it.segment.id }.sqlIds()})")
     }
 
-    /** 合并的快照范围：旧事件、它们的条目、参与的原话行、这段时间的技能卡。 */
-    private fun mergeSelectors(events: List<MemoryEventEntity>, lines: List<TranscriptLineEntity>, span: RedoRange): Map<String, String> =
-        linkedMapOf<String, String>().apply {
-            put("memory_events", "id IN (${events.map { it.id }.sqlIds()})")
-            put("memory_items", "eventId IN (${events.map { it.id }.sqlIds()})")
-            put("transcript_lines", "id IN (${lines.map { it.id }.sqlIds()})")
-            put("skill_cards", cardWhere(listOf(span)))
-        }
+    private fun mergeSelectors(selection: MergeSelection, span: RedoRange): Map<String, String> {
+        val chosenIds = selection.events.map { it.id }.sqlIds()
+        val linkedLines = selection.lines.map { it.id }.sqlIds()
+        return linkedMapOf(
+            "memory_events" to "id IN ($chosenIds)",
+            "memory_items" to "eventId IN ($chosenIds)",
+            "transcript_lines" to "id IN ($linkedLines)",
+            "skill_cards" to cardWhere(listOf(span)),
+        )
+    }
 
     private fun cardWhere(ranges: List<RedoRange>) = if (ranges.isEmpty()) "0" else
         "deletedAt IS NULL AND (" + ranges.joinToString(" OR ") { "(at < ${it.end} AND COALESCE(endAt, at + 1) > ${it.start})" } + ")"
@@ -232,52 +249,59 @@ internal class RedoEngine(
         )
     }
 
-    /**
-     * 合并：把选中几件事的原话合起来重新分析，替换成一条。
-     * 原话不重转写；间隔太久、原话太多都不让合。
-     */
+    /** 先保存可撤销的旧数据。只有模型返回单条事件，才进入原子替换。 */
     private suspend fun runMerge(id: String, request: RedoRequest, checkpoint: () -> Unit, progress: suspend (String, Float) -> Unit) {
-        var snapshot = dao.fullSnapshot()?.takeIf { it.jobId == id }
-        if (snapshot?.applied == true) return
-        val s = selectMerge(request)
-        require(s.events.size >= 2) { "至少选两件事才能合并" }
-        require(maxGap(s.events) < MERGE_MAX_GAP_MS) { "选中的事相隔太久，只能合并前后挨着的事" }
-        require(s.lines.isNotEmpty()) { "这些事没有可合并的原话" }
-        val span = RedoRange(
-            minOf(s.events.minOf { it.startAt }, s.lines.first().startAt),
-            maxOf(s.events.maxOf { it.endAt }, s.lines.maxOf { it.endAt }),
-        )
-        val selectors = mergeSelectors(s.events, s.lines, span)
-        if (snapshot == null) {
-            db.writeTransaction {
-                checkpoint()
-                val data = snapshots.capture(selectors)
-                snapshot = RedoSnapshotRow(jobId = id, at = now(), payload = JSONObject().put("before", data).put("after", data).toString())
-                dao.snapshot(snapshot!!)
+        val saved = dao.fullSnapshot()?.takeIf { it.jobId == id }
+        if (saved?.applied == true) return
+
+        val selection = selectMerge(request)
+        val (events, lines) = selection
+        require(events.size >= 2) { "至少选两件事才能合并" }
+        require(maxGap(events) < MERGE_MAX_GAP_MS) { "选中的事相隔太久，只能合并前后挨着的事" }
+        require(lines.isNotEmpty()) { "这些事没有可合并的原话" }
+
+        val first = minOf(events.first().startAt, lines.first().startAt)
+        val last = maxOf(events.maxOf { it.endAt }, lines.maxOf { it.endAt })
+        val span = RedoRange(first, last)
+        val affected = mergeSelectors(selection, span)
+        val snapshot = saved ?: db.writeTransaction {
+            checkpoint()
+            val contents = snapshots.capture(affected)
+            val initial = JSONObject().apply {
+                put("before", contents)
+                put("after", contents)
             }
+            RedoSnapshotRow(jobId = id, at = now(), payload = initial.toString()).also { dao.snapshot(it) }
         }
-        val payload = JSONObject(snapshot!!.payload)
-        val before = payload.getJSONObject("before")
-        val originalItems = before.getJSONArray("memory_items").let { a -> (0 until a.length()).map { a.getJSONObject(it).getLong("id") } }
-        val trackedSelectors = selectors.toMutableMap().apply { put("memory_items", "${selectors.getValue("memory_items")} OR id IN (${originalItems.sqlIds()})") }
+        val payload = JSONObject(snapshot.payload)
+        val itemRows = payload.getJSONObject("before").getJSONArray("memory_items")
+        val originalItems = List(itemRows.length()) { itemRows.getJSONObject(it).getLong("id") }
+        val trackedSelectors = affected + ("memory_items" to
+            "${affected.getValue("memory_items")} OR id IN (${originalItems.sqlIds()})")
+
         progress("合并中", .3f)
-        val result = merge(s.events, s.lines, request.llmPresetId)
-        require(result.events.size == 1) { "模型没能合成一条，请再试一次" }
-        val (event, refs) = result.events.single()
-        checkpoint(); currentCoroutineContext().ensureActive()
-        // 重点：选中里有一条是重点，合并后就是重点。
-        val starred = s.events.any { it.starred }
-        val newEvent = event.copy(starred = starred, starredAt = if (starred) now() else null)
-        val cards = dao.cards().filter { c -> span.overlaps(c.at, c.endAt ?: c.at + 1) }
-        // 技能卡按这段时间的完整原话重建，避免只看到合并的那几句。
-        val context = db.transcribe().exportSegments(dao.segments(span.start, span.end).map { it.id })
-            .flatMap { it.lines }.distinctBy { it.id }.sortedBy { it.startAt }
-        val newCards = regenerate(cards.filterNot { it.manual }, listOf(newEvent to refs), context)
-        checkpoint(); currentCoroutineContext().ensureActive()
+        val merged = merge(events, lines, request.llmPresetId).events.singleOrNull()
+        requireNotNull(merged) { "模型没能合成一条，请再试一次" }
+        checkpoint()
+        currentCoroutineContext().ensureActive()
+
+        val inheritedStar = events.any { it.starred }
+        val replacements = listOf(merged.first.copy(
+            starred = inheritedStar,
+            starredAt = if (inheritedStar) now() else null,
+        ) to merged.second)
+        val cards = dao.cards().filter { card -> span.overlaps(card.at, card.endAt ?: card.at + 1) }
+        val contextSegments = dao.segments(span.start, span.end).map { it.id }
+        val context = db.transcribe().exportSegments(contextSegments).asSequence()
+            .flatMap { it.lines.asSequence() }.distinctBy { it.id }.sortedBy { it.startAt }.toList()
+        val candidateCards = regenerate(cards.filterNot { it.manual }, replacements, context)
+
+        checkpoint()
+        currentCoroutineContext().ensureActive()
         commitReplace(
-            payload = payload, snapshotRow = snapshot!!, trackedSelectors = trackedSelectors, originalItems = originalItems,
-            oldEvents = s.events, newEvents = listOf(newEvent to refs), itemsFor = { emptyList() }, keepAllItems = true,
-            participatingLines = s.lines, cards = cards, newCards = newCards, checkpoint = checkpoint,
+            payload = payload, snapshotRow = snapshot, trackedSelectors = trackedSelectors, originalItems = originalItems,
+            oldEvents = events, newEvents = replacements, itemsFor = { emptyList() }, keepAllItems = true,
+            participatingLines = lines, cards = cards, newCards = candidateCards, checkpoint = checkpoint,
         )
     }
 
@@ -304,9 +328,11 @@ internal class RedoEngine(
         db.writeTransaction {
             checkpoint()
             check(snapshots.unchanged(payload.getJSONObject("after"))) { "记录已被修改，请重新选择后重做" }
-            val oldItems = dao.items(oldIds)
-            val preserved = if (keepAllItems) oldItems else
-                oldItems.filter { (it.category in setOf("待办", "约定") && it.status in setOf("Accepted", "Done", "Ignored")) || it.deleted || it.editedAt != null }
+            val preserved = dao.items(oldIds).filter { old ->
+                keepAllItems || old.deleted || old.editedAt != null ||
+                    ((old.category == "待办" || old.category == "约定") &&
+                        (old.status == "Accepted" || old.status == "Done" || old.status == "Ignored"))
+            }
             // 保留条目先解除旧事件外键；避免删除事件时级联删除用户状态。
             preserved.forEach { dao.item(it.copy(eventId = null)) }
             db.writeSql("UPDATE transcript_lines SET eventId = NULL WHERE eventId IN (${oldIds.sqlIds()})")

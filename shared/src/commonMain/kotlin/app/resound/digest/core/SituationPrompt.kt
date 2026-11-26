@@ -27,29 +27,32 @@ class SituationPrompt(private val enabled: Boolean, private val lookup: Situatio
     /** 本批出现过「在用」项（由 [transcript] 设置；调用方先 transcript 后 system）。 */
     private var inUseSeen = false
 
-    fun system(original: String): String {
-        val base = if (enabled) "$original\n\n$RULE" else original
-        val withInUse = if (inUseSeen) "$base\n\n$IN_USE_RULE" else base
-        return if (hasPlayback()) "$withInUse\n\n$PLAYBACK_RULE" else withInUse
-    }
+    fun system(original: String): String = buildList {
+        add(original)
+        if (enabled) add(RULE)
+        if (inUseSeen) add(IN_USE_RULE)
+        if (hasPlayback()) add(PLAYBACK_RULE)
+    }.joinToString("\n\n")
 
     suspend fun transcript(
         lines: List<TranscriptLineData>,
         unseparated: Set<Long> = emptySet(),
         zone: TimeZone,
     ): Pair<String, List<TranscriptLineData>> {
+        val sections = sections(lines)
+        val context = if (lookup != null && sections.isNotEmpty()) {
+            val from = sections.minOf { it.start }
+            val until = sections.maxOf { it.end }
+            val apps = lookup.appSessions(from, until)
+            val audible = recordings?.any { it.playbackMillis > 0 } ?: sections.any { isPlaying(it.segmentId) }
+            apps to if (audible) lookup.devicePlayback(from, until) else emptyList()
+        } else emptyList<NamedAppSession>() to emptyList<DevicePlayback>()
+        val (apps, playbacks) = context
         val headings = mutableMapOf<Int, String>()
-        val apps = if (lookup != null && lines.isNotEmpty())
-            lookup.appSessions(lines.minOf { it.startAt }, lines.maxOf { it.endAt })
-        else emptyList()
-        val playbacks = if (lookup != null && lines.isNotEmpty() && (recordings?.any { it.playbackMillis > 0 } ?: lines.any { isPlaying(it.segmentId) }))
-            lookup.devicePlayback(lines.minOf { it.startAt }, lines.maxOf { it.endAt })
-        else emptyList()
-        for (group in groups(lines)) heading(
-            lines.subList(group.first, group.last + 1).minOf { it.startAt },
-            lines.subList(group.first, group.last + 1).maxOf { it.endAt }, lines[group.first].segmentId,
-            apps, playbacks,
-        )?.let { headings[group.first] = it }
+        for (section in sections) {
+            val text = heading(section.start, section.end, section.segmentId, apps, playbacks)
+            if (text != null) headings[section.index] = text
+        }
         if (recordings != null) {
             val labels = playbackLabels(recordings, lines, playbacks)
             lines.forEachIndexed { i, line ->
@@ -70,17 +73,24 @@ class SituationPrompt(private val enabled: Boolean, private val lookup: Situatio
         return MergePrompt.input(events, zone, headings)
     }
 
-    /** 相邻同片段的行分一组，返回每组的行下标区间；情境行按组放在组首行前。 */
-    private fun groups(lines: List<TranscriptLineData>): List<IntRange> {
-        val ranges = mutableListOf<IntRange>()
-        var from = 0
-        while (from < lines.size) {
-            var to = from
-            while (to + 1 < lines.size && lines[to + 1].segmentId == lines[from].segmentId) to++
-            ranges += from..to
-            from = to + 1
+    private data class Section(val index: Int, val segmentId: Long, val start: Long, val end: Long)
+
+    /** 每组连续同行片段共用一行情境，贴在首行前。 */
+    private fun sections(lines: List<TranscriptLineData>): List<Section> = buildList {
+        var index = 0
+        while (index < lines.size) {
+            val first = index
+            val segmentId = lines[first].segmentId
+            var start = lines[first].startAt
+            var end = lines[first].endAt
+            index++
+            while (index < lines.size && lines[index].segmentId == segmentId) {
+                start = minOf(start, lines[index].startAt)
+                end = maxOf(end, lines[index].endAt)
+                index++
+            }
+            add(Section(first, segmentId, start, end))
         }
-        return ranges
     }
 
     /** [segmentId] 为 null（合并路径）时不出外放与「在用」项。[apps] / [playbacks] 是整批一次查询到的前台使用段和播放记录。 */
@@ -109,26 +119,14 @@ class SituationPrompt(private val enabled: Boolean, private val lookup: Situatio
     }
 
     /** 与 [start, end) 重叠最长的使用段；零重叠不出。同时长先到先得。 */
-    private fun longestApp(sessions: List<NamedAppSession>, start: Long, end: Long): NamedAppSession? {
-        var best: NamedAppSession? = null
-        var longest = 0L
-        for (s in sessions) {
-            val overlap = minOf(s.until, end) - maxOf(s.from, start)
-            if (overlap > longest) { best = s; longest = overlap }
-        }
-        return best
-    }
+    private fun longestApp(sessions: List<NamedAppSession>, start: Long, end: Long): NamedAppSession? =
+        longest(sessions) { minOf(it.until, end) - maxOf(it.from, start) }
 
-    /** 与 [start, end) 重叠最长的播放记录；零重叠不出。同时长先到先得。 */
-    private fun longestPlayback(records: List<DevicePlayback>, start: Long, end: Long): DevicePlayback? {
-        var best: DevicePlayback? = null
-        var longest = 0L
-        for (p in records) {
-            val overlap = minOf(p.until, end) - maxOf(p.from, start)
-            if (overlap > longest) { best = p; longest = overlap }
-        }
-        return best
-    }
+    private fun longestPlayback(records: List<DevicePlayback>, start: Long, end: Long): DevicePlayback? =
+        longest(records) { minOf(it.until, end) - maxOf(it.from, start) }
+
+    private inline fun <T> longest(records: List<T>, overlap: (T) -> Long): T? =
+        records.maxByOrNull(overlap)?.takeIf { overlap(it) > 0 }
 
     private fun singleLine(value: String) = value.replace('\n', ' ').replace('\r', ' ')
 

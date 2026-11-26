@@ -41,6 +41,8 @@ import app.resound.ui.today.ModelCard
 import app.resound.ui.settings.SettingsPage
 import app.resound.ui.settings.SettingsScreen
 import app.resound.ui.common.ComingSoon
+import app.resound.ui.location.LocationPage
+import app.resound.ui.screentime.ScreenTimePage
 import app.resound.ui.voiceprint.LocalVoiceprint
 import app.resound.ui.ShellBottomPadding
 import app.resound.ui.preview.FakeCaptureController
@@ -220,8 +222,12 @@ class MainActivity : ComponentActivity() {
                                     SettingsPage.Hotwords -> if (AppGraph.isHotwordsReady)
                                         Box(Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottom + 24.dp)) { app.resound.ui.transcript.HotwordCard(AppGraph.hotwords) }
                                     SettingsPage.EnvSound -> if (AppGraph.isEnvSoundReady) app.resound.ui.envsound.EnvSoundPage(AppGraph.envSound, bottom)
-                                    SettingsPage.Location -> if (AppGraph.isLocationReady) app.resound.ui.location.LocationPage(AppGraph.location, bottom)
-                                    SettingsPage.ScreenTime -> if (AppGraph.isScreenTimeReady) app.resound.ui.screentime.ScreenTimePage(AppGraph.screenTimeSettings, bottom)
+                                    SettingsPage.Location -> AppGraph.locationIfReady?.let { repository ->
+                                        LocationPage(repository, bottom)
+                                    }
+                                    SettingsPage.ScreenTime -> AppGraph.screenTimeSettingsIfReady?.let { screenSettings ->
+                                        ScreenTimePage(screenSettings, bottom)
+                                    }
                                     SettingsPage.Night -> if (AppGraph.isNightReady) app.resound.ui.night.NightSettingsPage(bottom)
                                     SettingsPage.Push -> if (AppGraph.isPushReady) app.resound.ui.settings.PushPage(AppGraph.push, bottom)
                                     SettingsPage.Review -> if (AppGraph.isReviewReady) ReviewSettingsPage(AppGraph.review, bottom)

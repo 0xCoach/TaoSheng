@@ -2,6 +2,9 @@ package app.resound.ui.voiceprint
 
 import android.media.AudioAttributes
 import android.media.MediaPlayer
+import app.resound.AppGraph
+import app.resound.capture.CaptureService
+import app.resound.ui.transcript.LinePlayer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -27,21 +30,34 @@ internal object SamplePlayer {
 
     suspend fun play(key: String, file: File) {
         stop()
-        val mine = ++request
-        app.resound.ui.transcript.LinePlayer.stop()
-        if (app.resound.AppGraph.isOriginalAudioReady) { app.resound.AppGraph.originalAudio.beginPlayback(); held = true }
+        val playbackId = ++request
+        LinePlayer.stop()
+        if (AppGraph.isOriginalAudioReady) {
+            AppGraph.originalAudio.beginPlayback()
+            held = true
+        }
+        var prepared: MediaPlayer? = null
         try {
-            withTimeoutOrNull(4_000) { app.resound.capture.CaptureService.awaitPlaybackRelease() }
-            val p = withContext(Dispatchers.IO) {
-                MediaPlayer().apply {
-                    setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
-                    setDataSource(file.path); prepare()
-                }
+            withTimeoutOrNull(4_000) { CaptureService.awaitPlaybackRelease() }
+            withContext(Dispatchers.IO) {
+                val audio = MediaPlayer()
+                prepared = audio
+                val speech = AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .build()
+                audio.setAudioAttributes(speech)
+                audio.setDataSource(file.path)
+                audio.prepare()
             }
-            if (mine != request) { p.release(); return }
+            if (playbackId != request) return
+            val p = checkNotNull(prepared)
             p.setOnCompletionListener { stop() }
-            player = p; progress = 0f; playingKey = key; p.start()
+            player = p
+            prepared = null
+            progress = 0f
+            playingKey = key
+            p.start()
             ticker = scope.launch {
                 while (isActive && player === p) {
                     val d = p.runCatching { duration }.getOrDefault(0)
@@ -49,8 +65,12 @@ internal object SamplePlayer {
                     delay(50)
                 }
             }
-        } catch (e: CancellationException) { stop(); throw e }
-        catch (e: Exception) { stop(); throw e }
+        } catch (failure: Exception) {
+            if (playbackId == request) stop()
+            throw failure
+        } finally {
+            prepared?.let { audio -> runCatching { audio.release() } }
+        }
     }
 
     fun stop() {

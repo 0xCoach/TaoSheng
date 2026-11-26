@@ -49,7 +49,7 @@ class TranscribeSchedulerTest {
             assertTrue(db.transcribe().candidates(Long.MAX_VALUE).isEmpty())
             val settings = Settings()
             val repository = RoomTranscriptRepository(context, db.transcribe(), settings, TranscribeScheduler(context, settings), scope, app.resound.platform.SystemZone, app.resound.platform.SystemNow, Dispatchers.IO)
-            repository.transcribeAnyway(1)
+            repository.applyPlaybackAction(1, PlaybackTranscriptAction.QueueTranscription)
             withTimeout(3000) { db.transcribe().observeSegments().first { it.single().status == "Pending" } }
             assertEquals(1, db.transcribe().candidates(Long.MAX_VALUE).size)
             assertNull(db.transcribe().segment(1).completedAt)
@@ -59,7 +59,7 @@ class TranscribeSchedulerTest {
             Unit
         } finally { scope.cancel(); db.close(); audio.delete() }
     }
-    @Test fun transcribeAnywayDigestTwoRequeuesAndWritesIntent() = runBlocking {
+    @Test fun queueWithDigestRequeuesAndWritesIntent() = runBlocking {
         val db = androidx.room.Room.inMemoryDatabaseBuilder(context, app.resound.data.CaptureDatabase::class.java).setDriver(androidx.sqlite.driver.AndroidSQLiteDriver()).allowMainThreadQueries().build()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val audio = java.io.File.createTempFile("playback-digest-two", ".ogg", context.cacheDir).apply { writeBytes(byteArrayOf(1)) }
@@ -68,7 +68,7 @@ class TranscribeSchedulerTest {
                 status = "SkippedPlayback", completedAt = 10_001, playbackMillis = 9_000))
             val settings = Settings()
             val repository = RoomTranscriptRepository(context, db.transcribe(), settings, TranscribeScheduler(context, settings), scope, app.resound.platform.SystemZone, app.resound.platform.SystemNow, Dispatchers.IO)
-            repository.transcribeAnyway(1, 2)
+            repository.applyPlaybackAction(1, PlaybackTranscriptAction.QueueWithDigest)
             withTimeout(3000) { db.transcribe().observeSegments().first { it.single().status == "Pending" } }
             assertEquals(2, db.transcribe().segment(1).playbackDigest)
             assertEquals(1, db.transcribe().candidates(Long.MAX_VALUE).size)

@@ -41,7 +41,8 @@ class CustomAsrSettings(
     private var revision = 0L
     val endpoint get() = if (api.value == CustomAsrApi.Qwen) read("qwenEndpoint", QWEN_ENDPOINT).orEmpty() else read("endpoint", "").orEmpty()
     val model get() = if (api.value == CustomAsrApi.Qwen) read("qwenModel", QWEN_MODEL).orEmpty() else read("model", "").orEmpty()
-    private fun mode() = if (api.value == CustomAsrApi.Qwen) CustomEndpointMode.Full else enum("endpointMode", CustomEndpointMode.Auto)
+    private fun mode() = if (api.value == CustomAsrApi.Qwen) CustomEndpointMode.Full
+        else CustomEndpointMode.fromStoredValue(read("endpointMode", null))
     private fun prompt() = if (api.value == CustomAsrApi.Qwen) readBoolean("qwenPrompt", true) else readBoolean("customPrompt", false)
     fun setApi(value: CustomAsrApi) {
         if (value == api.value) return

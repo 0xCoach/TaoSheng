@@ -16,6 +16,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -33,7 +34,7 @@ class SegmentFilesPlaybackDigestTest {
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private val samples = ShortArray(CaptureTuning.MIN_SPEECH_SAMPLES)
 
-    @Test fun producerPlaybackFileRoundTripSetsInitialDigest() = runBlocking {
+    @Test fun spoolRecoversCurrentAndLegacyPlaybackDecisions() = runBlocking {
         context.deleteDatabase("segment-playback-digest.db")
         val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java)
             .setDriver(AndroidSQLiteDriver()).allowMainThreadQueries().build()
@@ -54,22 +55,26 @@ class SegmentFilesPlaybackDigestTest {
             assertTrue(onDisk.isFile)
             assertEquals(bytes, onDisk.readText())
         }
+        val legacyBase = record(files1, settings, 1_700_000_030_000L, playbackSamples = 0, include = true).first
+        File(spool, "$legacyBase.playback").writeText("500:false:false")
+
         val scope2 = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val files2 = SegmentFiles(context, db.capture(), scope2)
         try {
             files2.awaitReady()
             val rows = withTimeout(8_000) {
                 var found = emptyList<app.resound.data.SegmentEntity>()
-                while (found.size < 3) {
+                while (found.size < 4) {
                     found = db.transcribe().allAudio().sortedBy { it.startAt }
-                    if (found.size < 3) delay(20)
+                    if (found.size < 4) delay(20)
                 }
                 found
             }
-            assertEquals(listOf(1, 2, 0), rows.map { it.playbackDigest })
-            assertEquals(listOf("SkippedPlayback", "Pending", "Pending"), rows.map { it.status })
-            assertEquals(listOf(1000L, 1000L, 0L), rows.map { it.playbackMillis })
-            assertTrue(rows.all { it.speakerIntervals != null })
+            assertEquals(listOf(1, 2, 0, 1), rows.map { it.playbackDigest })
+            assertEquals(listOf("SkippedPlayback", "Pending", "Pending", "Pending"), rows.map { it.status })
+            assertEquals(listOf(1000L, 1000L, 0L, 500L), rows.map { it.playbackMillis })
+            assertTrue(rows.take(3).all { it.speakerIntervals != null })
+            assertNull(rows.last().speakerIntervals)
         } finally {
             scope2.coroutineContext[Job]!!.cancelAndJoin()
             db.close()

@@ -11,10 +11,11 @@ class CustomSettings212Test {
         { api,e,m,mode -> val prefix = if (api == CustomAsrApi.Qwen) "qwen" else ""
             values[if (prefix.isEmpty()) "endpoint" else "qwenEndpoint"] = e
             values[if (prefix.isEmpty()) "model" else "qwenModel"] = m
-            values[if (prefix.isEmpty()) "endpointMode" else "qwenEndpointMode"] = mode.name },
+            values[if (prefix.isEmpty()) "endpointMode" else "qwenEndpointMode"] = mode.storedValue },
         { _,_ -> }, keys::contains, {})
     @Test fun configurationsRemainIndependentAndKeyStateReflectsCredentials() {
         settings.save("https://open.invalid", "open", CustomEndpointMode.Auto)
+        assertEquals("Auto", values["endpointMode"])
         assertEquals(CustomKeyState.None, settings.keyState.value)
         keys += CustomAsrApi.OpenAi; settings.refresh(); assertEquals(CustomKeyState.Saved, settings.keyState.value)
         settings.tested(settings.testTicket(), CustomCapability.TextOnly)
@@ -24,6 +25,7 @@ class CustomSettings212Test {
         assertEquals(CustomEndpointMode.Full, settings.endpointMode.value); assertTrue(settings.customPrompt.value)
         assertEquals(CustomKeyState.None, settings.keyState.value); assertNull(settings.capability.value)
         settings.save("https://qwen.invalid/full", "qwen", CustomEndpointMode.Auto); settings.setPrompt(false)
+        assertEquals("Full", values["qwenEndpointMode"])
         settings.setApi(CustomAsrApi.OpenAi)
         assertEquals("open", settings.model); assertEquals("https://open.invalid", settings.endpoint)
         // 配置没变：切回来仍是已验证，不用重测
@@ -49,12 +51,17 @@ class CustomSettings212Test {
             { k,v -> values[k] = v }, { k,v -> values[k] = v.toString() }, { _,_,_,_ -> }, { _,_ -> }, keys::contains, {},
             { api -> stored[api]?.takeIf { fingerprintMatches } }, { api, c -> if (c == null) stored.remove(api) else stored[api] = c })
         keys += CustomAsrApi.OpenAi
+        values["endpointMode"] = "Full"
         val first = make(); first.refresh()
+        assertEquals(CustomEndpointMode.Full, first.endpointMode.value)
         first.tested(first.testTicket(), CustomCapability.TimedText)
         val again = make(); again.refresh()
+        assertEquals(CustomEndpointMode.Full, again.endpointMode.value)
         assertEquals(CustomKeyState.Verified, again.keyState.value)
         fingerprintMatches = false
+        values["endpointMode"] = "unknown"
         val changed = make(); changed.refresh()
+        assertEquals(CustomEndpointMode.Auto, changed.endpointMode.value)
         assertEquals(CustomKeyState.Saved, changed.keyState.value)
     }
 }

@@ -117,12 +117,20 @@ fun LocationPage(repo: LocationRepository, bottom: Dp) {
     var openEvent by remember { mutableStateOf<app.resound.digest.MemoryEvent?>(null) }
     // 地名按约 100 米格子取；先读缓存，再逐个去查
     val places = remember { androidx.compose.runtime.mutableStateMapOf<String, Place?>() }
-    val wanted = remember(track.stays, latest) { (listOfNotNull(latest?.let { it.lat to it.lng }) + track.stays.map { it.lat to it.lng }).distinctBy { Places.cell(it.first, it.second) } }
+    val wanted = remember(track.stays, latest) {
+        val seen = HashSet<String>()
+        buildList {
+            fun request(lat: Double, lng: Double) {
+                val cell = Places.cell(lat, lng)
+                if (seen.add(cell)) add(Triple(cell, lat, lng))
+            }
+            latest?.let { request(it.lat, it.lng) }
+            track.stays.forEach { request(it.lat, it.lng) }
+        }
+    }
     androidx.compose.runtime.LaunchedEffect(wanted, lookup, hasKey) {
-        for ((lat, lng) in wanted) {
-            val cell = Places.cell(lat, lng)
-            if (places[cell] != null) continue
-            places[cell] = repo.places.cached(lat, lng) ?: repo.places.resolve(lat, lng)
+        for ((cell, lat, lng) in wanted) {
+            if (places[cell] == null) places[cell] = repo.places.cached(lat, lng) ?: repo.places.resolve(lat, lng)
         }
     }
     val placeError by repo.places.lastError.collectAsStateWithLifecycle()
@@ -412,14 +420,20 @@ private fun DayTimelineView(tl: DayTimeline, dayStart: Long, dayEnd: Long, place
     val total = (dayEnd - dayStart).toFloat()
     var selected by remember(tl) { mutableStateOf<app.resound.location.Span?>(null) }
     val colors = tl.groups.associate { it.index to groupColor(it) }
-    fun nameOf(index: Int?) = tl.groups.firstOrNull { it.index == index }?.let { groupName(it, placeAt(it.lat, it.lng)) } ?: ""
+    val placesByIndex = remember(tl.groups) { tl.groups.associateBy { it.index } }
 
     // 选中段的说明
     val sel = selected
+    val hint = sel?.let { span ->
+        val label = when (span.kind) {
+            SpanKind.Stay -> span.group?.let(placesByIndex::get)?.let { group -> groupName(group, placeAt(group.lat, group.lng)) }.orEmpty()
+            SpanKind.Move -> "路上"
+            SpanKind.Gap -> "没有记录"
+        }
+        "${clock(span.start)}–${clock(span.end)} · $label · ${dur(span.end - span.start)}"
+    } ?: "点时间轴看每段在哪"
     Text(
-        if (sel == null) "点时间轴看每段在哪" else "${clock(sel.start)}–${clock(sel.end)} · " + when (sel.kind) {
-            SpanKind.Stay -> nameOf(sel.group); SpanKind.Move -> "路上"; SpanKind.Gap -> "没有记录"
-        } + " · " + dur(sel.end - sel.start),
+        hint,
         style = RsType.subhead, color = if (sel == null) c.textTertiary else c.text, maxLines = 1,
     )
     Spacer(Modifier.height(8.dp))
@@ -427,26 +441,37 @@ private fun DayTimelineView(tl: DayTimeline, dayStart: Long, dayEnd: Long, place
     val gapColor = c.separator
     val nowX = System.currentTimeMillis().takeIf { it in dayStart until dayEnd }?.let { (it - dayStart) / total }
     Canvas(Modifier.fillMaxWidth().height(34.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
-        .tapFraction(tl) { fx -> val at = dayStart + (fx * total).toLong(); selected = tl.spans.firstOrNull { at in it.start until it.end }.takeIf { it != selected } }) {
+        .tapFraction(tl) { fraction ->
+            val at = dayStart + (fraction * total).toLong()
+            val tapped = tl.spans.firstOrNull { at >= it.start && at < it.end }
+            selected = tapped.takeUnless { it == selected }
+        }) {
         drawRect(gapColor)
         for (sp in tl.spans) {
             val x0 = (sp.start - dayStart) / total * size.width
             val x1 = (sp.end - dayStart) / total * size.width
-            val dim = sel != null && sp != sel
-            val alpha = if (dim) 0.35f else 1f
+            val origin = Offset(x0, 0f)
+            val segmentSize = androidx.compose.ui.geometry.Size(x1 - x0, size.height)
+            val alpha = if (sel == null || sp == sel) 1f else 0.35f
             when (sp.kind) {
-                SpanKind.Stay -> drawRect((colors[sp.group] ?: moveColor).copy(alpha = alpha), Offset(x0, 0f), androidx.compose.ui.geometry.Size(x1 - x0, size.height))
+                SpanKind.Stay -> drawRect((colors[sp.group] ?: moveColor).copy(alpha = alpha), origin, segmentSize)
                 SpanKind.Move -> {
-                    drawRect(moveColor.copy(alpha = 0.25f * alpha), Offset(x0, 0f), androidx.compose.ui.geometry.Size(x1 - x0, size.height))
+                    drawRect(moveColor.copy(alpha = 0.25f * alpha), origin, segmentSize)
                     // 斜纹表示“在路上”
                     clipRect(x0, 0f, x1, size.height) {
                         var x = x0 - size.height
-                        while (x < x1) { drawLine(moveColor.copy(alpha = 0.6f * alpha), Offset(x, size.height), Offset(x + size.height, 0f), 1.5.dp.toPx()); x += 6.dp.toPx() }
+                        val ink = moveColor.copy(alpha = 0.6f * alpha)
+                        val width = 1.5.dp.toPx()
+                        val step = 6.dp.toPx()
+                        while (x < x1) {
+                            drawLine(ink, Offset(x, size.height), Offset(x + size.height, 0f), width)
+                            x += step
+                        }
                     }
                 }
                 SpanKind.Gap -> Unit
             }
-            if (sp == sel) drawRect(c.text, Offset(x0, 0f), androidx.compose.ui.geometry.Size(x1 - x0, size.height), style = Stroke(2.dp.toPx()))
+            if (sp == sel) drawRect(c.text, origin, segmentSize, style = Stroke(2.dp.toPx()))
         }
         nowX?.let { drawLine(c.critical, Offset(it * size.width, 0f), Offset(it * size.width, size.height), 2.dp.toPx()) }
     }

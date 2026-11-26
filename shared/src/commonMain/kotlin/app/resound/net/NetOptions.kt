@@ -2,6 +2,8 @@ package app.resound.net
 
 import app.resound.digest.LlmPreset
 
+private val OpenAiCompletionModelFamilies = listOf("gpt-5.4", "gpt-5.6", "gpt-6")
+
 /** 按接口域名和模型能力适配，不能按用户自定 id 判断协议。依据见 076 调研报告。 */
 /**
  * [thinking]：整理时用户打开了“整理前先思考”。只对能明确开关思考的模型生效（DeepSeek 系、火山方舟、智谱 GLM-4.5 及以上、
@@ -30,7 +32,7 @@ internal fun applyNetOptions(preset: LlmPreset, body: Obj, thinking: Boolean = f
         host == "api.moonshot.cn" && model.startsWith("kimi-k3") -> {
             body.remove("temperature"); body.put("reasoning_effort", "low"); completionLimit(16_384)
         }
-        host == "api.openai.com" && (model.startsWith("gpt-5.4") || model.startsWith("gpt-5.6") || model.startsWith("gpt-6")) -> {
+        host == "api.openai.com" && OpenAiCompletionModelFamilies.any { family -> model.startsWith(family) } -> {
             body.remove("temperature"); body.put("reasoning_effort", "none")
             completionLimit(if (stream) 1800 else NetLlmClient.MAX_JSON_OUTPUT_TOKENS)
         }

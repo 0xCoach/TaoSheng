@@ -1,5 +1,5 @@
 package app.resound.ask.core
-import app.resound.ask.*
+import app.resound.ask.AskSource
 import app.resound.net.Arr as JSONArray
 import app.resound.net.Obj as JSONObject
 import app.resound.screentime.DevicePlayback
@@ -30,62 +30,66 @@ class AskScreenToolsCore(
     }
 
     private fun enabled(result: ScreenTimeResult, sources: MutableList<AskSource>): String {
-        val totals = result.sessions.groupBy { it.pkg }.map { (_, rows) ->
-            val first = rows.minBy { it.from }
-            Triple(first, rows.sumOf { it.until - it.from }, first.pkg)
-        }.sortedWith(compareByDescending<Triple<NamedAppSession, Long, String>> { it.second }.thenBy { it.third })
+        val refs = HashMap<AskSource, Int>(sources.size)
+        sources.forEachIndexed { index, entry -> refs.getOrPut(entry) { index + 1 } }
+        fun addSource(entry: AskSource) = refs.getOrPut(entry) {
+            sources.add(entry)
+            sources.size
+        }
+
         val totalsArr = JSONArray()
-        for ((first, millis, pkg) in totals) {
-            val source = source(first)
-            val existing = sources.indexOf(source)
-            val ref = if (existing >= 0) existing + 1 else sources.size + 1
-            if (existing < 0) sources += source
-            totalsArr.put(JSONObject().put("ref", ref).put("name", first.name).put("package", pkg)
+        for ((first, millis) in totals(result.sessions)) {
+            totalsArr.put(JSONObject().put("ref", addSource(source(first))).put("name", first.name).put("package", first.pkg)
                 .put("minutes", ((millis + 30_000L) / 60_000L).toInt()))
         }
-        val sessionsArr = JSONArray()
-        var truncated = false
-        for (session in result.sessions.sortedBy { it.from }) {
-            val source = source(session)
-            val existing = sources.indexOf(source)
-            val ref = if (existing >= 0) existing + 1 else sources.size + 1
-            sessionsArr.put(JSONObject().put("ref", ref).put("name", session.name).put("package", session.pkg)
-                .put("start", AskTime.format(session.from, zone)).put("end", AskTime.format(session.until, zone)))
-            if (payload(totalsArr, sessionsArr, JSONArray(), result, false).length > 6000) {
-                sessionsArr.remove(sessionsArr.length() - 1)
-                truncated = true
-                break
-            }
-            if (existing < 0) sources += source
-        }
-        val playbackArr = JSONArray()
-        if (!truncated) for (item in result.devicePlayback.sortedBy { it.from }) {
-            val source = source(item)
-            val existing = sources.indexOf(source)
-            val ref = if (existing >= 0) existing + 1 else sources.size + 1
-            playbackArr.put(JSONObject().put("ref", ref).put("name", item.name).put("package", item.pkg)
-                .put("title", item.title ?: JSONObject.NULL).put("subtitle", item.subtitle ?: JSONObject.NULL)
-                .put("start", AskTime.format(item.from, zone)).put("end", AskTime.format(item.until, zone)))
-            if (payload(totalsArr, sessionsArr, playbackArr, result, false).length > 6000) {
-                playbackArr.remove(playbackArr.length() - 1)
-                truncated = true
-                break
-            }
-            if (existing < 0) sources += source
-        }
-        return payload(totalsArr, sessionsArr, playbackArr, result, truncated)
-    }
 
-    private fun payload(
-        totals: JSONArray, sessions: JSONArray, playback: JSONArray,
-        result: ScreenTimeResult, truncated: Boolean,
-    ): String {
+        val sessions = JSONArray()
+        val playback = JSONArray()
         val gaps = JSONArray()
         for (gap in result.gaps) gaps.put(JSONObject().put("code", gap.code).put("source", gap.source)
             .put("from", AskTime.format(gap.from, zone)).put("until", AskTime.format(gap.until, zone)).put("fix", gap.fix))
-        return JSONObject().put("totals", totals).put("sessions", sessions).put("devicePlayback", playback)
+        val output = JSONObject().put("totals", totalsArr).put("sessions", sessions).put("devicePlayback", playback)
             .put("coverageUntil", result.coverageUntil?.let { AskTime.format(it, zone) } ?: JSONObject.NULL)
-            .put("gaps", gaps).put("truncated", truncated).toString()
+            .put("gaps", gaps).put("truncated", false)
+
+        var length = output.toString().length
+        fun append(target: JSONArray, entry: AskSource, fields: JSONObject.() -> Unit): Boolean {
+            val ref = refs[entry] ?: sources.size + 1
+            val row = JSONObject().put("ref", ref).apply(fields)
+            // 同一 JSON 编码器生成各行与整包，中间只多一个逗号。
+            val newLength = length + row.toString().length + if (target.length() == 0) 0 else 1
+            if (newLength > MAX_PAYLOAD_LENGTH) return false
+            length = newLength
+            target.put(row)
+            addSource(entry)
+            return true
+        }
+        val allSessions = result.sessions.sortedBy { it.from }.all { session ->
+            append(sessions, source(session)) {
+                put("name", session.name).put("package", session.pkg)
+                put("start", AskTime.format(session.from, zone)).put("end", AskTime.format(session.until, zone))
+            }
+        }
+        val allDetails = allSessions && result.devicePlayback.sortedBy { it.from }.all { item ->
+            append(playback, source(item)) {
+                put("name", item.name).put("package", item.pkg)
+                put("title", item.title ?: JSONObject.NULL).put("subtitle", item.subtitle ?: JSONObject.NULL)
+                put("start", AskTime.format(item.from, zone)).put("end", AskTime.format(item.until, zone))
+            }
+        }
+        return output.put("truncated", !allDetails).toString()
+    }
+
+    private data class AppTotal(val first: NamedAppSession, val duration: Long)
+
+    private fun totals(sessions: List<NamedAppSession>): List<AppTotal> {
+        val byPackage = HashMap<String, AppTotal>()
+        for (session in sessions) {
+            val stored = byPackage[session.pkg]
+            val first = if (stored != null && stored.first.from <= session.from) stored.first else session
+            byPackage[session.pkg] = AppTotal(first, (stored?.duration ?: 0L) + (session.until - session.from))
+        }
+        return byPackage.values.sortedWith(compareByDescending<AppTotal> { it.duration }.thenBy { it.first.pkg })
     }
 
     private fun source(session: NamedAppSession) = AskSource(
@@ -99,6 +103,7 @@ class AskScreenToolsCore(
     private fun clock(at: Long) = AskTime.format(at, zone).takeLast(5)
 
     private companion object {
+        const val MAX_PAYLOAD_LENGTH = 6000
         const val MAX_SPAN_MS = 10L * 24 * 60 * 60 * 1000
         const val DISABLED =
             """{"totals":[],"sessions":[],"devicePlayback":[],"coverageUntil":null,"gaps":[],"truncated":false,"notice":"屏幕时间未开启，没有 App 使用数据。"}"""

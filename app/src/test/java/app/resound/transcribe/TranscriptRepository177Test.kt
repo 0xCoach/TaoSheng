@@ -128,7 +128,8 @@ class TranscriptRepository177Test {
             repo.deleteFailed(4); withTimeout(5000) { db.transcribe().observeSegments().first { rows -> rows.none { it.id == 4L } } }
             out.appendLine("delete.ok=${db.transcribe().findSegment(4) == null && !File(root, "delete").exists()}")
             seed(5, "SkippedPlayback", File(root, "playback").apply { writeText("synthetic") })
-            repo.transcribeAnyway(5); status(5, "Pending"); out.appendLine("anyway=${db.transcribe().segment(5).status}")
+            repo.applyPlaybackAction(5, PlaybackTranscriptAction.QueueTranscription)
+            status(5, "Pending"); out.appendLine("anyway=${db.transcribe().segment(5).status}")
             repo.runNow()
             withTimeout(5000) { while (WorkManager.getInstance(context).getWorkInfosForUniqueWork(TranscribeScheduler.IMMEDIATE).get().isEmpty()) delay(10) }
             out.appendLine("scheduled=true")

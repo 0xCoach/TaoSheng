@@ -360,23 +360,23 @@ class AndroidPushChannels internal constructor(
     ): Long? = footprintMutex.withLock {
         val today = java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
         val day = today.toString()
-        var message: PushMessage? = null
-        var generationError: Throwable? = null
-        var built = false
+        var generated: Result<PushMessage?>? = null
         for (channel in channels.value.filter { it.enabled && it.subscription.footprint }) {
             val id = channel.id
             val due = today.atStartOfDay(zone).plusMinutes(channel.subscription.footprintAt.toLong()).toInstant().toEpochMilli()
             val sameDay = prefs.getString("footprint-attempt-day-$id", null) == day
             val retryAt = if (sameDay) prefs.getLong("footprint-retry-at-$id", 0) else 0
             if (now < maxOf(due, retryAt) || prefs.getString("footprint-sent-$id", null) == day) continue
-            if (!built) {
-                try { message = footprintMessage(today) }
-                catch (e: CancellationException) { throw e }
-                catch (e: Exception) { generationError = e }
-                built = true
-            }
-            val ready = message
+            val current = generated ?: (try {
+                Result.success(footprintMessage(today))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Result.failure(error)
+            }).also { generated = it }
+            val ready = current.getOrNull()
             if (ready == null) {
+                val generationError = current.exceptionOrNull()
                 val failure = FootprintRetry.failed(
                     prefs.getString("footprint-attempt-day-$id", null), day,
                     prefs.getInt("footprint-attempts-$id", 0), now,
@@ -406,13 +406,15 @@ class AndroidPushChannels internal constructor(
 
     internal fun nextFootprintAt(now: Long = System.currentTimeMillis(), zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): Long? {
         val today = java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
-        return channels.value.filter { it.enabled && it.subscription.footprint }.map { ch ->
-            val sent = prefs.getString("footprint-sent-${ch.id}", null) == today.toString()
-            val day = if (sent) today.plusDays(1) else today
-            val retryAt = if (!sent && prefs.getString("footprint-attempt-day-${ch.id}", null) == today.toString())
+        val date = today.toString()
+        return channels.value.asSequence().filter { it.enabled && it.subscription.footprint }.minOfOrNull { ch ->
+            val sent = prefs.getString("footprint-sent-${ch.id}", null) == date
+            val scheduledDate = if (sent) today.plusDays(1) else today
+            val retryAt = if (!sent && prefs.getString("footprint-attempt-day-${ch.id}", null) == date)
                 prefs.getLong("footprint-retry-at-${ch.id}", 0) else 0
-            maxOf(now, retryAt, day.atStartOfDay(zone).plusMinutes(ch.subscription.footprintAt.toLong()).toInstant().toEpochMilli())
-        }.minOrNull()
+            val dueAt = scheduledDate.atStartOfDay(zone).plusMinutes(ch.subscription.footprintAt.toLong()).toInstant().toEpochMilli()
+            maxOf(now, retryAt, dueAt)
+        }
     }
 
     // ---------- 每日屏幕时间 ----------

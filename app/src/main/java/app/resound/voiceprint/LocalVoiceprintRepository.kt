@@ -29,11 +29,18 @@ class LocalVoiceprintRepository(
     private val gate = Mutex()
     private val actions = Mutex()
     private val playback = Mutex()
-    override val sampleAudioBytes = sampleAudioStore.bytes
-    override suspend fun clearSampleAudio(): Result<Unit> = withContext(Dispatchers.IO) {
-        try { playback.withLock { gate.withLock { sampleAudioStore.clear() } }; Result.success(Unit) }
-        catch (e: CancellationException) { throw e }
-        catch (e: Exception) { Result.failure(e) }
+    override val sampleAudioBytes: StateFlow<Long> get() = sampleAudioStore.bytes
+    override suspend fun clearSampleAudio(): Result<Unit> {
+        return try {
+            withContext(Dispatchers.IO) {
+                playback.withLock { gate.withLock(action = sampleAudioStore::clear) }
+            }
+            Result.success(Unit)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            Result.failure(failure)
+        }
     }
     private val rounds = Mutex()
     private var revision = 0L
@@ -80,52 +87,89 @@ class LocalVoiceprintRepository(
         require(id != 0L)
         gate.withLock {
             db.writeTransaction {
-                dao.allSamples().filter { it.personId == id }.forEach { sampleAudioStore.delete("local-${it.id}") }
-                dao.clearPersonResults(id); dao.clearPersonSamples(id); dao.deletePerson(id); invalidateRetained()
-            }
-            revision++
-        }
-    }
-    override fun samples(personId: Long): Flow<List<VoiceprintSample>> = combine(dao.observePersonSamples(personId), sampleAudioStore.changes) { rows, _ ->
-        rows.map { row -> sampleView(row, sampleAudioStore.exists("local-${row.sample.id}") ||
-            (sampleAudioStore.fallbackAllowed() && row.sample.sourceLineId != null && row.segmentPath?.let { File(it).isFile } == true)) }
-    }.flowOn(Dispatchers.IO)
-    override suspend fun sampleAudio(key: String): File? = withContext(Dispatchers.IO) {
-        playback.withLock {
-            val id = key.takeIf { it.startsWith("local:") }?.removePrefix("local:")?.toLongOrNull() ?: return@withLock null
-            val sample = dao.sample(id) ?: return@withLock null
-            sampleAudioStore.file("local-$id")?.let { return@withLock it }
-            if (!sampleAudioStore.fallbackAllowed()) return@withLock null
-            val line = sample.sourceLineId?.let { dao.line(it) } ?: return@withLock null
-            clipLine(line)
-        }
-    }
-    /** 从还在的原录音里截出这一句；录音已清理返回 null。读取期间钉住录音，避免被清理。 */
-    internal suspend fun clipLine(line: TranscriptLineEntity): File? {
-        val segment = db.transcribe().findSegment(line.segmentId) ?: return null
-        gate.withLock { if (!File(segment.path).isFile) return null; pin(segment.id) }
-        return try {
-            sampleAudioStore.temp(VoiceprintAudio.group(readPcm(File(segment.path)), segment.startAt, listOf(line)))
-        } finally { unpin(segment.id) }
-    }
-    override fun lines(personId: Long): Flow<List<PersonLine>> = combine(dao.observePersonLines(personId), dao.observePersonSamples(personId)) { lines, rows ->
-        val used = rows.filter { it.sample.source != "line-review" }.mapNotNull { r -> r.sample.segmentId?.let { it to r.sample.groupKey } }.toSet()
-        lines.map { PersonLine(it.id, it.text, it.startAt, it.endAt, it.speakerManual, (it.segmentId to VoiceprintAudio.groupKey(it)) in used) }
-    }
-    override fun deleteSample(key: String) = launchAudioAction {
-        val id = requireNotNull(key.removePrefix("local:").toLongOrNull())
-        gate.withLock {
-            db.writeTransaction {
-                val sample = dao.sample(id) ?: return@writeTransaction
-                dao.deleteSample(id); sampleAudioStore.delete("local-$id")
-                // 删掉原话来源的样本后，不让自动学习立刻把同一段声音补回来。
-                val segmentId = sample.segmentId; val groupKey = sample.groupKey
-                if (segmentId != null && groupKey != null && sample.personId == 0L)
-                    dao.exclude(VoiceprintExclusionEntity(segmentId, groupKey, now()))
+                removeSampleClipsFor(id)
+                dao.clearPersonResults(id)
+                dao.clearPersonSamples(id)
+                dao.deletePerson(id)
                 invalidateRetained()
             }
             revision++
         }
+    }
+
+    override fun samples(personId: Long): Flow<List<VoiceprintSample>> =
+        dao.observePersonSamples(personId).combine(sampleAudioStore.changes) { rows, _ ->
+            rows.map { row ->
+                val saved = sampleAudioStore.file(sampleClipName(row.sample.id))
+                val canReadSource = saved == null && sampleAudioStore.fallbackAllowed() &&
+                    row.sample.sourceLineId != null && row.segmentPath?.let { File(it).isFile } == true
+                sampleView(row, saved != null || canReadSource)
+            }
+        }.flowOn(Dispatchers.IO)
+
+    override suspend fun sampleAudio(key: String): File? = withContext(Dispatchers.IO) {
+        if (key.substringBefore(':') != "local") return@withContext null
+        val sampleId = key.substringAfter(':').toLongOrNull() ?: return@withContext null
+        playback.withLock {
+            val item = dao.sample(sampleId) ?: return@withLock null
+            val clip = sampleAudioStore.file(sampleClipName(sampleId))
+            if (clip != null || !sampleAudioStore.fallbackAllowed()) return@withLock clip
+            item.sourceLineId?.let { dao.line(it) }?.let { clipLine(it) }
+        }
+    }
+
+    /** 清理任务可跳过正在读的片段，解码或存盘失败时也要解除保护。 */
+    internal suspend fun clipLine(line: TranscriptLineEntity): File? {
+        val segment = db.transcribe().findSegment(line.segmentId) ?: return null
+        val original = File(segment.path)
+        val available = gate.withLock {
+            original.isFile.also { if (it) pin(segment.id) }
+        }
+        if (!available) return null
+        return try {
+            val speech = readPcm(original)
+            val sentence = VoiceprintAudio.group(speech, segment.startAt, listOf(line))
+            sampleAudioStore.temp(sentence)
+        } finally {
+            unpin(segment.id)
+        }
+    }
+
+    override fun lines(personId: Long): Flow<List<PersonLine>> =
+        dao.observePersonLines(personId).combine(dao.observePersonSamples(personId)) { recognized, samples ->
+            val sampleGroups = buildSet {
+                for (row in samples) {
+                    val sample = row.sample
+                    val segment = sample.segmentId ?: continue
+                    if (sample.source != "line-review") add(segment to sample.groupKey)
+                }
+            }
+            recognized.map { row ->
+                val used = (row.segmentId to VoiceprintAudio.groupKey(row)) in sampleGroups
+                PersonLine(row.id, row.text, row.startAt, row.endAt, row.speakerManual, used)
+            }
+        }
+
+    override fun deleteSample(key: String) = launchAudioAction {
+        val id = requireNotNull(key.removePrefix("local:").toLongOrNull())
+        gate.withLock {
+            db.writeTransaction {
+                val item = dao.sample(id) ?: return@writeTransaction
+                dao.deleteSample(item.id)
+                sampleAudioStore.delete(sampleClipName(item.id))
+                excludeDeletedSample(item)
+                invalidateRetained()
+            }
+            revision++
+        }
+    }
+
+    private suspend fun excludeDeletedSample(item: VoiceprintSampleEntity) {
+        // “我”的样本删除后禁止同组录音再次自动入库。
+        if (item.personId != 0L) return
+        val segment = item.segmentId ?: return
+        val key = item.groupKey ?: return
+        dao.exclude(VoiceprintExclusionEntity(segment, key, now()))
     }
     override fun clearIdentity(lineId: Long) = launchAudioAction {
         gate.withLock {
@@ -203,8 +247,19 @@ class LocalVoiceprintRepository(
             }.firstOrNull()
         return Group(segment, key, lines, cacheKey, feature)
     }
-    private suspend fun dropFile(segmentId: Long, key: String) =
-        dao.allSamples().filter { it.segmentId == segmentId && it.groupKey == key }.forEach { sampleAudioStore.delete("local-${it.id}") }
+    private suspend fun dropFile(segmentId: Long, key: String) {
+        for (sample in dao.allSamples()) {
+            if (sample.segmentId == segmentId && sample.groupKey == key) {
+                sampleAudioStore.delete(sampleClipName(sample.id))
+            }
+        }
+    }
+
+    private suspend fun removeSampleClipsFor(personId: Long) {
+        for (sample in dao.allSamples()) {
+            if (sample.personId == personId) sampleAudioStore.delete(sampleClipName(sample.id))
+        }
+    }
     override fun markMe(lineId: Long) = assignPerson(lineId, 0)
     override fun assignPerson(lineId: Long, personId: Long) = launchAction { assign(lineId, personId) }
     override suspend fun nameAndAssign(lineId: Long, name: String): Result<Unit> = withContext(Dispatchers.IO) {
@@ -266,7 +321,7 @@ class LocalVoiceprintRepository(
                         ?: VoiceprintSampleEntity(source = "line", sourceLineId = lineId, segmentId = group.segment.id,
                             groupKey = group.key, vector = VoiceprintMath.encode(vector),
                             durationMillis = feature.durationMillis, createdAt = now(), personId = personId))
-                        .also { id -> clip?.let { sampleAudioStore.save("local-$id", it) } }
+                        .also { id -> clip?.let { sampleAudioStore.save(sampleClipName(id), it) } }
                     // 明确重标但无法提取一致声音时，保留人工记录并隔离旧向量。
                     if (vector == null && existing != null && existing.source != "auto")
                         dao.saveSample(existing.copy(source = "line-review", sourceLineId = lineId, personId = personId))
@@ -297,7 +352,7 @@ class LocalVoiceprintRepository(
         gate.withLock {
             cache.clear()
             db.writeTransaction {
-                dao.allSamples().filter { it.personId == 0L }.forEach { sampleAudioStore.delete("local-${it.id}") }
+                removeSampleClipsFor(0)
                 dao.clearSamples(); dao.clearExclusions(); dao.clearResults(); invalidateRetained()
             }
             revision++; resetGeneration++
@@ -315,7 +370,7 @@ class LocalVoiceprintRepository(
                         require(personId == 0L || dao.people().any { it.id == personId })
                         dao.saveSample(VoiceprintSampleEntity(source = "enroll", sourceLineId = null, segmentId = null, groupKey = null,
                             vector = VoiceprintMath.encode(vector), durationMillis = speech.size / 16L, createdAt = now(), personId = personId))
-                            .also { id -> sampleAudioStore.save("local-$id", speech) }
+                            .also { id -> sampleAudioStore.save(sampleClipName(id), speech) }
                         invalidateRetained()
                     }
                     revision++
@@ -528,10 +583,24 @@ class LocalVoiceprintRepository(
 
 }
 
-internal fun sampleView(row: VoiceprintSampleRow, playable: Boolean = false): VoiceprintSample {
-    val s = row.sample
-    val origin = when (s.source) { "auto" -> SampleOrigin.Auto; "enroll" -> SampleOrigin.Recorded; else -> SampleOrigin.Line }
-    return VoiceprintSample("local:${s.id}", origin, s.sourceLineId, row.text, row.lineStart ?: s.createdAt, s.durationMillis,
-        if (s.source == "line-review") SampleState.Failed else SampleState.Active,
-        if (s.source == "line-review") "这段声音不够清晰一致，暂不参与认人" else null, playable)
+private fun sampleClipName(id: Long) = "local-$id"
+
+internal fun sampleView(row: VoiceprintSampleRow, playable: Boolean = false): VoiceprintSample = row.sample.run {
+    val sampleOrigin = when (source) {
+        "enroll" -> SampleOrigin.Recorded
+        "auto" -> SampleOrigin.Auto
+        else -> SampleOrigin.Line
+    }
+    val excluded = source == "line-review"
+    VoiceprintSample(
+        key = "local:$id",
+        origin = sampleOrigin,
+        lineId = sourceLineId,
+        text = row.text,
+        at = row.lineStart ?: createdAt,
+        millis = durationMillis,
+        state = if (excluded) SampleState.Failed else SampleState.Active,
+        note = if (excluded) "这段声音不够清晰一致，暂不参与认人" else null,
+        playable = playable,
+    )
 }

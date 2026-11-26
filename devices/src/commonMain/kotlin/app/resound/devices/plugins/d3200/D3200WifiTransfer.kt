@@ -21,70 +21,77 @@ internal class D3200WifiTransfer(
         private set
     val enabled get() = port != null && session.store.getString("fastTransfer") == "true" &&
         session.clock.nowEpochMillis() >= (session.store.getString("fastTransferRetryAt")?.toLongOrNull() ?: 0)
+
     suspend fun read(file: RecordingFile, fromOffset: Long, emitBytes: suspend (ByteArray) -> Unit) {
         try {
-            val network = channel ?: run {
-                val local = port ?: throw DeviceException(ErrorCode.Unsupported)
-                val random = session.toolbox.crypto.randomBytes(24).joinToString("") { (it.toInt() and 255).toString(16).padStart(2,'0') }
-                val ssid = "TaoSheng-${random.take(12)}"; val password = random.takeLast(32)
-                val reply = ask(D3200Protocol.wifiConfig(ssid,password),0x1a05)
-                val endpoint = D3200Protocol.wifiEndpoint(reply)
-                session.store.putString("wifiPendingClose","true")
-                stopBluetoothReaders()
-                handedOff = true
-                local.detachBluetooth()
-                delay(10_000)
-                local.open(LocalFileNetworkConfig(ssid,password,endpoint.first,endpoint.second,32003,
-                    "soundcore-keep-alive-unicast".encodeToByteArray(),webSocketUserAgent = "okhttp/3.12.13.18",
-                    requestCompression = false,webSocketAttempts = 3,allowExpiredPeerCertificate = true)).also { channel = it }
-            }
+            val network = channel ?: connect()
             coroutineScope {
-                val incoming = Channel<ByteArray>(128)
-                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                val frames = Channel<ByteArray>(128)
+                val receive = launch(start = CoroutineStart.UNDISPATCHED) {
                     val decoder = BeanLight.Decoder()
-                    try { network.incoming.collect { bytes -> decoder.push(bytes).forEach { incoming.send(it) } } }
-                    finally { incoming.close() }
+                    try {
+                        network.incoming.collect { bytes ->
+                            for (frame in decoder.push(bytes)) frames.send(frame)
+                        }
+                    } finally {
+                        frames.close()
+                    }
                 }
                 try {
-                    network.sendText(D3200Protocol.wifiRequest(file.id.toLong(),D3200HistoryCore.resumeAt(fromOffset/160)))
+                    val id = file.id.toLong()
+                    val firstPacket = D3200HistoryCore.resumeAt(fromOffset / D3200Protocol.AUDIO_PACKET_BYTES)
+                    network.sendText(D3200Protocol.wifiRequest(id, firstPacket))
                     val header = withTimeout(20_000) {
-                        var frame = incoming.receive()
-                        while (D3200Protocol.command(frame) !in setOf(0x1a07,0x1b07)) frame = incoming.receive()
-                        frame
-                    }
-                    run {
-                        val payload = D3200Protocol.payload(header)
-                        crypto.fileHeader(payload,file.id.toLong())
-                        val total = D3200HistoryCore.packets(D3200Protocol.u32(payload,4))
-                        val cursor = D3200DownloadCursor(fromOffset,total)
-                        val batch = ByteArray(8_000);var used = 0
-                        while (!cursor.complete) {
-                            val frame = withTimeout(45_000) { incoming.receive() }
-                            when (D3200Protocol.command(frame)) {
-                                0x1a08,0x1a12,0x1b08,0x1b12 -> for (slice in D3200Protocol.slices(D3200Protocol.payload(frame))) {
-                                    cursor.accept(slice.seq,crypto.decrypt(slice))?.let { packet ->
-                                        packet.copyInto(batch,used);used += packet.size
-                                        if (used == batch.size) { emitBytes(batch.copyOf());used = 0 }
-                                    }
-                                }
-                                0x1a0a,0x1b0a -> if (!cursor.complete) throw DeviceException(ErrorCode.Disconnected,"incomplete Wi-Fi transfer")
-                            }
+                        frames.receiveAsFlow().first {
+                            val command = D3200Protocol.command(it)
+                            command == 0x1a07 || command == 0x1b07
                         }
-                        if (used > 0) emitBytes(batch.copyOf(used))
                     }
-                } finally { collector.cancelAndJoin();incoming.cancel() }
+                    val download = D3200FileDownload(D3200Protocol.payload(header), id, fromOffset, crypto, emitBytes)
+                    while (!download.complete) {
+                        val frame = withTimeout(45_000) { frames.receive() }
+                        when (D3200Protocol.command(frame)) {
+                            0x1a08, 0x1a12, 0x1b08, 0x1b12 -> download.audio(frame)
+                            0x1a0a, 0x1b0a -> throw DeviceException(ErrorCode.Disconnected, "incomplete Wi-Fi transfer")
+                        }
+                    }
+                    download.finishChunk()
+                } finally {
+                    receive.cancelAndJoin()
+                    frames.cancel()
+                }
             }
         } catch (e: CancellationException) {
             if (e !is TimeoutCancellationException) throw e
             currentCoroutineContext().ensureActive()
-            session.store.putString("fastTransferRetryAt",(session.clock.nowEpochMillis()+300_000).toString())
-            throw DeviceException(ErrorCode.Disconnected,"fast transfer timeout; retry on Bluetooth",e)
-        }
-        catch (e: Exception) {
-            session.store.putString("fastTransferRetryAt",(session.clock.nowEpochMillis()+300_000).toString())
-            throw DeviceException(ErrorCode.Disconnected,"fast transfer failed; retry on Bluetooth",e)
+            throw deferRetry("fast transfer timeout; retry on Bluetooth", e)
+        } catch (e: Exception) {
+            throw deferRetry("fast transfer failed; retry on Bluetooth", e)
         }
     }
+
+    private suspend fun connect(): LocalFileNetworkChannel {
+        val local = port ?: throw DeviceException(ErrorCode.Unsupported)
+        val credentials = session.toolbox.crypto.randomBytes(24).toHexString()
+        val ssid = "TaoSheng-${credentials.take(12)}"
+        val password = credentials.takeLast(32)
+        val (ip, port) = D3200Protocol.wifiEndpoint(ask(D3200Protocol.wifiConfig(ssid, password), 0x1a05))
+        session.store.putString("wifiPendingClose", "true")
+        stopBluetoothReaders()
+        handedOff = true
+        local.detachBluetooth()
+        delay(10_000)
+        val config = LocalFileNetworkConfig(ssid, password, ip, port, 32003,
+            "soundcore-keep-alive-unicast".encodeToByteArray(), webSocketUserAgent = "okhttp/3.12.13.18",
+            requestCompression = false, webSocketAttempts = 3, allowExpiredPeerCertificate = true)
+        return local.open(config).also { channel = it }
+    }
+
+    private fun deferRetry(message: String, cause: Exception): DeviceException {
+        session.store.putString("fastTransferRetryAt", (session.clock.nowEpochMillis() + 300_000).toString())
+        return DeviceException(ErrorCode.Disconnected, message, cause)
+    }
+
     suspend fun close() {
         val network = channel;channel = null
         try { runCatching { withTimeout(1500) { network?.sendText("FINISH") } } }

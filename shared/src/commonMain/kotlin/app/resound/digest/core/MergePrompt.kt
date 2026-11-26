@@ -25,20 +25,22 @@ object MergePrompt {
      * 合并的输入：几件事已经整理好的标题、摘要、要点（不重读原话，多长的事都能合，提取项原样保留）。
      */
     fun input(events: List<MemoryEventData>, zone: TimeZone, situationHeadings: Map<Long, String> = emptyMap()): String {
-
-        fun at(ms: Long) = clock(ms, zone)
-        return buildString {
-            events.sortedBy { it.startAt }.forEachIndexed { i, e ->
-                situationHeadings[e.id]?.let { appendLine(it) }
-                appendLine("【记录 ${i + 1}】${at(e.startAt)}–${at(e.endAt)} · ${e.scene}")
-                appendLine("标题：${e.title}")
-                if (e.summary.isNotBlank()) appendLine("摘要：${e.summary}")
-                JSONArray(e.pointsJson.ifBlank { "[]" }).strings().takeIf { it.isNotEmpty() }?.let { appendLine("要点：" + it.joinToString("；")) }
-                JSONArray(e.peopleJson.ifBlank { "[]" }).strings().takeIf { it.isNotEmpty() }?.let { appendLine("提到的人：" + it.joinToString("、")) }
-                e.place?.let { appendLine("地点：$it") }
-                appendLine()
-            }
-        }.trim()
+        val sections = events.sortedBy { it.startAt }.mapIndexed { index, event ->
+            val points = JSONArray(event.pointsJson.ifBlank { "[]" }).strings()
+            val people = JSONArray(event.peopleJson.ifBlank { "[]" }).strings()
+            val from = clock(event.startAt, zone)
+            val to = clock(event.endAt, zone)
+            listOfNotNull(
+                situationHeadings[event.id],
+                "【记录 ${index + 1}】$from–$to · ${event.scene}",
+                "标题：${event.title}",
+                event.summary.takeUnless { it.isBlank() }?.let { "摘要：$it" },
+                points.takeUnless { it.isEmpty() }?.joinToString("；", prefix = "要点："),
+                people.takeUnless { it.isEmpty() }?.joinToString("、", prefix = "提到的人："),
+                event.place?.let { "地点：$it" },
+            ).joinToString("\n")
+        }
+        return sections.joinToString("\n\n").trim()
     }
 
     /**
@@ -52,46 +54,49 @@ object MergePrompt {
         zone: TimeZone,
     ): Pair<DigestPrompt.ParsedEvent, List<DigestPrompt.ParsedItem>> {
         if (lines.isEmpty()) throw LlmException(LlmError.Format)
-        val json = try {
-            JSONObject(content.trim().removePrefix("```json").removePrefix("```").removeSuffix("```"))
+        val raw = content.trim()
+        val objectText = raw.removePrefix("```json").removePrefix("```").removeSuffix("```")
+        val response = try {
+            JSONObject(objectText)
         } catch (_: Exception) {
             throw LlmException(LlmError.Format)
         }
-        val merged = json.optJSONObject("merged") ?: throw LlmException(LlmError.Format)
+        val detail = response.optJSONObject("merged") ?: throw LlmException(LlmError.Format)
+        val contributors = detail.optJSONArray("people").strings()
         val event = DigestPrompt.ParsedEvent(
-            lineIds = lines.map { it.id },
+            lineIds = lines.map(TranscriptLineData::id),
             startAt = lines.first().startAt,
             endAt = lines.maxOf { it.endAt },
-            scene = merged.optString("scene").ifBlank { "其他" },
-            title = merged.optString("title").ifBlank { "未命名" }.take(30),
-            summary = merged.optString("summary"),
-            points = merged.optJSONArray("points").strings(),
-            people = merged.optJSONArray("people").strings().filterNot { it.startsWith("说话人") },
-            place = merged.optStringOrNull("place"),
-            emotion = merged.optStringOrNull("emotion"),
-            intensity = merged.optInt("intensity", 0).takeIf { it in 1..5 },
-            important = merged.optBoolean("important", false),
+            scene = detail.optString("scene").ifBlank { "其他" },
+            title = detail.optString("title").ifBlank { "未命名" }.take(30),
+            summary = detail.optString("summary"),
+            points = detail.optJSONArray("points").strings(),
+            people = contributors.filter { !it.startsWith("说话人") },
+            place = detail.optStringOrNull("place"),
+            emotion = detail.optStringOrNull("emotion"),
+            intensity = detail.optInt("intensity").takeIf { it in 1..5 },
+            important = detail.optBoolean("important"),
         )
-        val items = mutableListOf<DigestPrompt.ParsedItem>()
-        if (event.scene !in DigestPrompt.NO_ITEMS_SCENES) {
-            val raw = json.optJSONArray("items") ?: JSONArray()
-            for (i in 0 until raw.length()) {
-                val it = raw.optJSONObject(i) ?: continue
-                val category = it.optString("category")
-                val content = it.optString("content").trim()
-                if (category !in DigestPrompt.CATEGORIES || content.isEmpty()) continue
-                val line = it.optInt("line", -1).takeIf { l -> l in 1..lines.size }
-                items += DigestPrompt.ParsedItem(
-                    eventIndex = 0,
-                    category = category,
-                    kind = if (category == "待办") it.optStringOrNull("kind") else null,
-                    content = content,
-                    dueText = it.optStringOrNull("due"),
-                    dueAt = it.optStringOrNull("due")?.let { d -> DigestPrompt.parseDue(d, zone) },
-                    who = it.optStringOrNull("who"),
-                    lineId = line?.let { l -> lines[l - 1].id },
-                )
-            }
+        if (event.scene in DigestPrompt.NO_ITEMS_SCENES) return event to emptyList()
+        val extracted = response.optJSONArray("items") ?: return event to emptyList()
+        val items = (0 until extracted.length()).mapNotNull { index ->
+            val row = extracted.optJSONObject(index) ?: return@mapNotNull null
+            val kind = row.optString("category")
+            val text = row.optString("content").trim()
+            if (kind !in DigestPrompt.CATEGORIES || text.isEmpty()) return@mapNotNull null
+            val lineNumber = row.optInt("line", -1)
+            val source = lineNumber.takeIf { it in 1..lines.size }?.let { lines[it - 1] }
+            val deadline = row.optStringOrNull("due")
+            DigestPrompt.ParsedItem(
+                eventIndex = 0,
+                category = kind,
+                kind = if (kind == "待办") row.optStringOrNull("kind") else null,
+                content = text,
+                dueText = deadline,
+                dueAt = deadline?.let { DigestPrompt.parseDue(it, zone) },
+                who = row.optStringOrNull("who"),
+                lineId = source?.id,
+            )
         }
         return event to items
     }

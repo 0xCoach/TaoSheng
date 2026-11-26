@@ -37,49 +37,60 @@ class ScreenTimePuller(
         if (at - settings.lastPullAt < PULL_THROTTLE_MILLIS) return@withLock PullResult.Throttled
         try {
             val startedAt = now()
-            val state = dao.state(SCREEN_SOURCE)
+            val previous = dao.state(SCREEN_SOURCE)
             val horizon = at - HORIZON_MILLIS
-            val covered = state?.coveredUntil ?: 0L
-            // 关闭时刻未知（升级用户）且上次覆盖早于本次打开：沿用旧口径把关闭前整段当关闭期间，起点圈到 enabledAt。
-            val legacyDisabled = state != null && covered < settings.enabledAt && settings.disabledAt == 0L
-            // 从未提交过时不补采历史；已提交过则起点不再受 enabledAt 约束，关闭前仍开着的使用照常补拉。
-            val start = when {
-                state == null -> maxOf(dao.lastEventAt() ?: 0L, horizon, settings.enabledAt)
-                legacyDisabled -> maxOf(dao.lastEventAt() ?: 0L, covered, state.floor, horizon, settings.enabledAt)
-                else -> maxOf(dao.lastEventAt() ?: 0L, covered, state.floor, horizon)
+            val latestEvent = dao.lastEventAt() ?: 0L
+            val lastCoverage = previous?.coveredUntil
+            val covered = lastCoverage ?: 0L
+            val earliest = maxOf(horizon, latestEvent)
+            val start = if (previous == null) {
+                maxOf(earliest, settings.enabledAt)
+            } else {
+                val checkpoint = maxOf(earliest, covered, previous.floor)
+                // 旧版本未保存关停时刻，只能从本次启用时起补采。
+                if (settings.disabledAt == 0L && covered < settings.enabledAt) {
+                    maxOf(checkpoint, settings.enabledAt)
+                } else {
+                    checkpoint
+                }
             }
-            val disabled = disabledWindowsForPull(state, covered, settings)
-            // 缺口随本次事务一起落库：事件源抛错时与覆盖指针一起回滚，下次拉取不会重复写。
-            val existingDisabled = if (state == null) emptyList() else {
-                val lookupFrom = minOf(start, disabled.minOfOrNull { it.first } ?: start)
+            val disabled = disabledWindowsForPull(previous, covered, settings)
+            val persisted = if (previous == null) emptySet() else {
+                val lookupFrom = minOf(start, disabled.firstOrNull()?.first ?: start)
                 dao.gaps(SCREEN_SOURCE, lookupFrom, at).filter { it.code == GapCode.DISABLED }
+                    .mapTo(HashSet()) { it.fromAt to it.untilAt }
             }
             val gaps = buildList {
-                state?.coveredUntil?.takeIf { it < horizon }?.let {
-                    add(ScreenCoverageGapRow(source = SCREEN_SOURCE, fromAt = it, untilAt = horizon, code = GapCode.PULL_FAILED))
+                if (lastCoverage != null && lastCoverage < horizon) {
+                    add(ScreenCoverageGapRow(source = SCREEN_SOURCE, fromAt = lastCoverage, untilAt = horizon, code = GapCode.PULL_FAILED))
                 }
-                for ((offFrom, offUntil) in disabled) {
-                    if (existingDisabled.any { it.fromAt == offFrom && it.untilAt == offUntil }) continue
-                    add(ScreenCoverageGapRow(source = SCREEN_SOURCE, fromAt = offFrom, untilAt = offUntil, code = GapCode.DISABLED))
+                for (window in disabled) {
+                    if (window !in persisted) {
+                        add(ScreenCoverageGapRow(
+                            source = SCREEN_SOURCE, fromAt = window.first, untilAt = window.second, code = GapCode.DISABLED,
+                        ))
+                    }
                 }
             }
-            val allowed = allowedPullRanges(start, at, disabled).ifEmpty {
-                if (start < at && disabled.isNotEmpty()) emptyList() else listOf(start to at)
+            val windows = allowedPullRanges(start, at, disabled).ifEmpty {
+                if (start >= at || disabled.isEmpty()) listOf(start to at) else emptyList()
             }
-            val raw = if (allowed.size <= 1) {
-                allowed.singleOrNull()?.let { source.since(it.first, it.second) } ?: emptyList()
-            } else {
-                allowed.flatMap { (from, until) ->
-                    source.since(from, until).filter { it.at >= from && it.at < until }
+            val raw = buildList {
+                for ((from, until) in windows) {
+                    val batch = source.since(from, until)
+                    if (windows.size == 1) addAll(batch)
+                    else batch.filterTo(this) { it.at >= from && it.at < until }
                 }
             }
             val floor = dao.state(SCREEN_SOURCE)?.floor ?: 0L
-            val events = raw.filter { it.type in SCREEN_EVENT_TYPES }
-                .map { ScreenEventRow(at = it.at, pkg = it.pkg, cls = it.cls ?: "", type = it.type) }
-                .filter { row -> disabled.none { row.at >= it.first && row.at < it.second } }
-                .filter { it.at >= floor }
-            val names = if (events.isEmpty()) emptyList() else
-                source.appNames(events.map { it.pkg }.toSet()).map { (pkg, name) -> ScreenAppNameRow(pkg, name, at) }
+            val events = raw.mapNotNull { item ->
+                val allowed = item.at >= floor && item.type in SCREEN_EVENT_TYPES &&
+                    disabled.none { (begin, end) -> item.at >= begin && item.at < end }
+                if (allowed) ScreenEventRow(at = item.at, pkg = item.pkg, cls = item.cls.orEmpty(), type = item.type) else null
+            }
+            val packages = events.mapTo(LinkedHashSet()) { it.pkg }
+            val labels = if (packages.isEmpty()) emptyMap() else source.appNames(packages)
+            val names = labels.map { (pkg, name) -> ScreenAppNameRow(pkg, name, at) }
             dao.commitPull(events, names, at, gaps)
             settings.markPulled(at)
             diagnostic("screentime: pulled ${events.size} events (${raw.size} raw) in ${now() - startedAt}ms")
@@ -111,38 +122,45 @@ internal fun disabledWindowsForPull(
     covered: Long,
     settings: ScreenTimeSettings,
 ): List<Pair<Long, Long>> {
-    val windows = settings.disabledWindows().toMutableList()
-    if (state != null && covered < settings.enabledAt && settings.disabledAt > 0) {
-        val offFrom = maxOf(covered, settings.disabledAt)
-        if (offFrom < settings.enabledAt) windows += offFrom to settings.enabledAt
-    } else if (state != null && covered < settings.enabledAt && settings.disabledAt == 0L) {
-        windows += covered to settings.enabledAt
+    val existing = settings.disabledWindows()
+    if (state == null || covered >= settings.enabledAt || settings.disabledAt < 0) return mergeIntervals(existing)
+    val offAt = if (settings.disabledAt > 0) maxOf(covered, settings.disabledAt) else covered
+    return if (offAt >= settings.enabledAt) {
+        mergeIntervals(existing)
+    } else {
+        mergeIntervals(existing + (offAt to settings.enabledAt))
     }
-    return mergeIntervals(windows)
 }
 
 internal fun allowedPullRanges(start: Long, end: Long, blocked: List<Pair<Long, Long>>): List<Pair<Long, Long>> {
     if (start >= end) return emptyList()
-    val cuts = mergeIntervals(blocked.map { maxOf(it.first, start) to minOf(it.second, end) }.filter { it.first < it.second })
-    val out = mutableListOf<Pair<Long, Long>>()
-    var cursor = start
-    for ((bFrom, bUntil) in cuts) {
-        if (cursor < bFrom) out += cursor to bFrom
-        if (bUntil > cursor) cursor = bUntil
+    return buildList {
+        var position = start
+        for ((left, right) in blocked.sortedBy { it.first }) {
+            if (position >= end || left >= end) break
+            if (left >= right || right <= position) continue
+            if (position < left) add(position to left)
+            position = minOf(right, end)
+        }
+        if (position < end) add(position to end)
     }
-    if (cursor < end) out += cursor to end
-    return out
 }
 
 internal fun mergeIntervals(intervals: List<Pair<Long, Long>>): List<Pair<Long, Long>> {
     if (intervals.isEmpty()) return emptyList()
     val sorted = intervals.sortedBy { it.first }
-    val out = mutableListOf(sorted.first())
-    for (i in 1 until sorted.size) {
-        val last = out.last()
-        val cur = sorted[i]
-        if (cur.first <= last.second) out[out.lastIndex] = last.first to maxOf(last.second, cur.second)
-        else out += cur
+    return buildList {
+        var (from, until) = sorted.first()
+        for (index in 1..sorted.lastIndex) {
+            val (start, end) = sorted[index]
+            if (start > until) {
+                add(from to until)
+                from = start
+                until = end
+            } else {
+                until = maxOf(until, end)
+            }
+        }
+        add(from to until)
     }
-    return out
 }

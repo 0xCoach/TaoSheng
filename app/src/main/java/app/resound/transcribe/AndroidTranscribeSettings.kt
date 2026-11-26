@@ -30,6 +30,7 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
+private const val DOUBAO_FALLBACK_PREFERENCE = "doubaoFallback"
 
 class AndroidTranscribeSettings internal constructor(private val context: Context, private val headerStore: ServiceHeaders) : TranscribeSettings {
     constructor(context: Context) : this(context, ServiceHeaders(context, transcription = true))
@@ -61,19 +62,27 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
         _plan.value = on
         refreshReady(); onChanged()
     }
-    private val _doubaoFallback = MutableStateFlow(prefs.getBoolean("doubaoFallback", false))
-    val doubaoFallback = _doubaoFallback.asStateFlow()
+    private val fallbackEnabled = MutableStateFlow(prefs.getBoolean(DOUBAO_FALLBACK_PREFERENCE, false))
+    val doubaoFallback = fallbackEnabled.asStateFlow()
+
     fun setDoubaoFallback(on: Boolean) {
-        check(prefs.edit().putBoolean("doubaoFallback", on).commit()) { "保存失败，请重试" }
-        _doubaoFallback.value = on
+        val saved = prefs.edit().putBoolean(DOUBAO_FALLBACK_PREFERENCE, on).commit()
+        check(saved) { "保存失败，请重试" }
+        fallbackEnabled.value = on
         onChanged()
     }
 
-    /** null 表示不能补位（没配地址/模型，或密钥读取失败）；免密或只用请求头鉴权的服务传空字符串，与 ready(Custom) 口径一致。 */
+    internal fun hasCustomFallbackTarget() = customEndpoint.isNotBlank() && customModel.isNotBlank()
+
+    /** 无凭据的自建服务可以返回空字符串；缺配置或读取失败返回 null。 */
     internal fun customFallbackCredential(): String? {
-        if (customEndpoint.isBlank() || customModel.isBlank()) return null
-        return runCatching { readKey(TranscribeSource.Custom) }
-            .onFailure { FailureNotes.record("transcribe/customFallbackKey", it) }.getOrNull()
+        if (!hasCustomFallbackTarget()) return null
+        return try {
+            credential(TranscribeSource.Custom)
+        } catch (error: Throwable) {
+            FailureNotes.record("transcribe/customFallbackKey", error)
+            null
+        }
     }
 
     private fun keyFieldFor(source: TranscribeSource) = when {
@@ -90,8 +99,8 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
             val modelField = if (qwen) "qwenModel" else "model"
             val modeField = if (qwen) "qwenEndpointMode" else "endpointMode"
             val different = prefs.getString(addressField, "") != endpoint || prefs.getString(modelField, "") != model ||
-                prefs.getString(modeField, CustomEndpointMode.Auto.name) != mode.name
-            check(prefs.edit().putString(addressField, endpoint).putString(modelField, model).putString(modeField, mode.name).commit()) {
+                prefs.getString(modeField, CustomEndpointMode.Auto.storedValue) != mode.storedValue
+            check(prefs.edit().putString(addressField, endpoint).putString(modelField, model).putString(modeField, mode.storedValue).commit()) {
                 "保存失败，请重试"
             }
             if (!qwen && different) formatPrefs.edit().clear().commit()
@@ -109,7 +118,7 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
         val qwen = api == CustomAsrApi.Qwen
         val parts = listOf(prefs.getString(if (qwen) "qwenEndpoint" else "endpoint", CustomAsrSettings.QWEN_ENDPOINT.takeIf { qwen } ?: "").orEmpty(),
             prefs.getString(if (qwen) "qwenModel" else "model", CustomAsrSettings.QWEN_MODEL.takeIf { qwen } ?: "").orEmpty(),
-            if (qwen) CustomEndpointMode.Full.name else prefs.getString("endpointMode", CustomEndpointMode.Auto.name).orEmpty(),
+            if (qwen) CustomEndpointMode.Full.storedValue else prefs.getString("endpointMode", CustomEndpointMode.Auto.storedValue).orEmpty(),
             if (qwen) "" else prefs.getString("customSpeakerFormat", CustomSpeakerFormat.Auto.name).orEmpty(),
             prefs.getString(CustomAsrSettings.keyField(api), "").orEmpty(),
             org.json.JSONArray(headers(TranscribeSource.Custom.name).map { listOf(it.name, it.value) }).toString())
@@ -206,11 +215,10 @@ class AndroidTranscribeSettings internal constructor(private val context: Contex
         customSettings.save(endpoint, model, mode)
         return CustomSaveResult(keySaved, customKeyState.value)
     }
-    /** 完整地址按填写的原样校验；自动模式沿用 OpenAI 兼容的路径规则。 */
     private fun validateEndpoint(endpoint: String, mode: CustomEndpointMode) {
-        if (mode == CustomEndpointMode.Full) fullEndpoint(endpoint) else OpenAiEndpoint.bases(endpoint)
+        transcriptionEndpoints(endpoint, mode)
     }
-    fun identity() = "${customApi.value}:${customSpeakerFormat.value}:${source.value}:${backend.value}:${endpointMode.value.name}:$customEndpoint:$customModel:${keyFingerprint(if(source.value==TranscribeSource
+    fun identity() = "${customApi.value}:${customSpeakerFormat.value}:${source.value}:${backend.value}:${endpointMode.value.storedValue}:$customEndpoint:$customModel:${keyFingerprint(if(source.value==TranscribeSource
         .Local) "" else readKey())}:${keyFingerprint(org.json.JSONArray(headers(source.value.name).map { listOf(it.name, it.value) }).toString())}" +
         (if (source.value == TranscribeSource.Local) ":${language.value.code}" else "") +
         if (source.value == TranscribeSource.Doubao && _plan.value) ":plan" else ""

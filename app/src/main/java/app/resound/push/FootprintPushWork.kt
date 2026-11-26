@@ -5,7 +5,6 @@ import app.resound.location.FootprintReports
 import android.content.Context
 import androidx.work.*
 import app.resound.AppGraph
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -23,22 +22,16 @@ class FootprintPushWork(context: Context, params: WorkerParameters) : CoroutineW
 
 internal object FootprintPushScheduler {
     private const val NAME = "push-footprint"
-    fun plan(context: Context, at: Long?) {
-        val wm = WorkManager.getInstance(context)
-        if (at == null) { wm.cancelUniqueWork(NAME); return }
-        wm.enqueueUniqueWork(NAME, ExistingWorkPolicy.REPLACE, OneTimeWorkRequestBuilder<FootprintPushWork>()
-            .setInitialDelay((at - System.currentTimeMillis()).coerceAtLeast(0), TimeUnit.MILLISECONDS)
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-            .build())
-    }
+    fun plan(context: Context, at: Long?) = scheduleDailyPush<FootprintPushWork>(context, NAME, at)
 }
 
 /** 通道或订阅变化时重排足迹推送；足迹内容由足迹模块生成。 */
 internal fun AndroidPushChannels.attachFootprint(context: Context, scope: CoroutineScope) {
     footprintMessage = { date ->
-        if (!AppGraph.isLocationReady) null
-        else FootprintReports.build(AppGraph.location, date)?.let { r ->
-            PushMessage(r.title, r.body, PushTopic.Footprint, "resound://footprint?date=${r.date}", System.currentTimeMillis(), footprint = r.json)
+        val report = if (AppGraph.isLocationReady) FootprintReports.build(AppGraph.location, date) else null
+        report?.let { footprint ->
+            val link = "resound://footprint?date=${footprint.date}"
+            PushMessage(footprint.title, footprint.body, PushTopic.Footprint, link, System.currentTimeMillis(), footprint = footprint.json)
         }
     }
     scope.launch(Dispatchers.IO) {

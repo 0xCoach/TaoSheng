@@ -14,8 +14,10 @@ internal fun verifyDeviceFilePeer(certificate: X509Certificate, config: LocalFil
         if (!config.allowExpiredPeerCertificate) throw expired
     }
     // Not-yet-valid certificates are deliberately not covered by the embedded expiry exception.
-    val actual=MessageDigest.getInstance("SHA-256").digest(certificate.encoded).joinToString("") { "%02x".format(it) }
-    val pin=readPin()
-    if(pin!=null && pin!=actual)throw CertificateException("device certificate changed")
-    if(pin==null)savePin(actual)
+    val fingerprint = MessageDigest.getInstance("SHA-256").digest(certificate.encoded).toHexString()
+    when (readPin()) {
+        null -> savePin(fingerprint)
+        fingerprint -> Unit
+        else -> throw CertificateException("device certificate changed")
+    }
 }

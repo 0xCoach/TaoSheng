@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.LocalDate
 
 /*
- * 转写功能的界面约定。界面（Claude）只依赖这里的类型；底层（Codex）负责实现。
+ * 转写界面通过本文件的模型和接口读取状态、提交设置及操作。
  * 改动签名需要双方确认。
  */
 
@@ -72,6 +72,17 @@ data class VoiceInputMeta(
     val after: String?,
 )
 
+enum class PlaybackDigestReview {
+    NotRequired,
+    AwaitingApproval,
+}
+
+enum class PlaybackTranscriptAction {
+    QueueTranscription,
+    QueueWithDigest,
+    IncludeInNextDigest,
+}
+
 /** 一段录音及其转写结果 */
 data class SegmentTranscript(
     val segmentId: Long,
@@ -83,8 +94,8 @@ data class SegmentTranscript(
     val error: String? = null,
     /** 录音文件是否还在（按用户设置的原声保留天数删除） */
     val audioAvailable: Boolean,
-    /** 外放时录的片段被用户「仍要转写」后：转写保留、可搜可问，但暂不参与整理，等用户在界面上放行 */
-    val playbackHeld: Boolean = false,
+    /** 外放片段转写后，是否仍需用户确认才能参加整理。 */
+    val playbackDigestReview: PlaybackDigestReview = PlaybackDigestReview.NotRequired,
 )
 
 data class TranscribeQueueState(
@@ -120,11 +131,8 @@ interface TranscriptRepository {
     /** 把停在 Failed 的段重新放回队列 */
     fun retryFailed()
 
-    /** 外放时录的片段，用户一步选择：放回队列并立即跑一轮。[playbackDigest] 只转写为 1，转写并整理为 2。缺省 1，兼容旧调用。 */
-    fun transcribeAnyway(segmentId: Long, playbackDigest: Int = 1) {}
-
-    /** 外放片段放行整理：[SegmentTranscript.playbackHeld] 的片段改为参与整理，等下一轮整理（自动或「现在整理」）处理；不主动触发整理 */
-    fun allowPlaybackDigest(segmentId: Long) {}
+    /** 将跳过的外放片段放回转写队列，或允许已转写的片段参加下一轮整理。 */
+    fun applyPlaybackAction(segmentId: Long, action: PlaybackTranscriptAction) {}
 
     /** 卡 065：忽略现在提醒里的所有失败段（变成 Quiet，不再计入 failed），以后仍可手动重试 */
     fun ignoreFailed() {}

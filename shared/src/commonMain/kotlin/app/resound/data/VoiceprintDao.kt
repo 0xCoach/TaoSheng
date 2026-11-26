@@ -54,7 +54,14 @@ abstract class VoiceprintDao {
     abstract suspend fun exclusions(segmentId: Long): List<String>
     @Query("DELETE FROM voiceprint_exclusions") abstract suspend fun clearExclusions()
     @Query("SELECT * FROM transcript_lines WHERE id = :id") abstract suspend fun line(id: Long): TranscriptLineEntity?
-    @Query("SELECT v.*, l.text AS text, l.startAt AS lineStart, s.path AS segmentPath FROM voiceprint_samples v LEFT JOIN transcript_lines l ON l.id = v.sourceLineId LEFT JOIN segments s ON s.id = l.segmentId WHERE v.personId = :id ORDER BY v.createdAt DESC, v.id DESC")
+    @Query("""
+        WITH personSamples AS (SELECT * FROM voiceprint_samples WHERE personId = :id)
+        SELECT personSamples.*, origin.text AS text, origin.startAt AS lineStart, recording.path AS segmentPath
+        FROM personSamples
+        LEFT JOIN transcript_lines AS origin ON origin.id = personSamples.sourceLineId
+        LEFT JOIN segments AS recording ON recording.id = origin.segmentId
+        ORDER BY personSamples.createdAt DESC, personSamples.id DESC
+    """)
     abstract fun observePersonSamples(id: Long): Flow<List<VoiceprintSampleRow>>
     @Query("SELECT * FROM voiceprint_samples WHERE id = :id") abstract suspend fun sample(id: Long): VoiceprintSampleEntity?
     @Query("DELETE FROM voiceprint_samples WHERE id = :id") abstract suspend fun deleteSample(id: Long)

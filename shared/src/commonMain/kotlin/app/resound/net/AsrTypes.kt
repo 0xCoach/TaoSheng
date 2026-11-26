@@ -28,8 +28,10 @@ data class DoubaoConfig(
 }
 object TranscribePolicy {
     /** 仅自动转写（非手动指定来源、非重转）的豆包正常返回零句后，才需要查自定义配置和凭据。 */
-    fun shouldTryCustomFallback(source: TranscribeSource?, manuallySelected: Boolean, result: AsrResult, enabled: Boolean) =
-        enabled && source == TranscribeSource.Doubao && !manuallySelected && result.sentences.isEmpty()
+    fun shouldTryCustomFallback(source: TranscribeSource?, manuallySelected: Boolean, result: AsrResult, enabled: Boolean): Boolean {
+        if (!enabled || manuallySelected || source != TranscribeSource.Doubao) return false
+        return result.sentences.isEmpty()
+    }
 
     val ROUND_STOPPERS = setOf(AsrError.Speakers, AsrError.Network, AsrError.Server, AsrError.ModelMissing, AsrError.LocalEngine)
     fun retryAt(type: AsrError, attempts: Int, now: Long): Long? =

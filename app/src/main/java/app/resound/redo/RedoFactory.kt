@@ -78,19 +78,33 @@ internal fun createRedoEngine(context: Context, db: CaptureDatabase, chooser: An
             require(presetId == null || digestSettings.presets.any { it.id == presetId }) { "重做所选服务商已删除，请重新选择" }
             digestSettings.skillCredentials(presetId)
         }
-        val indexed = lines.sortedBy { it.startAt }
         val contextPrompt = SituationPrompt(digestSettings.includeSituation.value, situation)
-        val reply = digestSettings.failover.request("合并事件", db.memory(), UsagePurpose.Digest, digestSettings.digestRequest(llm))(preset, key, contextPrompt.system(
-            MergePrompt.system(mergeTemplate(), LocalDate.now(), context.appName)), contextPrompt.merge(events))
-        withContext(NonCancellable) { db.memory().addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest) }
-        val (event, items) = MergePrompt.parse(reply.content, indexed)
-        val at = System.currentTimeMillis()
-        RedoDigest(listOf(MemoryEventEntity(startAt = event.startAt, endAt = event.endAt,
-            scene = if (db.envSound().media(event.startAt, event.endAt)) "媒体" else event.scene, title = event.title, summary = event.summary,
-            pointsJson = JSONArray(event.points).toString(), peopleJson = JSONArray(event.people).toString(), place = event.place,
-            emotion = event.emotion, intensity = event.intensity, important = event.important, createdAt = at, model = reply.actualModel ?: preset.model) to event.lineIds),
-            { ids -> items.map { i -> MemoryItemEntity(eventId = ids[i.eventIndex], category = i.category, kind = i.kind, content = i.content,
-                dueText = i.dueText, dueAt = i.dueAt, who = i.who, lineId = i.lineId, status = "Pending", createdAt = at) } })
+        val memory = db.memory()
+        val request = digestSettings.failover.request("合并事件", memory, UsagePurpose.Digest, digestSettings.digestRequest(llm))
+        val system = contextPrompt.system(MergePrompt.system(mergeTemplate(), LocalDate.now(), context.appName))
+        val reply = request(preset, key, system, contextPrompt.merge(events))
+        withContext(NonCancellable) {
+            memory.addUsage(LocalDate.now().toString(), reply.promptTokens, reply.completionTokens, UsagePurpose.Digest)
+        }
+        val (event, details) = MergePrompt.parse(reply.content, lines.sortedBy { it.startAt })
+        val created = System.currentTimeMillis()
+        val scene = if (db.envSound().media(event.startAt, event.endAt)) "媒体" else event.scene
+        val merged = MemoryEventEntity(
+            startAt = event.startAt, endAt = event.endAt, scene = scene, title = event.title,
+            summary = event.summary, pointsJson = JSONArray(event.points).toString(),
+            peopleJson = JSONArray(event.people).toString(), place = event.place, emotion = event.emotion,
+            intensity = event.intensity, important = event.important, createdAt = created,
+            model = reply.actualModel ?: preset.model,
+        )
+        RedoDigest(listOf(merged to event.lineIds)) { ids ->
+            details.map { detail ->
+                MemoryItemEntity(
+                    eventId = ids[detail.eventIndex], category = detail.category, kind = detail.kind,
+                    content = detail.content, dueText = detail.dueText, dueAt = detail.dueAt, who = detail.who,
+                    lineId = detail.lineId, status = "Pending", createdAt = created,
+                )
+            }
+        }
     }, identify = identify, regenerate = { oldCards, events, lines ->
         files.reload()
         // 以候选新事件构造输入，技能结果也先暂存；失败时整个事件替换不落库。

@@ -15,74 +15,65 @@ class PlaybackRecorder(
 ) : PlaybackSink {
     private val gate = Mutex()
 
-    override suspend fun changed(sessionKey: String, pkg: String, title: String?, subtitle: String?, playing: Boolean, at: Long) {
-        gate.withLock {
-            if (!settings.enabled.value) return@withLock
-            dao.closeOpenPlaybacksBefore(settings.enabledAt)
-            val cleanTitle = blankToNull(title)
-            val cleanSubtitle = blankToNull(subtitle)
-            val open = dao.openPlayback(sessionKey)
-            if (!playing) {
-                if (open != null) dao.updatePlayback(open.copy(untilAt = at, lastSeenAt = maxOf(open.lastSeenAt, at)))
-                return@withLock
-            }
-            when {
-                open == null -> openRow(sessionKey, pkg, cleanTitle, cleanSubtitle, at)
-                open.title != null && cleanTitle != null && open.title != cleanTitle -> {
-                    dao.updatePlayback(open.copy(untilAt = at, lastSeenAt = maxOf(open.lastSeenAt, at)))
-                    openRow(sessionKey, pkg, cleanTitle, cleanSubtitle, at)
-                }
-                open.title == null && cleanTitle != null ->
-                    dao.updatePlayback(open.copy(title = cleanTitle, subtitle = cleanSubtitle, lastSeenAt = maxOf(open.lastSeenAt, at)))
-                else -> dao.updatePlayback(open.copy(lastSeenAt = maxOf(open.lastSeenAt, at)))
-            }
+    private suspend fun record(block: suspend () -> Unit) = gate.withLock {
+        if (!settings.enabled.value) return@withLock
+        dao.closeOpenPlaybacksBefore(settings.enabledAt)
+        block()
+    }
+
+    override suspend fun changed(sessionKey: String, pkg: String, title: String?, subtitle: String?, playing: Boolean, at: Long) = record {
+        val previous = dao.openPlayback(sessionKey)
+        if (!playing) {
+            previous?.let { finish(it, at) }
+            return@record
+        }
+
+        val nextTitle = title?.trim()?.takeUnless { it.isEmpty() }
+        val nextSubtitle = subtitle?.trim()?.takeUnless { it.isEmpty() }
+        if (previous == null) {
+            openRow(sessionKey, pkg, nextTitle, nextSubtitle, at)
+            return@record
+        }
+
+        if (previous.title != null && nextTitle != null && nextTitle != previous.title) {
+            finish(previous, at)
+            openRow(sessionKey, pkg, nextTitle, nextSubtitle, at)
+        } else {
+            val firstMetadata = previous.title == null && nextTitle != null
+            dao.updatePlayback(previous.copy(
+                title = if (firstMetadata) nextTitle else previous.title,
+                subtitle = if (firstMetadata) nextSubtitle else previous.subtitle,
+                lastSeenAt = maxOf(previous.lastSeenAt, at),
+            ))
         }
     }
 
-    override suspend fun heartbeat(sessionKey: String, at: Long) {
-        gate.withLock {
-            if (!settings.enabled.value) return@withLock
-            dao.closeOpenPlaybacksBefore(settings.enabledAt)
-            val open = dao.openPlayback(sessionKey) ?: return@withLock
-            dao.updatePlayback(open.copy(lastSeenAt = maxOf(open.lastSeenAt, at)))
-        }
+    override suspend fun heartbeat(sessionKey: String, at: Long) = record {
+        val row = dao.openPlayback(sessionKey) ?: return@record
+        dao.updatePlayback(row.copy(lastSeenAt = maxOf(at, row.lastSeenAt)))
     }
 
-    override suspend fun disconnected(at: Long) {
-        gate.withLock {
-            if (!settings.enabled.value) return@withLock
-            dao.closeOpenPlaybacksBefore(settings.enabledAt)
-            dao.closeOpenPlaybacksAtLastSeen()
-            dao.recordGap(
-                ScreenCoverageGapRow(
-                    source = PLAYBACK_SOURCE, fromAt = at, untilAt = Long.MAX_VALUE,
-                    code = GapCode.LISTENER_DISCONNECTED,
-                ),
-            )
-        }
+    override suspend fun disconnected(at: Long) = record {
+        dao.closeOpenPlaybacksAtLastSeen()
+        logDisconnectGap(at, Long.MAX_VALUE)
     }
 
-    override suspend fun connected(at: Long) {
-        gate.withLock {
-            if (!settings.enabled.value) return@withLock
-            dao.closeOpenPlaybacksBefore(settings.enabledAt)
-            val closed = dao.closePlaybackDisconnectGaps(at)
-            if (closed == 0) {
-                val open = dao.openPlaybacks()
-                if (open.isNotEmpty()) {
-                    val from = open.maxOf { it.lastSeenAt }
-                    if (from < at) {
-                        dao.recordGap(
-                            ScreenCoverageGapRow(
-                                source = PLAYBACK_SOURCE, fromAt = from, untilAt = at,
-                                code = GapCode.LISTENER_DISCONNECTED,
-                            ),
-                        )
-                    }
-                }
-            }
-            dao.closeOpenPlaybacksAtLastSeen()
+    override suspend fun connected(at: Long) = record {
+        if (dao.closePlaybackDisconnectGaps(at) == 0) {
+            val newest = dao.openPlaybacks().maxOfOrNull { it.lastSeenAt }
+            if (newest != null && newest < at) logDisconnectGap(newest, at)
         }
+        dao.closeOpenPlaybacksAtLastSeen()
+    }
+
+    private suspend fun finish(row: PlaybackRow, at: Long) {
+        dao.updatePlayback(row.copy(untilAt = at, lastSeenAt = maxOf(at, row.lastSeenAt)))
+    }
+
+    private suspend fun logDisconnectGap(start: Long, end: Long) {
+        dao.recordGap(ScreenCoverageGapRow(
+            source = PLAYBACK_SOURCE, fromAt = start, untilAt = end, code = GapCode.LISTENER_DISCONNECTED,
+        ))
     }
 
     private suspend fun openRow(sessionKey: String, pkg: String, title: String?, subtitle: String?, at: Long) {
@@ -95,8 +86,4 @@ class PlaybackRecorder(
         )
     }
 
-    private fun blankToNull(value: String?): String? {
-        val trimmed = value?.trim()
-        return if (trimmed.isNullOrEmpty()) null else trimmed
-    }
 }

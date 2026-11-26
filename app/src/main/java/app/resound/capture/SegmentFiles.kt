@@ -115,21 +115,16 @@ class SegmentFiles(private val context: Context, private val dao: CaptureDao, sc
         val snapshot = if (text.startsWith("{")) Json.decodeFromString<PlaybackSnapshot>(text) else null
         val decision = snapshot?.let {
             decidePlayback(start, end, it.spans, if (it.spans.isEmpty()) emptyList() else rows(start, end), it.preferences)
-        }
-        // 升级前暂存的 PCM 按录音当时写下的决定恢复。
-        val (rawMillis, skipEnabled, includeDigest) = LegacyPlaybackFile.parseFile(text)
-        val playbackMillis = decision?.millis ?: rawMillis.coerceIn(0, end - start)
-        val skip = decision?.skip ?: PlaybackPolicy.skip(end - start, playbackMillis, skipEnabled)
-        val playbackDigest = decision?.digest ?: LegacyPlaybackFile.initial(end - start, playbackMillis, includeDigest)
+        } ?: LegacyPlaybackFile.recover(text, end - start)
         dao.segment(SegmentEntity(startAt = start, endAt = end, sourceId = readSourceId(pcm), path = file.absolutePath, sizeBytes = file.length(),
-            speakerIntervals = decision?.let { Json.encodeToString(it.intervals) },
-            playbackMillis = playbackMillis, status = if (skip) "SkippedPlayback" else "Pending",
-            completedAt = if (skip) end else null, playbackDigest = playbackDigest,
+            speakerIntervals = snapshot?.let { Json.encodeToString(decision.intervals) },
+            playbackMillis = decision.millis, status = if (decision.skip) "SkippedPlayback" else "Pending",
+            completedAt = if (decision.skip) end else null, playbackDigest = decision.digest,
             separateSpeakers = if (AppGraph.isAsrSpeedReady) AppGraph.asrSpeed.effectiveSeparateSpeakers(start) else null))
         check(pcm.delete())
         metadata.delete()
         File(spool, pcm.nameWithoutExtension + ".source").delete()
-        if (!skip) runCatching { onSaved?.invoke() }.onFailure {
+        if (!decision.skip) runCatching { onSaved?.invoke() }.onFailure {
             FailureNotes.record("capture/SegmentFiles.kt:113", it)
         }
     }

@@ -17,7 +17,7 @@
 ![On-device](https://img.shields.io/badge/声纹%20%2F%20人声检测-本机运行-F07B2E)
 [![Stars](https://img.shields.io/github/stars/0xCoach/TaoSheng?style=social)](https://github.com/0xCoach/TaoSheng/stargazers)
 
-[![下载 APK](https://img.shields.io/badge/下载安装包-v0.5.9-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.9/TaoSheng-v0.5.9-arm64.apk)
+[![下载 APK](https://img.shields.io/badge/下载安装包-v0.6.0-F07B2E?style=for-the-badge&logo=android&logoColor=white)](https://github.com/0xCoach/TaoSheng/releases/download/v0.6.0/TaoSheng-v0.6.0-arm64.apk)
 
 简体中文 | [English](README_EN.md)
 
@@ -251,15 +251,16 @@ PushPlus · 企业微信机器人 · Server 酱 · 飞书 · 钉钉 · Telegram 
 
 | 版本 | 发布日期 | 下载 | 说明 |
 | --- | --- | --- | --- |
-| **v0.5.9**（最新） | 2026-11-26 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.9/TaoSheng-v0.5.9-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.9-arm64.apk) | 豆包整段没听出字时，可选用「自定义」转写服务（如千问）再转一次，默认关闭。不改数据库。[详细更新日志](CHANGELOG.md#059--2026-11-26) |
+| **v0.6.0**（最新） | 2026-11-27 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.6.0/TaoSheng-v0.6.0-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.6.0-arm64.apk) | 原话页新增小时刻度和录音菜单，记忆页可直接跳到同一天的原话。继续兼容已有录音与设置。 [详细更新日志](CHANGELOG.md#060--2026-11-27) |
+| **v0.5.9** | 2026-11-26 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.9/TaoSheng-v0.5.9-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.9-arm64.apk) | 豆包整段没听出字时，可选用「自定义」转写服务（如千问）再转一次，默认关闭。不改数据库。[详细更新日志](CHANGELOG.md#059--2026-11-26) |
 | **v0.5.8** | 2026-11-24 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.8/TaoSheng-v0.5.8-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.8-arm64.apk) | 开始专题不再误报“没开始成功”；没起名字的专题显示整理出的标题；主模型卡住不出字时专题和整理自动换备用模型；本机识别零碎短行并成一行，NPU 模型没下完先用 CPU 转写；问题记录加专题进度。不改数据库。[详细更新日志](CHANGELOG.md#058--2026-11-24) |
-| **v0.5.7** | 2026-11-23 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.7/TaoSheng-v0.5.7-arm64.apk) · [魔搭国内下载](https://modelscope.cn/models/OpenRecode/TaoSheng-releases/resolve/master/TaoSheng-v0.5.7-arm64.apk) | 默认自动备份到 Download/TaoSheng、默认本机识别；本机识别按停顿切段，更快更省电；NPU 按芯片自动适配；“整理前先思考”默认打开；半夜看手机再睡不再算起床。不改数据库。[详细更新日志](CHANGELOG.md#057--2026-11-23) |
 
 <details>
-<summary><b>📜 展开查看历史版本（v0.5.6 ～ v0.2.0）</b></summary>
+<summary><b>📜 展开查看历史版本（v0.5.7 ～ v0.2.0）</b></summary>
 
 | 版本 | 发布日期 | 下载 | 说明 |
 | --- | --- | --- | --- |
+| **v0.5.7** | 2026-11-23 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.7/TaoSheng-v0.5.7-arm64.apk) | 默认自动备份到 Download/TaoSheng、默认本机识别；本机识别按停顿切段，更快更省电；NPU 按芯片自动适配；“整理前先思考”默认打开；半夜看手机再睡不再算起床。不改数据库。[详细更新日志](CHANGELOG.md#057--2026-11-23) |
 | **v0.5.6** | 2026-11-22 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.6/TaoSheng-v0.5.6-arm64.apk) | 录音能自动用蓝牙麦克风；夜里任意一段录音都能导出；睡前外放不再被当成梦话。不改数据库。[详细更新日志](CHANGELOG.md#056--2026-11-22) |
 | **v0.5.5** | 2026-11-21 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.5/TaoSheng-v0.5.5-arm64.apk) | 不开环境音识别也能识别鼾声、模型没下好时先存后认；半夜重启后同一夜接着记；重做后点了“好”24 小时内仍能撤销。不改数据库。[详细更新日志](CHANGELOG.md#055--2026-11-21) |
 | **v0.5.4** | 2026-11-21 | [GitHub 安装包](https://github.com/0xCoach/TaoSheng/releases/download/v0.5.4/TaoSheng-v0.5.4-arm64.apk) | 原话可以手改；专题边开边整理、长会议很快出纪要；录音可长期保留（推到网盘或手机文件夹）；新增千问转写；慢模型、思考模型也能整理完；更省电。数据库升级，不能直接降级。[详细更新日志](CHANGELOG.md#054--2026-11-21) |

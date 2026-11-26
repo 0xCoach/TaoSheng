@@ -2,11 +2,33 @@ package app.resound
 
 import app.resound.capture.CaptureController
 import app.resound.capture.CaptureStatsRepository
+import app.resound.capture.PlaybackMonitor
 import app.resound.capture.SetupGuide
 import app.resound.digest.DigestSettings
 import app.resound.digest.MemoryRepository
+import app.resound.location.LocationRepository
+import app.resound.screentime.PlaybackQueries
+import app.resound.screentime.PlaybackSink
+import app.resound.screentime.PlaybackTitleSettings
+import app.resound.screentime.ScreenTimePuller
+import app.resound.screentime.ScreenTimeReader
+import app.resound.screentime.ScreenTimeSettings
 import app.resound.transcribe.TranscribeSettings
 import app.resound.transcribe.TranscriptRepository
+import kotlin.reflect.KProperty
+
+/** 同一个实例可安全发布给后台回调，各调用方可按需用可空或必需的访问方式。 */
+private class ServiceSlot<T : Any> {
+    @Volatile
+    var instance: T? = null
+
+    operator fun getValue(owner: AppGraph, property: KProperty<*>): T =
+        instance ?: throw UninitializedPropertyAccessException("lateinit property ${property.name} has not been initialized")
+
+    operator fun setValue(owner: AppGraph, property: KProperty<*>, value: T) {
+        instance = value
+    }
+}
 
 /**
  * 简单的手工依赖注入：Application 启动时装配，界面从这里取。
@@ -78,30 +100,46 @@ object AppGraph {
     val isNightReady: Boolean get() = ::night.isInitialized
     lateinit var envSound: app.resound.envsound.EnvSoundRepository
     val isEnvSoundReady: Boolean get() = ::envSound.isInitialized
-    /** 足迹（全天定位） */
-    lateinit var location: app.resound.location.LocationRepository
     /** 卡 132：新手上手的底层信号 */
     lateinit var onboarding: app.resound.onboarding.Onboarding
     val isOnboardingReady: Boolean get() = ::onboarding.isInitialized
     /** 卡 130：声音、位置、环境音按时间对齐查询 */
     lateinit var situation: app.resound.context.SituationLookup
     val isSituationReady: Boolean get() = ::situation.isInitialized
-    val isLocationReady: Boolean get() = ::location.isInitialized
+    private val footprint = ServiceSlot<LocationRepository>()
+    var location: LocationRepository by footprint
+    internal val locationIfReady: LocationRepository? get() = footprint.instance
+    val isLocationReady: Boolean get() = locationIfReady != null
 
-    /** 「记录播放标题」开关（默认关）。 */
-    lateinit var playbackTitleSettings: app.resound.screentime.PlaybackTitleSettings
-    val isPlaybackTitleReady: Boolean get() = ::playbackTitleSettings.isInitialized
-    /** 只读播放记录；为 null 时整理外放标注不匹配标题。 */
-    @Volatile var playbackQueries: app.resound.screentime.PlaybackQueries? = null
-    /** 设备播放记录接收方；为 null 时通知监听服务丢弃回调。 */
-    @Volatile var playbackSink: app.resound.screentime.PlaybackSink? = null
+    /** 设置页和媒体监听共用的播放标题采集偏好。 */
+    private val playbackTitles = ServiceSlot<PlaybackTitleSettings>()
+    var playbackTitleSettings: PlaybackTitleSettings by playbackTitles
+    internal val playbackTitleSettingsIfReady: PlaybackTitleSettings? get() = playbackTitles.instance
+    val isPlaybackTitleReady: Boolean get() = playbackTitleSettingsIfReady != null
+    /** 播放记录尚未装配时，整理按空记录继续。 */
+    private val playbackHistory = ServiceSlot<PlaybackQueries>()
+    var playbackQueries: PlaybackQueries?
+        get() = playbackHistory.instance
+        set(value) { playbackHistory.instance = value }
+    /** 接收系统媒体事件，装配完成前跳过事件写入。 */
+    private val playbackRecorder = ServiceSlot<PlaybackSink>()
+    var playbackSink: PlaybackSink?
+        get() = playbackRecorder.instance
+        set(value) { playbackRecorder.instance = value }
 
-    /** 屏幕时间采集开关（默认关）；只管屏幕事件，不影响播放记录。 */
-    lateinit var screenTimeSettings: app.resound.screentime.ScreenTimeSettings
-    lateinit var screenTimePuller: app.resound.screentime.ScreenTimePuller
-    val isScreenTimeReady: Boolean get() = ::screenTimeSettings.isInitialized && ::screenTimePuller.isInitialized
-    /** 屏幕时间读取入口；为 null 时消费方按总开关关闭处理。 */
-    @Volatile var screenTimeReader: app.resound.screentime.ScreenTimeReader? = null
+    /** 屏幕事件采集的设置和拉取服务，独立于播放记录。 */
+    private val screenControls = ServiceSlot<ScreenTimeSettings>()
+    private val screenCollector = ServiceSlot<ScreenTimePuller>()
+    var screenTimeSettings: ScreenTimeSettings by screenControls
+    var screenTimePuller: ScreenTimePuller by screenCollector
+    internal val screenTimeSettingsIfReady: ScreenTimeSettings?
+        get() = screenControls.instance?.takeIf { screenCollector.instance != null }
+    val isScreenTimeReady: Boolean get() = screenTimeSettingsIfReady != null
+    /** 读取屏幕活动；查询服务未装配时不提供屏幕时间数据。 */
+    private val screenHistory = ServiceSlot<ScreenTimeReader>()
+    var screenTimeReader: ScreenTimeReader?
+        get() = screenHistory.instance
+        set(value) { screenHistory.instance = value }
 
     // 卡 079：寻物
     lateinit var things: app.resound.things.ThingRepository
@@ -148,8 +186,9 @@ object AppGraph {
     val isPlaybackSkipReady get() = ::playbackSkip.isInitialized
     val isPlaybackDigestReady get() = isPlaybackSkipReady
 
-    /** 播放状态（是否在放、是否可能外放）应用级单例；有订阅者才注册系统回调。 */
-    lateinit var playback: app.resound.capture.PlaybackMonitor
+    /** 统一提供设备播放状态，订阅期间监听系统变化。 */
+    private val playbackMonitor = ServiceSlot<PlaybackMonitor>()
+    var playback: PlaybackMonitor by playbackMonitor
 
 
     lateinit var review: app.resound.review.ReviewRepository
@@ -190,8 +229,10 @@ object AppGraph {
     lateinit var transcribeSettings: TranscribeSettings
 
     lateinit var memory: MemoryRepository
-    lateinit var digestSettings: DigestSettings
-    val isDigestSettingsReady: Boolean get() = ::digestSettings.isInitialized
+    private val digestControls = ServiceSlot<DigestSettings>()
+    var digestSettings: DigestSettings by digestControls
+    internal val digestSettingsIfReady: DigestSettings? get() = digestControls.instance
+    val isDigestSettingsReady: Boolean get() = digestSettingsIfReady != null
 
     lateinit var ask: app.resound.ask.AskRepository
     val isAskReady: Boolean get() = ::ask.isInitialized
@@ -209,5 +250,5 @@ object AppGraph {
 
     /** 大模型整理是否已装配 */
     val isMemoryReady: Boolean
-        get() = ::memory.isInitialized && ::digestSettings.isInitialized
+        get() = ::memory.isInitialized && isDigestSettingsReady
 }

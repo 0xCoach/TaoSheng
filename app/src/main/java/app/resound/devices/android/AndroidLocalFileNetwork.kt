@@ -81,8 +81,6 @@ internal class AndroidLocalFileNetwork(
         var heartbeat: Job? = null
         var ownedJob: Job? = null
         val wire = MutableStateFlow("before-WebSocket")
-        fun types(error: Throwable) = generateSequence(error) { it.cause }.take(8)
-            .map { it.javaClass.simpleName }.distinct().joinToString(" > ")
         try {
             manager.requestNetwork(request,callback,60_000)
             val joined = withTimeout(65_000) { network.await() }
@@ -123,7 +121,8 @@ internal class AndroidLocalFileNetwork(
                 private val closeGate = Mutex()
                 private var closed = false
                 override val incoming = input.receiveAsFlow().catch { error ->
-                    if(error !is CancellationException) show(LocalFileNetworkPhase.Failed,config.ssid,LocalFileNetworkFailure.NetworkLost,"Transfer: ${wire.value}; ${types(error)}")
+                    if (error !is CancellationException) show(LocalFileNetworkPhase.Failed, config.ssid,
+                        LocalFileNetworkFailure.NetworkLost, "Transfer: ${wire.value}; ${deviceNetworkErrorTypes(error)}")
                     throw error
                 }
                 override suspend fun sendText(value: String) { check(activeSocket.send(value)) { "device WebSocket closed" } }
@@ -149,14 +148,14 @@ internal class AndroidLocalFileNetwork(
                 e is CancellationException -> LocalFileNetworkFailure.Cancelled
                 e is DeviceException && e.detail == "device Wi-Fi unavailable" -> LocalFileNetworkFailure.JoinUnavailable
                 e is DeviceException && e.detail == "device Wi-Fi disconnected" -> LocalFileNetworkFailure.NetworkLost
-                generateSequence<Throwable>(e) { it.cause }.take(8).any { it is SSLException || it is java.security.cert.CertificateException } -> LocalFileNetworkFailure.TlsPeer
+                isDeviceTlsFailure(e) -> LocalFileNetworkFailure.TlsPeer
                 else -> LocalFileNetworkFailure.SocketFailed
             }
             withContext(NonCancellable) {
                 heartbeat?.cancelAndJoin();ownedJob?.cancelAndJoin();udp?.close();socket?.cancel();input.cancel()
                 runCatching { manager.unregisterNetworkCallback(callback) }
                 client?.connectionPool?.evictAll();client?.dispatcher?.executorService?.shutdown()
-                show(LocalFileNetworkPhase.Failed,config.ssid,reason,"${state.value.phase}: ${wire.value}; ${types(e)}")
+                show(LocalFileNetworkPhase.Failed, config.ssid, reason, "${state.value.phase}: ${wire.value}; ${deviceNetworkErrorTypes(e)}")
             }
             throw e
         }

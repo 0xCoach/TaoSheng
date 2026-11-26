@@ -35,70 +35,58 @@ class ScreenTimeQueries(
     override suspend fun sessions(from: Long, until: Long): ScreenTimeResult {
         require(until > from) { "until($until) 必须晚于 from($from)" }
         if (!settings.enabled.value) return ScreenTimeResult.DISABLED
-        val pull = puller.pull()
-        val state = dao.state(SCREEN_SOURCE)
-        val coveredUntil = state?.coveredUntil
-        val gaps = mutableListOf<CoverageGap>()
-        // ① 落库缺口（DAO 已按 fromAt 排序；再排一次锁死契约）。
-        gaps += dao.gaps(SCREEN_SOURCE, from, until)
-            .map { CoverageGap(it.code, it.source, it.fromAt, it.untilAt, fixFor(it.code)) }
-            .sortedBy { it.from }
-        // ② 无授权。
-        if (!permitted()) {
-            gaps += CoverageGap(GapCode.USAGE_ACCESS_MISSING, SCREEN_SOURCE, from, until, fixFor(GapCode.USAGE_ACCESS_MISSING))
-        }
-        // ③ coverage_lag：此刻减 coveredUntil 超过 1 小时且与查询区间相交时现算，不落库。
-        val t = now()
-        if (t - (coveredUntil ?: 0) > COVERAGE_LAG_MILLIS && (coveredUntil ?: from) < until) {
-            val lagFrom = maxOf(from, coveredUntil ?: from)
-            val lagUntil = minOf(until, t)
-            if (lagFrom < lagUntil) {
-                gaps += CoverageGap(GapCode.COVERAGE_LAG, SCREEN_SOURCE, lagFrom, lagUntil, fixFor(GapCode.COVERAGE_LAG))
+        val refresh = puller.pull()
+        val coverage = dao.state(SCREEN_SOURCE)?.coveredUntil
+        val uncoveredFrom = maxOf(from, coverage ?: from)
+        val gaps = buildList {
+            for (row in dao.gaps(SCREEN_SOURCE, from, until).sortedBy { it.fromAt }) {
+                add(gap(row.code, row.source, row.fromAt, row.untilAt))
+            }
+            if (!permitted()) add(gap(GapCode.USAGE_ACCESS_MISSING, SCREEN_SOURCE, from, until))
+
+            val queriedAt = now()
+            val lagEnd = minOf(until, queriedAt)
+            if (queriedAt - (coverage ?: 0) > COVERAGE_LAG_MILLIS && uncoveredFrom < lagEnd) {
+                add(gap(GapCode.COVERAGE_LAG, SCREEN_SOURCE, uncoveredFrom, lagEnd))
+            }
+
+            if (refresh is PullResult.Failed) {
+                val failEnd = minOf(until, now())
+                if (uncoveredFrom < failEnd) add(gap(GapCode.PULL_FAILED, SCREEN_SOURCE, uncoveredFrom, failEnd))
+            }
+
+            val playbacksAsOf = now()
+            for (row in dao.gaps(PLAYBACK_SOURCE, from, until).sortedBy { it.fromAt }) {
+                add(gap(row.code, row.source, row.fromAt, minOf(row.untilAt, playbacksAsOf)))
+            }
+            if (!playbackPermitted()) {
+                add(gap(GapCode.NOTIFICATION_ACCESS_MISSING, PLAYBACK_SOURCE, from, until))
             }
         }
-        // ④ 查询前的增量拉取失败：不阻断查询，返回已落库数据并加一条 pull_failed。
-        if (pull is PullResult.Failed) {
-            val failFrom = maxOf(coveredUntil ?: from, from)
-            val failUntil = minOf(until, now())
-            if (failFrom < failUntil) {
-                gaps += CoverageGap(GapCode.PULL_FAILED, SCREEN_SOURCE, failFrom, failUntil, fixFor(GapCode.PULL_FAILED))
+        val labels = dao.names().associateBy { it.pkg }
+        val sequence = buildList {
+            for (record in dao.events(from - config.lookbackMillis, until)) {
+                val type = ScreenEventType.of(record.type) ?: continue
+                add(ScreenEvent(record.id, record.at, record.pkg, record.cls, type))
             }
         }
-        // ⑤ playback 落库缺口；until 裁到 min(untilAt, now())。播放查询不触发拉取。
-        val nowAt = now()
-        gaps += dao.gaps(PLAYBACK_SOURCE, from, until)
-            .map { CoverageGap(it.code, it.source, it.fromAt, minOf(it.untilAt, nowAt), fixFor(it.code)) }
-            .sortedBy { it.from }
-        if (!playbackPermitted()) {
-            gaps += CoverageGap(
-                GapCode.NOTIFICATION_ACCESS_MISSING, PLAYBACK_SOURCE, from, until,
-                fixFor(GapCode.NOTIFICATION_ACCESS_MISSING),
-            )
+        val privacyIntervals = gaps.filter { it.code in SESSION_BLOCKING_GAP_CODES }
+            .map { it.from to it.until } + settings.disabledWindows()
+        val rawUsage = ScreenTimeRules.sessions(sequence, from, until, coverage ?: from, excluded, config)
+        val sessions = ScreenTimeRules.exclude(rawUsage, privacyIntervals).map { session ->
+            val caption = labels[session.pkg]?.name ?: session.pkg
+            val title = ScreenTimeText.clean(caption, config.titleMaxCodePoints)
+            NamedAppSession(session.pkg, title, session.from, session.until)
         }
-        val names = dao.names().associate { it.pkg to it.name }
-        val events = dao.events(from - config.lookbackMillis, until).mapNotNull { row ->
-            ScreenEventType.of(row.type)?.let { ScreenEvent(row.id, row.at, row.pkg, row.cls, it) }
-        }
-        val blocked = buildList {
-            for (gap in gaps) if (gap.code in SESSION_BLOCKING_GAP_CODES) add(gap.from to gap.until)
-            addAll(settings.disabledWindows())
-        }
-        val sessions = ScreenTimeRules.exclude(
-            ScreenTimeRules.sessions(events, from, until, coveredUntil ?: from, excluded, config),
-            blocked,
-        ).map {
-            NamedAppSession(
-                it.pkg,
-                ScreenTimeText.clean(names[it.pkg] ?: it.pkg, config.titleMaxCodePoints),
-                it.from, it.until,
-            )
-        }
-        val devicePlayback = if (titlesAllowed()) playbackQueries.overlapping(from, until) else emptyList()
+        val tracks = if (titlesAllowed()) playbackQueries.overlapping(from, until) else emptyList()
         return ScreenTimeResult(
-            enabled = true, sessions = sessions, coverageUntil = coveredUntil, gaps = gaps,
-            devicePlayback = devicePlayback,
+            enabled = true, sessions = sessions, coverageUntil = coverage, gaps = gaps,
+            devicePlayback = tracks,
         )
     }
+
+    private fun gap(code: String, source: String, from: Long, until: Long) =
+        CoverageGap(code, source, from, until, fixFor(code))
 
     private companion object {
         /** coverage_lag 的触发阈值（设计 dx：此刻减 coveredUntil 超过 1 小时）。 */

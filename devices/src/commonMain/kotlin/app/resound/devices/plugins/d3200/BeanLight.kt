@@ -6,6 +6,15 @@ package app.resound.devices.plugins.d3200
 /** Verified D3200 04.92 RGB command and fixed SPP enablement. No flash or recording commands. */
 object BeanLight {
     const val SPP = "0cf12d31-fac3-4553-bd80-d6832e7d3200"
+    private val replyHeader = byteArrayOf(0xaa.toByte(), 0x55, 2, 0x2c, 1, 2, 1, 0)
+    private val crcTable = IntArray(256) { entry ->
+        var remainder = entry
+        repeat(8) {
+            val polynomial = if (remainder and 1 == 1) 0x8c else 0
+            remainder = (remainder ushr 1) xor polynomial
+        }
+        remainder
+    }
     /** Previously verified server enablement; fixed zero payload, no arbitrary transfer-mode selection. */
     fun enableSpp() = byteArrayOf(8, 0xee.toByte(), 0, 0, 0, 0x1a, 0x0f, 11, 0, 0, 0x2a)
     data class Preference(val mode: String = "none", val version: String = "0") {
@@ -13,106 +22,166 @@ object BeanLight {
     }
 
     fun command(on: Boolean): ByteArray {
-        val b = byteArrayOf(0x55, 0xaa.toByte(), 2, 0x2c, 1, 0, 4, 0, if (on) 1 else 0, 25, 5, 0, 0)
-        b[b.lastIndex] = crc(b, 0, b.lastIndex).toByte()
-        return b
+        val request = byteArrayOf(0x55, 0xaa.toByte(), 2, 0x2c, 1, 0, 4, 0, 0, 25, 5, 0, 0)
+        if (on) request[8] = 1
+        request[12] = crc(request, 0, 12).toByte()
+        return request
     }
-    private fun crc(b: ByteArray, start: Int, end: Int): Int {
-        var c = 0
-        for (i in start until end) {
-            c = c xor (b[i].toInt() and 255)
-            repeat(8) { c = (c ushr 1) xor if (c and 1 != 0) 0x8c else 0 }
-        }
-        return c
+
+    private fun crc(bytes: ByteArray, from: Int, until: Int): Int {
+        var checksum = 0
+        for (index in from until until) checksum = crcTable[checksum xor bytes.unsigned(index)]
+        return checksum
     }
-    fun qc(b: ByteArray) = b.size >= 9 && b[0] == 0xaa.toByte() && b[1] == 0x55.toByte()
-    fun receipt(b: ByteArray): Boolean? {
-        if (b.size != 10 || !qc(b) || b[2] != 2.toByte() || b[3] != 0x2c.toByte() || b[4] != 1.toByte() ||
-            b[5] != 2.toByte() || b[6] != 1.toByte() || b[7] != 0.toByte() || crc(b, 0, 9) != (b[9].toInt() and 255)) return null
-        return b[8] == 0.toByte()
+
+    private fun ByteArray.unsigned(at: Int) = this[at].toInt() and 0xff
+
+    fun qc(frame: ByteArray) = frame.size >= 9 && frame.unsigned(0) == 0xaa && frame.unsigned(1) == 0x55
+
+    fun receipt(frame: ByteArray): Boolean? {
+        if (frame.size != 10 || replyHeader.indices.any { frame[it] != replyHeader[it] }) return null
+        if (crc(frame, 0, frame.lastIndex) != frame.unsigned(frame.lastIndex)) return null
+        return frame.unsigned(8) == 0
     }
+
     fun classicAddress(company: Int, payload: ByteArray): String? {
-        val b = byteArrayOf(company.toByte(), (company ushr 8).toByte()) + payload
-        if (b.size < 6) return null
-        val mac = b.take(6)
-        if (mac.all { it == 0.toByte() } || mac.all { it == 0xff.toByte() }) return null
-        return mac.joinToString(":") { (it.toInt() and 255).toString(16).padStart(2, '0').uppercase() }
+        if (payload.size < 4) return null
+        val octets = intArrayOf(company and 255, (company ushr 8) and 255,
+            payload.unsigned(0), payload.unsigned(1), payload.unsigned(2), payload.unsigned(3))
+        if (octets.all { it == 0 } || octets.all { it == 255 }) return null
+        val digits = "0123456789ABCDEF"
+        return buildString(17) {
+            for ((i, octet) in octets.withIndex()) {
+                if (i > 0) append(':')
+                append(digits[octet ushr 4])
+                append(digits[octet and 15])
+            }
+        }
     }
 
     /** Each transport has its own decoder, so a partial BLE frame cannot absorb an SPP audio frame.
      * Normal replies (including encrypted audio) are preserved byte for byte. */
     class Decoder {
-        private var pending = ByteArray(0)
+        private var buffer = ByteArray(256)
+        private var end = 0
+
         fun push(bytes: ByteArray): List<ByteArray> {
-            require(bytes.size <= 131072)
-            if (pending.size + bytes.size > 131072) pending = ByteArray(0)
-            pending += bytes
-            val out = mutableListOf<ByteArray>()
-            var i = 0
-            while (pending.size - i >= 2) {
-                val normal = pending[i] == 9.toByte() && pending[i + 1] == 0xff.toByte()
-                val qc = pending[i] == 0xaa.toByte() && pending[i + 1] == 0x55.toByte()
-                if (!normal && !qc) { i++; continue }
-                val header = if (normal) 9 else 8
-                if (pending.size - i < header) break
-                val at = i + if (normal) 7 else 6
-                val n = (pending[at].toInt() and 255) + ((pending[at + 1].toInt() and 255) shl 8) + if (normal) 0 else 9
-                if (n < header + 1 || n > (if (normal) 65535 else 1024) ||
-                    normal && (pending[i + 2] != 0.toByte() || pending[i + 3] != 0.toByte())) { i++; continue }
-                if (pending.size - i < n) break
-                val check = if (normal) (i until i + n - 1).sumOf { pending[it].toInt() and 255 } and 255
-                    else crc(pending, i, i + n - 1)
-                if (check != (pending[i + n - 1].toInt() and 255)) { i++; continue }
-                out += pending.copyOfRange(i, i + n)
-                i += n
+            require(bytes.size <= BUFFER_LIMIT)
+            if (bytes.size > BUFFER_LIMIT - end) end = 0
+            val required = end + bytes.size
+            if (required > buffer.size) buffer = buffer.copyOf(maxOf(required, buffer.size * 2).coerceAtMost(BUFFER_LIMIT))
+            bytes.copyInto(buffer, end)
+            end = required
+
+            val frames = ArrayList<ByteArray>()
+            var start = 0
+            while (end - start >= 2) {
+                val prefix = (buffer.unsigned(start) shl 8) or buffer.unsigned(start + 1)
+                val length = when (prefix) {
+                    0x09ff -> encodedLength(start, headerBytes = 9, trailerBytes = 0, limit = 65535)
+                    0xaa55 -> encodedLength(start, headerBytes = 8, trailerBytes = 9, limit = 1024)
+                    else -> INVALID
+                }
+                if (length == INCOMPLETE) break
+                if (length == INVALID || prefix == 0x09ff && (buffer[start + 2] != 0.toByte() || buffer[start + 3] != 0.toByte())) {
+                    start++
+                    continue
+                }
+                if (length > end - start) break
+                val checksumAt = start + length - 1
+                val checksum = if (prefix == 0xaa55) crc(buffer, start, checksumAt) else checksum(start, checksumAt)
+                if (buffer.unsigned(checksumAt) == checksum) {
+                    frames += buffer.copyOfRange(start, checksumAt + 1)
+                    start = checksumAt + 1
+                } else {
+                    start++
+                }
             }
-            pending = pending.copyOfRange(i, pending.size)
-            return out
+            if (start > 0) buffer.copyInto(buffer, startIndex = start, endIndex = end)
+            end -= start
+            return frames
+        }
+
+        private fun encodedLength(start: Int, headerBytes: Int, trailerBytes: Int, limit: Int): Int {
+            if (end - start < headerBytes) return INCOMPLETE
+            val sizeAt = start + headerBytes - 2
+            val length = D3200Protocol.u16(buffer, sizeAt) + trailerBytes
+            return if (length in (headerBytes + 1)..limit) length else INVALID
+        }
+
+        private fun checksum(start: Int, until: Int): Int {
+            var sum = 0
+            for (index in start until until) sum += buffer.unsigned(index)
+            return sum and 255
+        }
+
+        private companion object {
+            const val BUFFER_LIMIT = 131072
+            const val INVALID = -1
+            const val INCOMPLETE = -2
         }
     }
 }
 
 /** One outstanding RGB command. The reply carries no transaction ID: after timeout the socket must be discarded. */
 class BeanLightState {
+    private data class Flight(val preference: BeanLight.Preference, val expiresAt: Long)
+    private data class Confirmation(val preference: BeanLight.Preference, val wallTime: Long)
+
     private var wanted = BeanLight.Preference()
-    private var sent: BeanLight.Preference? = null
-    private var deadline = 0L
-    private var next = 0L
+    private var flight: Flight? = null
+    private var nextSend = 0L
     private var state = "stopped"
     private var detail = ""
-    private var confirmed: BeanLight.Preference? = null
-    private var confirmedAt = 0L
+    private var confirmation: Confirmation? = null
 
     fun select(p: BeanLight.Preference) {
         if (wanted == p) return
         wanted = p
-        next = 0
-        detail = ""
-        state = if (p.mode == "none") "stopped" else "pending"
+        nextSend = 0
+        status("pending")
     }
+
     fun outgoing(now: Long): ByteArray? {
-        if (wanted.mode == "none" || sent != null || now < next) return null
-        sent = wanted
-        deadline = now + 3000
-        if (confirmed != wanted) state = "pending"
+        if (wanted.mode == "none" || flight != null || now < nextSend) return null
+        flight = Flight(wanted, now + 3000)
+        if (confirmation?.preference != wanted) state = "pending"
         return BeanLight.command(wanted.mode == "on")
     }
+
     fun acknowledge(frame: ByteArray, now: Long, wall: Long): Boolean? {
-        val ok = BeanLight.receipt(frame) ?: return null
-        val p = sent ?: return null
-        sent = null
-        if (!ok) { failed("设备拒绝灯光指令"); return false }
-        confirmed = p
-        confirmedAt = wall
-        state = if (wanted.mode == "none") "stopped" else if (p == wanted) "confirmed" else "pending"
-        detail = ""
-        next = if (p == wanted) now + 2000 else now
+        val current = flight ?: return null
+        val accepted = BeanLight.receipt(frame) ?: return null
+        if (!accepted) {
+            failed("设备拒绝灯光指令")
+            return false
+        }
+        flight = null
+        confirmation = Confirmation(current.preference, wall)
+        val latestPreference = current.preference == wanted
+        nextSend = now + if (latestPreference) 2000 else 0
+        status(if (latestPreference) "confirmed" else "pending")
         return true
     }
-    fun expired(now: Long) = sent != null && now >= deadline
-    fun waiting() { sent = null; next = 0; state = if (wanted.mode == "none") "stopped" else "waiting" }
-    fun failed(why: String) { waiting(); detail = why; if (wanted.mode != "none") state = "error" }
+
+    fun expired(now: Long) = flight?.let { now >= it.expiresAt } ?: false
+
+    fun waiting() = resetFlight("waiting", detail)
+
+    fun failed(why: String) = resetFlight("error", why)
+
+    private fun resetFlight(nextState: String, reason: String) {
+        flight = null
+        nextSend = 0
+        status(nextState, reason)
+    }
+
+    private fun status(nextState: String, reason: String = "") {
+        state = if (wanted.mode == "none") "stopped" else nextState
+        detail = reason
+    }
+
     fun snapshot(): Map<String, Any?> = mapOf("capability" to 1, "state" to state, "detail" to detail,
-        "mode" to wanted.mode, "version" to wanted.version, "confirmed_mode" to confirmed?.mode,
-        "confirmed_version" to confirmed?.version, "confirmed_at" to confirmedAt.takeIf { it > 0 })
+        "mode" to wanted.mode, "version" to wanted.version, "confirmed_mode" to confirmation?.preference?.mode,
+        "confirmed_version" to confirmation?.preference?.version, "confirmed_at" to confirmation?.wallTime?.takeIf { it > 0 })
 }

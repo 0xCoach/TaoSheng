@@ -31,6 +31,12 @@ class TranscriptStoreRepository(
     private val runNowAction: () -> Unit,
     private val deleteFailedAction: suspend (Long) -> Unit,
 ) : TranscriptRepository {
+    private companion object {
+        // 对应 segments.playbackDigest 的持久化值。
+        const val TRANSCRIBE_ONLY = 1
+        const val INCLUDE_IN_DIGEST = 2
+    }
+
     override suspend fun editLine(lineId: Long, text: String): Boolean {
         val value = text.trim()
         if (value.isEmpty()) return false
@@ -79,19 +85,64 @@ class TranscriptStoreRepository(
         val zone = TimeZone.of(zoneProvider.zoneId())
         val start = date.atStartOfDayIn(zone).toEpochMilliseconds()
         val end = date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone).toEpochMilliseconds()
-        return combine(dao.day(start, end), clock) { rows, _ -> rows.filter { it.segment.status != "SkippedEnv" }.map { (segment, lines) ->
-            SegmentTranscript(segment.id, segment.startAt, segment.endAt, TranscriptStatus.valueOf(segment.status),
-                lines.sortedWith(compareBy({ it.startAt }, { it.id })).map { TranscriptLine(it.id, it.startAt, it.endAt, it.text, it.speakerTag, it.speakerName, it
-                    .speakerScore, it.segmentId, readVoiceInput(it.voiceInputJson), it.textEditedAt != null, it.eventId) },
-                segment.error, segment.sourceId != "voice-input" && isAudioFile(FileRef(segment.path)),
-                playbackHeld = segment.playbackDigest == 1)
-        } }.flowOn(io)
+        return combine(dao.day(start, end), clock) { rows, _ ->
+            buildList {
+                for ((segment, lines) in rows) {
+                    if (segment.status == "SkippedEnv") continue
+                    val status = TranscriptStatus.valueOf(segment.status)
+                    val transcript = lines.sortedWith(compareBy({ it.startAt }, { it.id })).map { line ->
+                        TranscriptLine(
+                            id = line.id,
+                            startAt = line.startAt,
+                            endAt = line.endAt,
+                            text = line.text,
+                            speakerTag = line.speakerTag,
+                            speakerName = line.speakerName,
+                            speakerScore = line.speakerScore,
+                            segmentId = line.segmentId,
+                            voiceInput = readVoiceInput(line.voiceInputJson),
+                            edited = line.textEditedAt != null,
+                            eventId = line.eventId,
+                        )
+                    }
+                    val audioAvailable = when (segment.sourceId) {
+                        "voice-input" -> false
+                        else -> isAudioFile(FileRef(segment.path))
+                    }
+                    add(SegmentTranscript(
+                        segmentId = segment.id,
+                        startAt = segment.startAt,
+                        endAt = segment.endAt,
+                        status = status,
+                        lines = transcript,
+                        error = segment.error,
+                        audioAvailable = audioAvailable,
+                        playbackDigestReview = when (segment.playbackDigest) {
+                            TRANSCRIBE_ONLY -> PlaybackDigestReview.AwaitingApproval
+                            else -> PlaybackDigestReview.NotRequired
+                        },
+                    ))
+                }
+            }
+        }.flowOn(io)
     }
-    override fun transcribeAnyway(segmentId: Long, playbackDigest: Int) { scope.launch {
-        check(playbackDigest == 1 || playbackDigest == 2) { "playbackDigest 只能是 1 或 2" }
-        if (isAudioFile(FileRef(dao.segment(segmentId).path)) && dao.transcribeAnyway(segmentId, playbackDigest) > 0) runNowAction()
-    } }
-    override fun allowPlaybackDigest(segmentId: Long) { scope.launch { dao.allowPlaybackDigest(segmentId) } }
+    override fun applyPlaybackAction(segmentId: Long, action: PlaybackTranscriptAction) {
+        scope.launch {
+            val queueMode = when (action) {
+                PlaybackTranscriptAction.QueueTranscription -> TRANSCRIBE_ONLY
+                PlaybackTranscriptAction.QueueWithDigest -> INCLUDE_IN_DIGEST
+                PlaybackTranscriptAction.IncludeInNextDigest -> {
+                    dao.allowPlaybackDigest(segmentId)
+                    return@launch
+                }
+            }
+            val segment = dao.segment(segmentId)
+            if (!isAudioFile(FileRef(segment.path))) return@launch
+
+            val requeued = dao.transcribeAnyway(segmentId, queueMode)
+            if (requeued > 0) runNowAction()
+        }
+    }
     override fun runNow() = runNowAction()
     override fun retryFailed() { scope.launch { dao.retryFailed(now.now()); runNowAction() } }
     override fun ignoreFailed() { scope.launch { dao.ignoreFailed(now.now()) } }

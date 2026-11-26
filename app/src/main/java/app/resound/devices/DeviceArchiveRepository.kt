@@ -15,6 +15,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import java.io.File
+import java.io.OutputStream
 import java.security.MessageDigest
 import java.util.UUID
 
@@ -73,11 +74,18 @@ internal class DeviceArchiveRepository(
         val value = runCatching { json.decodeFromString<DeviceArchiveOptions>(file.openRead().bufferedReader().use { it.readText() }) }.getOrDefault(DeviceArchiveOptions()).forInstallation(installation)
         configurations.update { it + (identity to value) }; return value
     }
-    private fun write(file: AtomicFile, text: String) {
+    private inline fun writeAtomically(file: AtomicFile, save: (OutputStream) -> Unit) {
         val output = file.startWrite()
-        try { output.write(text.toByteArray()); file.finishWrite(output) }
-        catch (e: Exception) { file.failWrite(output); throw e }
+        try {
+            save(output)
+            file.finishWrite(output)
+        } catch (error: Exception) {
+            file.failWrite(output)
+            throw error
+        }
     }
+
+    private fun write(file: AtomicFile, text: String) = writeAtomically(file) { it.write(text.toByteArray()) }
     suspend fun configure(identity: String, value: DeviceArchiveOptions) = withContext(Dispatchers.IO) { gate.withLock {
         val saved = value.copy(installation = installation)
         write(AtomicFile(File(root,"options-${hash(identity)}.json")),json.encodeToString(saved))
@@ -112,36 +120,52 @@ internal class DeviceArchiveRepository(
         if (!configuration(identity).archiveEnabled || !allowsSource(source)) return@withContext
         val id = hash("$driver|$identity|${source.id}|${source.bytes}|${source.startedAt}|${source.durationMillis}|${source.format}|$sourceHash")
         if (erasures.value.any { it.excludes(id,source.startedAt,source.durationMillis ?: 0) }) return@withContext
-        rows.value.firstOrNull { it.id == id }?.let { old ->
-            if (old.installation == installation && audio(old).isFile && DeviceSourceCache.sha256(audio(old)) == old.archiveSha256) return@withContext
+        val previous = rows.value.firstOrNull { it.id == id }
+        if (previous != null && previous.installation == installation && completeLocalArchive(previous)) {
+            return@withContext
         }
         message(identity,"正在保存和校验完整原声")
-        val temp = File(root,".$id.part")
+        val pending = File(root, ".$id.part")
         try {
-            val converted = encode(driver,raw,temp)
-            if (!converted) raw.copyTo(temp,true)
-            var samples = 0L
-            if (!converted && source.format == FileFormat.Pcm16) {
-                require(temp.length()%2==0L); samples = temp.length()/2
-            } else ImportDecoder().decode(temp,consume = { pcm -> samples += pcm.size })
+            val format = if (encode(driver, raw, pending)) FileFormat.Ogg else source.format.also {
+                raw.copyTo(pending, overwrite = true)
+            }
+            val samples = if (format == FileFormat.Pcm16) {
+                val bytes = pending.length()
+                require(bytes % 2 == 0L)
+                bytes / 2
+            } else {
+                var counted = 0L
+                ImportDecoder().decode(pending, consume = { pcm -> counted += pcm.size })
+                counted
+            }
             val expected = requireNotNull(source.durationMillis)
             require(samples > 0 && samples / 16 >= expected - 100) { "完整归档的音频时长不足" }
-            val sha = DeviceSourceCache.sha256(temp); val target = File(root,"$sha.audio")
-            if (!target.isFile || DeviceSourceCache.sha256(target) != sha) {
-                val output = AtomicFile(target); val stream = output.startWrite()
-                try { temp.inputStream().use { it.copyTo(stream) }; output.finishWrite(stream) }
-                catch (e: Exception) { output.failWrite(stream); throw e }
+            val checksum = DeviceSourceCache.sha256(pending)
+            val saved = File(root, "$checksum.audio")
+            if (!saved.isFile || DeviceSourceCache.sha256(saved) != checksum) {
+                writeAtomically(AtomicFile(saved)) { output ->
+                    pending.inputStream().use { it.copyTo(output) }
+                }
             }
+
             gate.withLock {
                 val old = rows.value.firstOrNull { it.id == id }
                 saveLocked(DeviceArchiveRecord(id,driver,identity,source.id,source.startedAt,expected,clock.nowEpochMillis(),
-                    raw.length(),sourceHash,target.length(),sha,if(converted) FileFormat.Ogg.name else source.format.name,
+                    raw.length(),sourceHash,saved.length(),checksum,format.name,
                     samples,clock.nowEpochMillis(),installation,protected = old?.protected ?: false,
                     deletion = old?.deletion ?: DeviceDeleteState.Present,localDeviceHandle = handle))
             }
             message(identity,"完整原声已归档；导入与独立备份分别确认")
-        } finally { temp.delete() }
+        } finally {
+            pending.delete()
+        }
     } }
+
+    private fun completeLocalArchive(record: DeviceArchiveRecord): Boolean {
+        val original = audio(record)
+        return original.isFile && DeviceSourceCache.sha256(original) == record.archiveSha256
+    }
     suspend fun refreshImports(identity: String, fileId: String? = null) = withContext(Dispatchers.IO) {
         // Do not treat a fingerprint shortcut or a seeded coverage row as a completed decode/import receipt.
         for (record in rows.value.filter { it.deviceIdentity == identity && !it.imported && (fileId == null || it.fileId == fileId) }) {
@@ -223,42 +247,63 @@ internal class DeviceArchiveRepository(
         withContext(Dispatchers.IO) { contentGate.withLock { gate.withLock {
             check(privacyReadable) { "隐私删除记录无法读取，请先导出问题记录" }
             val inventory = load()
-            val selected = inventory.filter { deviceArchiveOverlaps(it.startedAtMillis,it.durationMillis,from,until) }
-            val hashes = selected.map { it.archiveSha256 }.toSet()
-            val removed = inventory.filter { it in selected || it.archiveSha256 in hashes }
-            val keep = inventory.filterNot { it in removed }.map { it.archiveSha256 }.toSet()
+            val toErase = buildSet {
+                for (record in inventory) {
+                    if (deviceArchiveOverlaps(record.startedAtMillis, record.durationMillis, from, until)) {
+                        add(record.archiveSha256)
+                    }
+                }
+            }
+            // 同一个归档文件可被多份清单引用。任一引用落入删除区间，便同时清理其他引用。
+            val (removed, remaining) = inventory.partition { it.archiveSha256 in toErase }
+            val keep = remaining.mapTo(HashSet()) { it.archiveSha256 }
             val listed = requireNotNull(root.listFiles()) { "无法读取完整原声目录" }
-            val paths = mutableSetOf<String>()
-            fun variants(file: File) { paths += file.path;paths += file.path+".bak";paths += file.path+".new" }
-            for (record in removed) { variants(manifest(record.id).baseFile);variants(audio(record)) }
+            val paths = LinkedHashSet<String>()
+            fun addAtomicVariants(file: File) {
+                paths.add(file.path)
+                paths.add(file.path + ".bak")
+                paths.add(file.path + ".new")
+            }
+            for (record in removed) {
+                addAtomicVariants(manifest(record.id).baseFile)
+                addAtomicVariants(audio(record))
+            }
             // Unreadable manifests and orphan/partial originals have no reliable date: erase conservatively.
-            val good = inventory.map { it.id }.toSet()
+            val good = inventory.mapTo(HashSet()) { it.id }
+            val manifestName = Regex("[a-f0-9]{64}[.]json")
+            val audioName = Regex("[a-f0-9]{64}[.]audio")
+            val partialName = Regex("[.][a-f0-9]{64}[.]part")
             for (file in listed) {
                 val base = file.name.removeSuffix(".bak").removeSuffix(".new")
-                if (base.matches(Regex("[a-f0-9]{64}[.]json")) && base.removeSuffix(".json") !in good ||
-                    base.matches(Regex("[a-f0-9]{64}[.]audio")) && base.removeSuffix(".audio") !in keep ||
-                    base.matches(Regex("[.][a-f0-9]{64}[.]part"))) variants(File(root,base))
+                val orphan = when {
+                    manifestName.matches(base) -> base.substringBeforeLast('.') !in good
+                    audioName.matches(base) -> base.substringBeforeLast('.') !in keep
+                    else -> partialName.matches(base)
+                }
+                if (orphan) addAtomicVariants(File(root, base))
             }
             val downloads = File(context.filesDir,"device-sync/downloads")
             for (record in removed) if (record.localDeviceHandle.isNotBlank()) {
                 for (format in FileFormat.entries) {
                     val source = DeviceFile(record.fileId,"",record.sourceBytes,record.startedAtMillis,record.durationMillis,format)
                     val cache = File(downloads,deviceSourceKey(record.localDeviceHandle,source))
-                    variants(cache);variants(File(cache.path+".sha256"))
+                    addAtomicVariants(cache)
+                    addAtomicVariants(File(cache.path + ".sha256"))
                 }
                 for (transfer in db.deviceSync().rows(record.localDeviceHandle).filter {
                     it.fileId == record.fileId && it.size == record.sourceBytes && it.startedAt == record.startedAtMillis &&
                         it.duration == record.durationMillis && it.key.matches(Regex("[A-Za-z0-9-]{1,200}"))
                 }) {
-                    variants(File(downloads,transfer.key))
-                    variants(File(context.cacheDir,"device-import-${transfer.key}.ogg"))
+                    addAtomicVariants(File(downloads, transfer.key))
+                    addAtomicVariants(File(context.cacheDir, "device-import-${transfer.key}.ogg"))
                 }
             }
             // The upper bound is clamped to now: later new recordings remain eligible for archiving.
-            val fence = DeviceArchiveErasure(from,minOf(until,clock.nowEpochMillis()),removed.map { it.id }.toSet())
+            val fence = DeviceArchiveErasure(from, minOf(until, clock.nowEpochMillis()), removed.mapTo(LinkedHashSet()) { it.id })
             val updated = erasures.value + fence
-            write(erasedFile,json.encodeToString(updated));erasures.value = updated
-            rows.value = inventory.filterNot { erased(it) || it in removed }
+            write(erasedFile, json.encodeToString(updated))
+            erasures.value = updated
+            rows.value = remaining.filterNot(::erased)
             try { block(paths.toList()) }
             finally { rows.value = load().filterNot(::erased) }
         } } }
@@ -286,13 +331,10 @@ internal class DeviceArchiveRepository(
                     continue
                 }
                 val current = rows.value.first { it.id == prior.id }
-                val state = connection.status.value
-                val block = deviceRetentionBlock(current,configuration(identity).retention,clock.nowEpochMillis(),identity,installation,
-                    backupDestination(),state.recording == RecordingState.Stopped,state.batteries.firstOrNull { it.part == 1 }?.percent,automatic)
-                if (block != DeviceRetentionBlock.None) continue
+                if (!retentionAllowed(connection, current, identity, automatic)) continue
                 if (target == null) { update(current.id) { it.copy(deletion = DeviceDeleteState.RemovedElsewhere) }; continue }
                 check(target.bytes == current.sourceBytes && target.durationMillis == current.durationMillis && target.start.epochMillis == current.startedAtMillis) { "设备文件身份变化，取消清理" }
-                check(audio(current).isFile && DeviceSourceCache.sha256(audio(current)) == current.archiveSha256) { "本机完整归档不可用" }
+                check(completeLocalArchive(current)) { "本机完整归档不可用" }
                 check(backup()?.verifyDeviceArchiveBackup(current) == true) { "独立备份需要重新验证" }
                 val digest = MessageDigest.getInstance("SHA-256"); var size = 0L
                 files.read(target,0).collect { bytes -> digest.update(bytes); size += bytes.size }
@@ -300,9 +342,7 @@ internal class DeviceArchiveRepository(
                 check(size == current.sourceBytes && sourceHash == current.sourceSha256) { "设备原件与归档不一致，取消清理" }
                 val intent = gate.withLock {
                     val latest = rows.value.first { it.id == current.id }
-                    if (deviceRetentionBlock(latest,configuration(identity).retention,clock.nowEpochMillis(),identity,installation,
-                        backupDestination(),connection.status.value.recording == RecordingState.Stopped,
-                        connection.status.value.batteries.firstOrNull { it.part == 1 }?.percent,automatic) != DeviceRetentionBlock.None) null
+                    if (!retentionAllowed(connection, latest, identity, automatic)) null
                     else latest.copy(deletion = DeviceDeleteState.Intent,deletionAtMillis = clock.nowEpochMillis()).also { saveLocked(it) }
                 } ?: continue
                 try {
@@ -320,4 +360,11 @@ internal class DeviceArchiveRepository(
             message(identity,"清理检查完成：本次已删除 $removed 条设备原件；未满足条件的已跳过，完整归档和独立备份保留")
         }
     } }
+
+    private fun retentionAllowed(connection: DriverConnection, record: DeviceArchiveRecord, identity: String, automatic: Boolean): Boolean {
+        val state = connection.status.value
+        return deviceRetentionBlock(record, configuration(identity).retention, clock.nowEpochMillis(), identity, installation,
+            backupDestination(), state.recording == RecordingState.Stopped, state.batteries.firstOrNull { it.part == 1 }?.percent,
+            automatic) == DeviceRetentionBlock.None
+    }
 }

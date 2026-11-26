@@ -95,13 +95,8 @@ internal class DeviceSync(
                 if (all || start != null || end != null) for (file in files) {
                     try {
                         val slice = deviceSlice(file, start, end, offset, (plugin as? DeviceFileDetails)?.modifiedAt(file)) ?: continue
-                        val covered = previous.filter { !it.key.startsWith("archive-") && it.fileId == file.id && it.size == file.bytes && it.startedAt == file.startedAt && it.duration == file.durationMillis }
-                        var ranges = listOf(slice.from to slice.to)
-                        for (old in covered) ranges = ranges.flatMap { (a, b) ->
-                            if (old.toMillis <= a || old.fromMillis >= b) listOf(a to b)
-                            else listOf(a to minOf(b, old.fromMillis), maxOf(a, old.toMillis) to b).filter { it.first < it.second }
-                        }
-                        for ((from, to) in ranges) {
+                        val covered = previous.filter { !it.key.startsWith("archive-") && it.isFor(file) }
+                        for ((from, to) in unqueuedRanges(slice, covered)) {
                             val key = deviceTransferKey(deviceKey, file, from, to)
                             val row = DeviceTransfer(key, deviceKey, file.id, file.name, file.bytes, file.startedAt,
                                 file.durationMillis, file.format.name, from, to, slice.start + from - slice.from)
@@ -111,12 +106,13 @@ internal class DeviceSync(
                 }
                 // Archival is independent of VAD/live coverage. Already-imported files may still
                 // need their complete source archived, without importing duplicate timeline audio.
-                for (file in files) if (needsArchive(file) && db.deviceSync().rows(deviceKey).none {
-                        !it.imported && it.fileId == file.id && it.size == file.bytes && it.startedAt == file.startedAt && it.duration == file.durationMillis }) {
-                    val slice = deviceSlice(file,null,null,offset,(plugin as? DeviceFileDetails)?.modifiedAt(file)) ?: continue
-                    val key = "archive-${deviceSourceKey(deviceKey,file)}"
-                    db.deviceSync().save(DeviceTransfer(key,deviceKey,file.id,file.name,file.bytes,file.startedAt,
-                        file.durationMillis,file.format.name,0,requireNotNull(file.durationMillis),slice.start))
+                for (file in files) {
+                    if (!needsArchive(file)) continue
+                    if (db.deviceSync().rows(deviceKey).any { !it.imported && it.isFor(file) }) continue
+                    val slice = deviceSlice(file, null, null, offset, (plugin as? DeviceFileDetails)?.modifiedAt(file)) ?: continue
+                    val key = "archive-${deviceSourceKey(deviceKey, file)}"
+                    db.deviceSync().save(DeviceTransfer(key, deviceKey, file.id, file.name, file.bytes, file.startedAt,
+                        file.durationMillis, file.format.name, 0, requireNotNull(file.durationMillis), slice.start))
                 }
                 val pending = db.deviceSync().rows(deviceKey).filter { !it.deleted && !it.imported &&
                     mayImportSource(DeviceFile(it.fileId,it.name,it.size,it.startedAt,it.duration,
@@ -124,13 +120,13 @@ internal class DeviceSync(
                     (selectedFileIds == null || it.fileId in selectedFileIds) }
                 val jobs = if (newestFirst) pending.sortedByDescending { it.phoneStart } else pending
                 meter = DeviceSyncMeter(jobs.map { row ->
-                    val file = files.firstOrNull { it.id == row.fileId && it.bytes == row.size && it.startedAt == row.startedAt && it.durationMillis == row.duration }
+                    val file = files.firstOrNull { row.isFor(it) }
                     DeviceSyncTask(row.key, file?.let { deviceSourceKey(deviceKey,it) } ?: row.key, row.size, if(row.key.startsWith("archive-")) 0 else row.toMillis-row.fromMillis)
                 })
                 mutableProgress.value = BackfillProgress(jobs.size, 0, jobs.distinctBy { it.fileId to (it.size to it.startedAt) }.sumOf { it.size ?: 0 }, 0)
                 var failed = false
                 for (job in jobs) {
-                    val file = files.firstOrNull { it.id == job.fileId && it.bytes == job.size && it.durationMillis == job.duration && it.startedAt == job.startedAt }
+                    val file = files.firstOrNull { job.isFor(it) }
                     if (file == null) { failed = true; continue }
                     try {
                         transfer(plugin, link, file, job)
@@ -158,11 +154,34 @@ internal class DeviceSync(
             finally { mutableProgress.value = null }
         } }
 
+    private fun DeviceTransfer.isFor(file: DeviceFile) =
+        fileId == file.id && size == file.bytes && startedAt == file.startedAt && duration == file.durationMillis
+
+    private suspend fun transfersFor(file: DeviceFile): List<DeviceTransfer> =
+        db.deviceSync().rows(deviceKey).filter { it.isFor(file) && it.format == file.format.name }
+
+    private fun unqueuedRanges(slice: DeviceSlice, covered: List<DeviceTransfer>): List<Pair<Long, Long>> {
+        var open = listOf(slice.from to slice.to)
+        for (prior in covered) {
+            open = buildList {
+                for ((start, end) in open) {
+                    if (prior.toMillis <= start || prior.fromMillis >= end) {
+                        add(start to end)
+                    } else {
+                        if (start < prior.fromMillis) add(start to prior.fromMillis)
+                        if (prior.toMillis < end) add(prior.toMillis to end)
+                    }
+                }
+            }
+        }
+        return open
+    }
+
     private suspend fun transfer(plugin: FileSourcePlugin, link: DeviceLink, file: DeviceFile, initial: DeviceTransfer) {
         var row = initial
         val cache = DeviceSourceCache(root, deviceSourceKey(deviceKey,file))
         val local = cache.file
-        val peers = db.deviceSync().rows(deviceKey).filter { it.fileId == file.id && it.size == file.bytes && it.startedAt == file.startedAt && it.duration == file.durationMillis && it.format == file.format.name }
+        val peers = transfersFor(file)
         // Adopt an earlier per-range cache without discarding already committed bytes.
         if (!local.exists()) peers.sortedByDescending { it.received }.firstOrNull { File(root,it.key).isFile }?.let { old ->
             check(File(root,old.key).renameTo(local)) { "无法迁移补传缓存" }
@@ -178,7 +197,7 @@ internal class DeviceSync(
             for (attempt in 0 until 3) {
                 if (valid) break
                 cache.invalidate()
-                val committed = db.deviceSync().rows(deviceKey).filter { it.fileId == file.id && it.size == file.bytes && it.startedAt == file.startedAt && it.duration == file.durationMillis && it.format == file.format.name }.maxOfOrNull { it.received } ?: 0
+                val committed = transfersFor(file).maxOfOrNull { it.received } ?: 0L
                 val resume = deviceDurablePrefix(local.takeIf(File::isFile)?.length() ?: 0, committed, file.bytes, plugin.caps.resume)
                 RandomAccessFile(local, "rw").use { output ->
                     output.setLength(resume); output.seek(resume)
@@ -189,14 +208,7 @@ internal class DeviceSync(
                     }
                 }
                 phase(DeviceSyncPhase.Verifying)
-                valid = if (plugin.caps.checksum) {
-                    val algorithm = requireNotNull((plugin as? DeviceFileDetails)?.checksumAlgorithm(file)) { "缺少校验算法" }
-                    val digest = MessageDigest.getInstance(algorithm)
-                    local.inputStream().use { input -> val buffer = ByteArray(65536); while (true) {
-                        val n = input.read(buffer); if (n < 0) break; digest.update(buffer, 0, n)
-                    } }
-                    plugin.checksum(link, file)?.contentEquals(digest.digest()) == true
-                } else (plugin as? DeviceFileDetails)?.validSize(file, local) ?: (file.bytes == local.length())
+                valid = verifySource(plugin, link, file, local)
                 if (valid) break
                 cache.discard(); row = row.copy(received = 0); db.deviceSync().save(row)
             }
@@ -226,8 +238,24 @@ internal class DeviceSync(
         discardIfFinished(cache,file)
     }
 
+    private suspend fun verifySource(plugin: FileSourcePlugin, link: DeviceLink, file: DeviceFile, local: File): Boolean {
+        val details = plugin as? DeviceFileDetails
+        if (!plugin.caps.checksum) return details?.validSize(file, local) ?: (file.bytes == local.length())
+        val algorithm = requireNotNull(details?.checksumAlgorithm(file)) { "缺少校验算法" }
+        val digest = MessageDigest.getInstance(algorithm)
+        local.inputStream().use { input ->
+            val block = ByteArray(65_536)
+            var count = input.read(block)
+            while (count >= 0) {
+                digest.update(block, 0, count)
+                count = input.read(block)
+            }
+        }
+        val expected = plugin.checksum(link, file)
+        return expected?.contentEquals(digest.digest()) == true
+    }
+
     private suspend fun discardIfFinished(cache: DeviceSourceCache, file: DeviceFile) {
-        if (db.deviceSync().rows(deviceKey).none { it.fileId == file.id && it.size == file.bytes && it.startedAt == file.startedAt &&
-                it.duration == file.durationMillis && it.format == file.format.name && !it.imported }) cache.discard()
+        if (transfersFor(file).none { !it.imported }) cache.discard()
     }
 }

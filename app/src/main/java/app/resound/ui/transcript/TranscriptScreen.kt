@@ -110,6 +110,7 @@ import app.resound.transcribe.TranscribeSettings
 import app.resound.transcribe.MIN_INTERVAL
 import app.resound.transcribe.MAX_INTERVAL
 import app.resound.transcribe.TranscriptLine
+import app.resound.transcribe.PlaybackTranscriptAction
 import app.resound.transcribe.TranscriptRepository
 import app.resound.transcribe.TranscriptStatus
 import app.resound.ui.theme.Rs
@@ -245,8 +246,7 @@ fun TranscriptScreen(
             val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
             val id = seg.segmentId
             SegmentCard(seg, Modifier.animateItem().then(if (selection.active) Modifier.trackRow(selection, id) else Modifier),
-                realtime, onTranscribeAnyway = { digest -> repo.transcribeAnyway(id, digest) },
-                onAllowPlaybackDigest = { repo.allowPlaybackDigest(id) },
+                realtime, onPlaybackAction = { action -> repo.applyPlaybackAction(id, action) },
                 onRetry = { repo.retrySegment(id) }, onDelete = { repo.deleteFailed(id) },
                 selected = if (selection.active) id in selection.ids else null,
                 onLongPress = {
@@ -532,21 +532,20 @@ private fun SettingsCard(settings: TranscribeSettings, onSaved: () -> Unit) {
         }
         // 卡 116：豆包和自定义转写服务各存一组请求头；本地转写不联网，不需要
         if (advanced != null && !local) app.resound.ui.settings.TranscribeHeaders(source)
-        // 豆包对远处、小声的话常整段不出字；开着就把这段交给「自定义」里配好的服务再转一次
         if (advanced != null && source == TranscribeSource.Doubao) {
-            val fallback by advanced.doubaoFallback.collectAsStateWithLifecycle()
-            val customReady = advanced.customEndpoint.isNotBlank() && advanced.customModel.isNotBlank()
+            val enabled by advanced.doubaoFallback.collectAsStateWithLifecycle()
+            val description = when {
+                !enabled -> "远处、小声的话豆包常整段不出字。开着就把这段交给「自定义」里配好的服务（如千问）再转一次，补的那次另算费用"
+                advanced.hasCustomFallbackTarget() -> "已开：豆包没出字的段会再交给自定义服务转一次，补的那次另算费用"
+                else -> "已开，但「自定义」还没填好地址和模型，暂时不会补"
+            }
             Divider()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("豆包没听出字时用自定义服务补", style = RsType.body, color = c.text)
-                    Text(when {
-                        !fallback -> "远处、小声的话豆包常整段不出字。开着就把这段交给「自定义」里配好的服务（如千问）再转一次，补的那次另算费用"
-                        customReady -> "已开：豆包没出字的段会再交给自定义服务转一次，补的那次另算费用"
-                        else -> "已开，但「自定义」还没填好地址和模型，暂时不会补"
-                    }, style = RsType.caption, color = c.textSecondary)
+                    Text(description, style = RsType.caption, color = c.textSecondary)
                 }
-                Toggle(fallback) { advanced.setDoubaoFallback(it) }
+                Toggle(enabled, advanced::setDoubaoFallback)
             }
         }
     }
@@ -784,8 +783,8 @@ private fun Toggle(on: Boolean, onChange: (Boolean) -> Unit) = app.resound.ui.ve
 // ---------- 每段录音 ----------
 
 @Composable
-private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Boolean, onTranscribeAnyway: (Int) -> Unit,
-                        onAllowPlaybackDigest: () -> Unit,
+private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Boolean,
+                        onPlaybackAction: (PlaybackTranscriptAction) -> Unit,
                         onRetry: () -> Unit = {}, onDelete: () -> Unit = {},
                         /** 多选时是否选中；不在多选为 null */
                         selected: Boolean? = null, onLongPress: () -> Unit = {}, onTap: () -> Unit = {},
@@ -817,12 +816,12 @@ private fun SegmentCard(seg: SegmentTranscript, modifier: Modifier, realtime: Bo
         Spacer(Modifier.height(10.dp))
         AnimatedContent(seg.status, transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(150)) }, label = "segBody") { status ->
             when (status) {
-                TranscriptStatus.Done -> PlaybackHeldDone(seg, onAllowPlaybackDigest)
+                TranscriptStatus.Done -> PlaybackHeldDone(seg, onPlaybackAction)
                 TranscriptStatus.Running -> Placeholder()
                 TranscriptStatus.Pending -> Note(if (realtime) "马上转写" else "等下一轮转写")
                 TranscriptStatus.Empty -> Note("只有声音，没识别出说话内容")
                 TranscriptStatus.Failed -> Note(seg.error ?: "没转成功，可以在上面点重试", c.critical)
-                TranscriptStatus.SkippedPlayback -> SkippedPlaybackActions(seg, onTranscribeAnyway)
+                TranscriptStatus.SkippedPlayback -> SkippedPlaybackActions(seg, onPlaybackAction)
                 // 修不好的：灰色说明 + 删除；不再挂红字提醒
                 TranscriptStatus.Abandoned -> FailedActions(seg.error ?: "录音损坏，无法转写", retry = null, onDelete = onDelete)
                 // 忽略的、或失败超过 3 天的：灰色说明 + 重试 / 删除

@@ -113,24 +113,20 @@ class TranscribeRunner(
                     }
                     suspend fun recognize() = if (selected != null && provider is SourceAsrProvider)
                         provider.recognize(selected, audio, credential, ::reserve) else provider.recognize(audio, credential, ::reserve)
-                    var result = if (selected == TranscribeSource.Local) heavy.withLock { recognize() } else recognize()
+                    val primary = if (selected == TranscribeSource.Local) heavy.withLock { recognize() } else recognize()
                     val primaryElapsed = (now() - began).coerceAtLeast(0)
-                    withContext(NonCancellable) { dao.recordTokens(today(), result.inputTokens, result.outputTokens) }
+                    withContext(NonCancellable) { dao.recordTokens(today(), primary.inputTokens, primary.outputTokens) }
                     recordSpeed(selected, audio.durationMillis, primaryElapsed.coerceAtLeast(1))
-                    logId = TranscribePolicy.safeLogId(result.logId, credential)
-                    if (provider is SourceAsrProvider && TranscribePolicy.shouldTryCustomFallback(selected, candidate.asrSource != null || candidate.redoPending, result, doubaoFallback())
-                        && sourceNetwork(TranscribeSource.Custom)) {
-                        customFallbackCredential()?.let { customKey ->
-                            dao.attempt(AsrAttemptEntity(segmentId = candidate.id, at = began, result = "Empty",
-                                errorType = null, elapsedMillis = primaryElapsed, sentMillis = reserved, logId = logId))
-                            primaryAttemptRecorded = true
-                            val fallback = recognizeCustomFallback(provider, candidate.id, audio, customKey)
-                            if (fallback != null && fallback.sentences.isNotEmpty()) {
-                                result = fallback
-                                logId = TranscribePolicy.safeLogId(fallback.logId, customKey)
-                            }
-                        }
+                    logId = TranscribePolicy.safeLogId(primary.logId, credential)
+                    val replacement = requestFallback(candidate, selected, primary, audio) {
+                        dao.attempt(AsrAttemptEntity(segmentId = candidate.id, at = began, result = "Empty",
+                            errorType = null, elapsedMillis = primaryElapsed, sentMillis = reserved, logId = logId))
+                        primaryAttemptRecorded = true
                     }
+                    val result = if (replacement != null) {
+                        logId = replacement.logId
+                        replacement.response
+                    } else primary
                     outcome = if (result.sentences.isEmpty()) "Empty" else "Done"
                     val lines = result.sentences.map { line ->
                         TranscriptLineEntity(segmentId = candidate.id, startAt = candidate.startAt + line.startMillis,
@@ -208,43 +204,58 @@ class TranscribeRunner(
     }
     private enum class RoundDecision { Continue, Stop, Retry }
 
-    private suspend fun recognizeCustomFallback(provider: SourceAsrProvider, segmentId: Long, audio: AsrAudio, key: String): AsrResult? {
-        val began = now()
-        var sentMillis = 0L
-        var result: AsrResult? = null
-        var error: AsrError? = null
-        var logId: String? = null
+    private data class FallbackTranscript(val response: AsrResult, val logId: String?)
+
+    private suspend fun requestFallback(
+        segment: SegmentEntity,
+        selected: TranscribeSource?,
+        primary: AsrResult,
+        audio: AsrAudio,
+        recordPrimaryAttempt: suspend () -> Unit,
+    ): FallbackTranscript? {
+        val routed = provider as? SourceAsrProvider ?: return null
+        val pinned = segment.asrSource != null || segment.redoPending
+        if (!TranscribePolicy.shouldTryCustomFallback(selected, pinned, primary, doubaoFallback())) return null
+        val custom = TranscribeSource.Custom
+        if (!sourceNetwork(custom)) return null
+        val credential = customFallbackCredential() ?: return null
+        recordPrimaryAttempt()
+
+        val started = now()
+        var uploaded = 0L
+        var response: AsrResult? = null
+        var failure: Exception? = null
+        fun sanitizedLog() = TranscribePolicy.safeLogId(response?.logId ?: (failure as? AsrException)?.logId, credential)
         try {
-            result = provider.recognize(TranscribeSource.Custom, audio, key) {
-                check(dao.findSegment(segmentId) != null)
-                // 用量按每次上传计：补位又把整段发了一次，同样预占。
-                sentMillis = audio.durationMillis
-                dao.reserveAudio(today(), sentMillis, segmentId)
+            response = routed.recognize(custom, audio, credential) {
+                check(dao.findSegment(segment.id) != null)
+                uploaded = audio.durationMillis
+                dao.reserveAudio(today(), uploaded, segment.id)
             }
-            logId = result.logId
-        } catch (e: CancellationException) {
-            error = AsrError.Interrupted
-            throw e
-        } catch (e: Exception) {
-            error = (e as? AsrException)?.type ?: AsrError.Storage
-            logId = (e as? AsrException)?.logId
+        } catch (error: Exception) {
+            failure = error
+            if (error is CancellationException) throw error
         } finally {
-            val elapsed = (now() - began).coerceAtLeast(0)
-            val outcome = when {
-                result == null -> "CustomFallbackFailed"
-                result.sentences.isEmpty() -> "CustomFallbackEmpty"
-                else -> "CustomFallbackDone"
+            val elapsed = (now() - started).coerceAtLeast(0)
+            val recognized = response
+            val status = if (recognized == null) "CustomFallbackFailed"
+                else if (recognized.sentences.isEmpty()) "CustomFallbackEmpty" else "CustomFallbackDone"
+            val error = when (val cause = failure) {
+                null -> null
+                is CancellationException -> AsrError.Interrupted
+                is AsrException -> cause.type
+                else -> AsrError.Storage
             }
             withContext(NonCancellable) {
-                dao.attempt(AsrAttemptEntity(segmentId = segmentId, at = began, result = outcome, errorType = error?.name,
-                    elapsedMillis = elapsed, sentMillis = sentMillis, logId = TranscribePolicy.safeLogId(logId, key)))
-                if (result != null) {
-                    dao.recordTokens(today(), result.inputTokens, result.outputTokens)
-                    recordSpeed(TranscribeSource.Custom, audio.durationMillis, elapsed.coerceAtLeast(1))
+                dao.attempt(AsrAttemptEntity(segmentId = segment.id, at = started, result = status, errorType = error?.name,
+                    elapsedMillis = elapsed, sentMillis = uploaded, logId = sanitizedLog()))
+                if (recognized != null) {
+                    dao.recordTokens(today(), recognized.inputTokens, recognized.outputTokens)
+                    recordSpeed(custom, audio.durationMillis, elapsed.coerceAtLeast(1))
                 }
             }
         }
-        return result
+        return response?.takeIf { it.sentences.isNotEmpty() }?.let { FallbackTranscript(it, sanitizedLog()) }
     }
 
     suspend fun test(audio: AsrAudio, credential: String, onResult: (AsrResult) -> Unit = {}): Result<String> = gate.withLock {

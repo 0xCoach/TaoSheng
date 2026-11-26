@@ -89,16 +89,23 @@ class LocationTracker(context: Context, private val dao: LocationDao, private va
     private var lastSaved: LocationPoint? = null
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError: StateFlow<String?> = _lastError
-    private fun save(loc: android.location.Location) {
-        val point = LocationPoint(at = loc.time.takeIf { it > 0 } ?: System.currentTimeMillis(), lat = loc.latitude, lng = loc.longitude,
-            accuracy = if (loc.hasAccuracy()) loc.accuracy else 999f, provider = loc.provider ?: "?")
-        synchronized(this) {
-            if (!keep(lastSaved, point)) return
-            lastSaved = point
+    private fun save(fix: android.location.Location) {
+        val fixTime = fix.time
+        val row = LocationPoint(
+            at = if (fixTime > 0) fixTime else System.currentTimeMillis(),
+            lat = fix.latitude,
+            lng = fix.longitude,
+            accuracy = if (fix.hasAccuracy()) fix.accuracy else 999f,
+            provider = fix.provider ?: "?",
+        )
+        val accepted = synchronized(this) {
+            keep(lastSaved, row).also { if (it) lastSaved = row }
         }
-        scope.launch(Dispatchers.IO) { runCatching { dao.insert(point) }.onFailure {
-            FailureNotes.record("location/Location.kt:93", it)
-        } }
+        if (accepted) {
+            scope.launch(Dispatchers.IO) {
+                runCatching { dao.insert(row) }.onFailure { FailureNotes.record("location/Location.kt:93", it) }
+            }
+        }
     }
     private val listener = LocationListener { save(it) }
     private var lastFixAsk = 0L
@@ -109,27 +116,31 @@ class LocationTracker(context: Context, private val dao: LocationDao, private va
      */
     @SuppressLint("MissingPermission")
     fun fixNow(force: Boolean = false) {
-        val granted = listOf(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION)
-            .any { ContextCompat.checkSelfPermission(app, it) == PackageManager.PERMISSION_GRANTED }
-        if (!granted || !androidx.core.location.LocationManagerCompat.isLocationEnabled(manager)) return
+        val precise = ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_FINE_LOCATION)
+        val approximate = ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (precise != PackageManager.PERMISSION_GRANTED && approximate != PackageManager.PERMISSION_GRANTED) return
+        if (!androidx.core.location.LocationManagerCompat.isLocationEnabled(manager)) return
         val now = android.os.SystemClock.elapsedRealtime()
-        synchronized(this) { if (!force && now - lastFixAsk < 30_000) return; lastFixAsk = now }
+        synchronized(this) {
+            if (!force && now - lastFixAsk < 30_000) return
+            lastFixAsk = now
+        }
         if (lastSaved == null) scope.launch(Dispatchers.IO) { lastSaved = lastSaved ?: runCatching { dao.latest() }.onFailure {
             FailureNotes.record("location/Location.kt:109", it)
         }.getOrNull() }
         val providers = manager.getProviders(true)
         try {
-            providers.mapNotNull { runCatching { manager.getLastKnownLocation(it) }.onFailure {
-                FailureNotes.record("location/Location.kt:112", it)
-            }.getOrNull() }
-                .filter { System.currentTimeMillis() - it.time < 2 * 60_000 }.minByOrNull { if (it.hasAccuracy()) it.accuracy else 999f }
-                ?.let(::save)
-            val provider = when {
-                Build.VERSION.SDK_INT >= 31 && LocationManager.FUSED_PROVIDER in providers -> LocationManager.FUSED_PROVIDER
-                LocationManager.NETWORK_PROVIDER in providers -> LocationManager.NETWORK_PROVIDER
-                LocationManager.GPS_PROVIDER in providers -> LocationManager.GPS_PROVIDER
-                else -> return
+            val cached = ArrayList<android.location.Location>()
+            for (provider in providers) {
+                val last = runCatching { manager.getLastKnownLocation(provider) }
+                    .onFailure { FailureNotes.record("location/Location.kt:112", it) }
+                    .getOrNull()
+                if (last != null) cached.add(last)
             }
+            val usable = cached.filter { System.currentTimeMillis() - it.time < 120_000 }
+            usable.minByOrNull { if (it.hasAccuracy()) it.accuracy else 999f }?.let(::save)
+
+            val provider = preferredProviders().firstOrNull { it in providers } ?: return
             androidx.core.location.LocationManagerCompat.getCurrentLocation(manager, provider, null as android.os.CancellationSignal?,
                 ContextCompat.getMainExecutor(app)) { loc -> loc?.let(::save) }
         } catch (caught: SecurityException) {
@@ -141,8 +152,8 @@ class LocationTracker(context: Context, private val dao: LocationDao, private va
     @Synchronized fun start() {
         if (running) return
         val providers = manager.allProviders
-        val use = if (Build.VERSION.SDK_INT >= 31 && LocationManager.FUSED_PROVIDER in providers) listOf(LocationManager.FUSED_PROVIDER)
-            else listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER).filter { it in providers }
+        val available = preferredProviders().filter { it in providers }
+        val use = if (available.firstOrNull() == LocationManager.FUSED_PROVIDER) available.take(1) else available
         try {
             for (p in use) manager.requestLocationUpdates(p, INTERVAL_MS, 0f, listener, Looper.getMainLooper())
             running = use.isNotEmpty()
@@ -160,6 +171,12 @@ class LocationTracker(context: Context, private val dao: LocationDao, private va
     }
 
     val isRunning: Boolean get() = running
+
+    private fun preferredProviders(): List<String> = buildList {
+        if (Build.VERSION.SDK_INT >= 31) add(LocationManager.FUSED_PROVIDER)
+        add(LocationManager.NETWORK_PROVIDER)
+        add(LocationManager.GPS_PROVIDER)
+    }
 
     companion object {
         const val INTERVAL_MS = 5 * 60_000L

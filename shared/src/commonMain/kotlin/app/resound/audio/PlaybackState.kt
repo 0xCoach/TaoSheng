@@ -26,19 +26,25 @@ private const val TYPE_UNKNOWN = 0
 
 /** 该播放用途是否可能从扬声器出声；耳机、蓝牙等外接输出在放时不算外放。 */
 fun speakerMedia(usage: Int, routedType: Int?, outputs: List<Int>): Boolean {
-    if (usage !in setOf(USAGE_MEDIA, USAGE_GAME, USAGE_UNKNOWN)) return false
+    if (usage != USAGE_MEDIA && usage != USAGE_GAME && usage != USAGE_UNKNOWN) return false
     // #59：路由没解析出来时系统给 TYPE_UNKNOWN(0)，和拿不到一样走下面的输出设备判断（魅族上外放抖音因此一直不算外放）
-    if (routedType != null && routedType != TYPE_UNKNOWN) return routedType == TYPE_BUILTIN_SPEAKER || routedType == TYPE_BUILTIN_SPEAKER_SAFE
+    if (routedType != null && routedType != TYPE_UNKNOWN) return isSpeaker(routedType)
     // 普通 App 常拿不到播放路由；保守地把所有外接输出排除，避免误跳过耳机时的人声。
-    val external = outputs.any { it != TYPE_BUILTIN_SPEAKER && it != TYPE_BUILTIN_SPEAKER_SAFE
-        && it != TYPE_BUILTIN_EARPIECE && it != TYPE_TELEPHONY }
-    return !external && (outputs.any { it == TYPE_BUILTIN_SPEAKER } || outputs.any { it == TYPE_BUILTIN_SPEAKER_SAFE })
+    var foundSpeaker = false
+    for (output in outputs) {
+        when {
+            isSpeaker(output) -> foundSpeaker = true
+            output != TYPE_BUILTIN_EARPIECE && output != TYPE_TELEPHONY -> return false
+        }
+    }
+    return foundSpeaker
 }
 
+private fun isSpeaker(type: Int) = type == TYPE_BUILTIN_SPEAKER || type == TYPE_BUILTIN_SPEAKER_SAFE
+
 /** 由活动播放配置与 isMusicActive 算出播放状态；没有活动播放配置时不判在放，全 false。 */
-fun playbackState(configs: List<PlaybackConfigSnapshot>, outputs: List<Int>, musicActive: Boolean, mediaVolume: Int = 1): PlaybackState =
-    PlaybackState(
-        playing = configs.isNotEmpty() && musicActive,
-        speakerPlaying = mediaVolume > 0 && configs.isNotEmpty() && musicActive
-            && configs.any { speakerMedia(it.usage, it.routedType, outputs) },
-    )
+fun playbackState(configs: List<PlaybackConfigSnapshot>, outputs: List<Int>, musicActive: Boolean, mediaVolume: Int = 1): PlaybackState {
+    if (!musicActive || configs.isEmpty()) return PlaybackState(playing = false, speakerPlaying = false)
+    val speaker = mediaVolume > 0 && configs.any { speakerMedia(it.usage, it.routedType, outputs) }
+    return PlaybackState(playing = true, speakerPlaying = speaker)
+}

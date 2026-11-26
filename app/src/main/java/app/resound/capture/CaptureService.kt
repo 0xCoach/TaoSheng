@@ -455,7 +455,6 @@ class CaptureService : Service() {
     private fun startForegroundWithLocation() {
         val notification = CaptureNotifications.ongoing(this, store.prefs.getLong("pausedUntil", 0) > System.currentTimeMillis())
         val location = if (AppGraph.isLocationReady) AppGraph.location else null
-        var tracking = false
         // 卡 143：有蓝牙连接权限时加“连接设备”类型，让外设连接在后台不被系统限制；被拒就退回原来的类型
         val connected = if (android.os.Build.VERSION.SDK_INT < 31 || androidx.core.content.ContextCompat.checkSelfPermission(
                 this, android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED)
@@ -465,14 +464,22 @@ class CaptureService : Service() {
                 catch (_: RuntimeException) { }
             startForeground(CaptureNotifications.ONGOING, notification, types)
         }
-        if (location?.settings?.wanted() == true) {
-            try {
-                start(ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
-                tracking = true
-            } catch (_: RuntimeException) { }
+        val microphone = ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        val trackLocation = location?.settings?.wanted() == true
+        if (trackLocation && location != null) {
+            val locationForeground = try {
+                start(microphone or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+                true
+            } catch (_: RuntimeException) {
+                false
+            }
+            if (locationForeground) {
+                location.tracker.start()
+                return
+            }
         }
-        if (!tracking) start(ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
-        if (tracking) location?.tracker?.start() else location?.tracker?.stop()
+        start(microphone)
+        location?.tracker?.stop()
     }
     private fun stopLocation() { if (AppGraph.isLocationReady) AppGraph.location.tracker.stop() }
     private fun releaseWakeLock() { wakeLock?.let { if (it.isHeld) it.release() }; wakeLock = null }

@@ -84,26 +84,38 @@ internal class D3200Connection(private val session: DriverSession, platformIdent
 
     private fun rawFrames(): Flow<ByteArray> = frames
     private fun readFrames(source: Flow<ByteArray>): Job = readers.launch(start = CoroutineStart.UNDISPATCHED) {
-        val parser = BeanLight.Decoder()
+        val decoder = BeanLight.Decoder()
         try {
             source.collect { bytes ->
-                parser.push(bytes).forEach { frame ->
-                    if (BeanLight.qc(frame)) lightReplies.emit(frame)
-                    else {
-                        val cmd = D3200Protocol.command(frame)
-                        if (cmd in setOf(0x0103, 0x0104, 0x1a06) || (cmd == 0x1882 && !controlling.value))
-                            update(cmd, D3200Protocol.payload(frame))
-                        frames.emit(frame)
+                for (frame in decoder.push(bytes)) {
+                    if (BeanLight.qc(frame)) {
+                        lightReplies.emit(frame)
+                        continue
                     }
+                    val command = D3200Protocol.command(frame)
+                    val status = when (command) {
+                        0x0103, 0x0104, 0x1a06 -> true
+                        0x1882 -> !controlling.value
+                        else -> false
+                    }
+                    if (status) update(command, D3200Protocol.payload(frame))
+                    frames.emit(frame)
                 }
             }
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) { failures.emit(DeviceException(ErrorCode.Disconnected, "device receive failed", e)) }
     }
     private suspend fun closeSerial() {
-        serialReader?.cancel()
-        try { lightChannel?.close() }
-        finally { serialReader?.join(); serialReader = null; lightChannel = null }
+        val reader = serialReader
+        val channel = lightChannel
+        serialReader = null
+        lightChannel = null
+        reader?.cancel()
+        try {
+            channel?.close()
+        } finally {
+            reader?.join()
+        }
     }
     private suspend fun update(command: Int, payload: ByteArray) = infoLock.withLock {
         infoState.value = if (command == 0x0101) D3200DeviceInfo.parse(payload) else D3200DeviceInfo.pushed(command, payload, info)
@@ -138,18 +150,28 @@ internal class D3200Connection(private val session: DriverSession, platformIdent
         // open() runs in a short-lived boundary call. Readers instead live exactly
         // until connection.close(), which also handles failed initialization.
         readers = CoroutineScope(currentCoroutineContext().minusKey(Job) + SupervisorJob())
-        bluetoothReader = readFrames(session.link.notifications(D3200Protocol.SERVICE, D3200Protocol.NOTIFY))
-        val response = ask(D3200Protocol.frame(1,1), 0x0101)
+        val notifications = session.link.notifications(D3200Protocol.SERVICE, D3200Protocol.NOTIFY)
+        bluetoothReader = readFrames(notifications)
+        val response = ask(D3200Protocol.frame(1, 1), 0x0101)
         if (response.size < 51 || info.recording == null) throw DeviceException(ErrorCode.ProtocolError, "device info incomplete")
-        crypto.handshake(ask(D3200Protocol.frame(0x2e,1,crypto.publicKey()),0x2e01))
+        val key = crypto.publicKey()
+        crypto.handshake(ask(D3200Protocol.frame(0x2e, 1, key), 0x2e01))
         if (session.store.getString("wifiPendingClose") == "true") {
             ask(D3200Protocol.frame(0x1a,2),0x1a02)
             session.store.putString("wifiPendingClose",null)
         }
-        val mode = session.store.getString("light")?.toIntOrNull() ?: 0
-        if (mode != 0 && info.firmware.startsWith("04.92") && session.extras.classicSerial != null) controls.setLight(mode)
+        val light = session.store.getString("light")?.toIntOrNull()
+        if (light != null && light != 0 && info.firmware.startsWith("04.92") && session.extras.classicSerial != null) {
+            controls.setLight(light)
+        }
         session.schedule("status",30_000) {
-            if (operations.tryLock()) try { refreshInternal() } finally { operations.unlock() }
+            if (operations.tryLock()) {
+                try {
+                    refreshInternal()
+                } finally {
+                    operations.unlock()
+                }
+            }
         }
     }
     private suspend fun refreshInternal() {
@@ -369,26 +391,18 @@ internal class D3200Connection(private val session: DriverSession, platformIdent
                         while (header.size>=87 && (header[86].toInt() and 255)==4 && busy++<3) { delay(1000); header=ask(D3200Protocol.offlineRequest(id,request),0x1a07,id) }
                         require(header.size>=87 && (header[86].toInt() and 255)==0)
                         awaitHeader(incoming, header)
-                        crypto.fileHeader(header,id)
-                        val total=D3200HistoryCore.packets(D3200Protocol.u32(header,4)); val cursor=D3200DownloadCursor(fromOffset,total)
-                        val batch = ByteArray(8_000); var used = 0
+                        val download = D3200FileDownload(header, id, fromOffset, crypto) { emit(it) }
                         var progressed = session.clock.monotonicMillis()
-                        while (!cursor.complete) {
+                        while (!download.complete) {
                             val remaining = 45_000 - (session.clock.monotonicMillis() - progressed)
                             if (remaining <= 0) throw DeviceException(ErrorCode.Timeout, "file download stalled")
                             val frame=timed(remaining) { incoming.receive() }
                             when (D3200Protocol.command(frame)) {
-                                0x1a08,0x1a12 -> for (slice in D3200Protocol.slices(D3200Protocol.payload(frame))) {
-                                    cursor.accept(slice.seq,crypto.decrypt(slice))?.let { packet ->
-                                        packet.copyInto(batch,used); used += packet.size
-                                        if (used == batch.size) { emit(batch.copyOf()); used = 0 }
-                                    }
-                                    progressed = session.clock.monotonicMillis()
-                                }
+                                0x1a08, 0x1a12 -> if (download.audio(frame)) progressed = session.clock.monotonicMillis()
                                 0x1a0a -> throw DeviceException(ErrorCode.Disconnected,"incomplete transfer")
                             }
                         }
-                        if (used > 0) emit(batch.copyOf(used))
+                        download.finishChunk()
                     } finally { collector.cancelAndJoin(); incoming.cancel() }
                 }
             }

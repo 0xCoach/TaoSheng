@@ -9,7 +9,6 @@ import app.resound.search.EmbeddingScheduler
 import app.resound.search.LocalEmbedder
 import kotlinx.datetime.TimeZone
 
-import app.resound.digest.allowsEmptyKey
 import app.resound.usage.UsagePurpose
 
 import android.content.Context
@@ -30,6 +29,27 @@ import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
+import java.time.ZoneId
+
+private typealias AskToolHandler = suspend (JSONObject, MutableList<AskSource>) -> JSONObject
+
+private fun androidToolSearch(placeTools: AskPlaceTools): suspend (String, JSONObject, MutableList<AskSource>) -> JSONObject {
+    val usageHistory = AskScreenToolsCore(
+        reader = AppGraph::screenTimeReader,
+        zone = TimeZone.of(ZoneId.systemDefault().id),
+        includeAppPlayback = { AppGraph.digestSettingsIfReady?.includeAppPlayback?.value == true },
+        screenEnabled = { AppGraph.screenTimeSettingsIfReady?.enabled?.value == true },
+        playbackTitlesEnabled = { AppGraph.playbackTitleSettingsIfReady?.enabled?.value == true },
+    )
+    val readUsageHistory: AskToolHandler = { arguments, sources ->
+        JSONObject(usageHistory.execute(arguments.toString(), sources))
+    }
+    val deviceQueries = mapOf("apps_during" to readUsageHistory)
+    return { name, arguments, sources ->
+        val query = deviceQueries[name]
+        if (query == null) placeTools.execute(name, arguments, sources) else query(arguments, sources)
+    }
+}
 
 /** 只负责 Android 资源与现有服务装配；界面只依赖 AskRepository。 */
 fun createAskRepository(
@@ -45,13 +65,7 @@ fun createAskRepository(
         // 卡 130 合并后统一用情境查询；没装配时退回问问自带的同语义实现
         { name, from, to -> if (AppGraph.isSituationReady) AppGraph.situation.staysAt(name, from, to) else places.staysAt(name, from, to) },
         { from, to -> places.placesDuring(from, to) })
-    val screenTools = AskScreenToolsCore(
-        { AppGraph.screenTimeReader },
-        TimeZone.of(java.time.ZoneId.systemDefault().id),
-        includeAppPlayback = { AppGraph.isDigestSettingsReady && AppGraph.digestSettings.includeAppPlayback.value },
-        screenEnabled = { AppGraph.isScreenTimeReady && AppGraph.screenTimeSettings.enabled.value },
-        playbackTitlesEnabled = { AppGraph.isPlaybackTitleReady && AppGraph.playbackTitleSettings.enabled.value },
-    )
+    val search = androidToolSearch(placeTools)
     val changes = AskChanges(database, onChanged = { EmbeddingScheduler.enqueue(context) })
     val suggestions = AskSuggestions(
         context.getSharedPreferences("ask-suggestions", Context.MODE_PRIVATE),
@@ -93,14 +107,16 @@ fun createAskRepository(
         val session = LlmFailover.StreamSession(preset, key).also { it.askFallback = true }
         fun generation() = generations[session.primary.id] ?: -1L
         var prefetching = false
-        AskEngine(AskStream { messages, requested, delta, _ ->
-            // Tools 额度耗尽仍带定义；Prefetch 完全不发送 tools / tool_choice。
-            settings.failover.stream("问答", session, messages, if (prefetching) JSONArray() else definitions, client, delta,
-                { p, c -> database.memory().addUsage(LocalDate.now().toString(), p, c, UsagePurpose.Ask) }, allowTools = requested.length() > 0)
-        }, definitions, { name, args, sources ->
-            if (name == "apps_during") JSONObject(screenTools.execute(args.toString(), sources))
-            else placeTools.execute(name, args, sources)
-        }, { _, _ -> }, changes::propose,
+        AskEngine(
+            stream = AskStream { messages, requested, delta, _ ->
+                // Tools 额度耗尽仍带定义；Prefetch 完全不发送 tools / tool_choice。
+                settings.failover.stream("问答", session, messages, if (prefetching) JSONArray() else definitions, client, delta,
+                    { p, c -> database.memory().addUsage(LocalDate.now().toString(), p, c, UsagePurpose.Ask) }, allowTools = requested.length() > 0)
+            },
+            definitions = definitions,
+            search = search,
+            usage = { _, _ -> }, // 发送层已记账。
+            propose = changes::propose,
             mode = {
                 prefetching = compatibility.state(preset).fallback != null
                 if (prefetching) AskMode.Prefetch else AskMode.Tools

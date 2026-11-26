@@ -1,14 +1,8 @@
 package app.resound.location
 
-import androidx.sqlite.execSQL
 import android.content.Context
 import android.location.Geocoder
-import androidx.room.Dao
-import androidx.room.Entity
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.PrimaryKey
-import androidx.room.Query
+import app.resound.location.Places.toPlace
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.PI
@@ -25,19 +19,26 @@ import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.json.JSONArray
 import org.json.JSONObject
-import app.resound.location.Places.toPlace
 
 object Places {
     const val MANUAL = MANUAL_PLACE_SOURCE
 
     /** 离这个坐标最近、且在停留半径内的手动地点。 */
-    fun nearestManual(rows: List<PlaceRow>, lat: Double, lng: Double): PlaceRow? = rows
-        .filter { it.lat != null && it.lng != null }
-        .map { it to Track.meters(it.lat!!, it.lng!!, lat, lng) }
-        .filter { it.second <= Track.STAY_RADIUS_M }
-        .minByOrNull { it.second }?.first
+    fun nearestManual(rows: List<PlaceRow>, lat: Double, lng: Double): PlaceRow? {
+        var closest: PlaceRow? = null
+        var best = Double.POSITIVE_INFINITY
+        for (row in rows) {
+            val latitude = row.lat ?: continue
+            val longitude = row.lng ?: continue
+            val distance = Track.meters(latitude, longitude, lat, lng)
+            if (distance <= Track.STAY_RADIUS_M && distance < best) {
+                closest = row
+                best = distance
+            }
+        }
+        return closest
+    }
 
     fun PlaceRow.toPlace() = Place(name, address, source, home)
     /** 三位小数约 100 米：停留点在同一处时命中同一格。 */
@@ -46,39 +47,41 @@ object Places {
     /** 手机给的是 WGS-84，高德要 GCJ-02（国内偏移坐标）；境外不偏移。 */
     fun wgsToGcj(lat: Double, lng: Double): Pair<Double, Double> {
         if (lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271) return lat to lng
-        val a = 6378245.0; val ee = 0.00669342162296594323
-        val x = lng - 105.0; val y = lat - 35.0
-        var dLat = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * sqrt(abs(x)) +
-            (20.0 * sin(6.0 * x * PI) + 20.0 * sin(2.0 * x * PI)) * 2.0 / 3.0 +
+        val semiMajorAxis = 6_378_245.0
+        val eccentricitySquared = 0.00669342162296594323
+        val x = lng - 105.0
+        val y = lat - 35.0
+        val rootX = sqrt(abs(x))
+        val wave = (20.0 * sin(6.0 * x * PI) + 20.0 * sin(2.0 * x * PI)) * 2.0 / 3.0
+        val north = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * rootX + wave +
             (20.0 * sin(y * PI) + 40.0 * sin(y / 3.0 * PI)) * 2.0 / 3.0 +
             (160.0 * sin(y / 12.0 * PI) + 320 * sin(y * PI / 30.0)) * 2.0 / 3.0
-        var dLng = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * sqrt(abs(x)) +
-            (20.0 * sin(6.0 * x * PI) + 20.0 * sin(2.0 * x * PI)) * 2.0 / 3.0 +
+        val east = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * rootX + wave +
             (20.0 * sin(x * PI) + 40.0 * sin(x / 3.0 * PI)) * 2.0 / 3.0 +
             (150.0 * sin(x / 12.0 * PI) + 300.0 * sin(x / 30.0 * PI)) * 2.0 / 3.0
         val radLat = lat / 180.0 * PI
-        var magic = sin(radLat); magic = 1 - ee * magic * magic
-        val sqrtMagic = sqrt(magic)
-        dLat = (dLat * 180.0) / ((a * (1 - ee)) / (magic * sqrtMagic) * PI)
-        dLng = (dLng * 180.0) / (a / sqrtMagic * cos(radLat) * PI)
-        return (lat + dLat) to (lng + dLng)
+        val latSine = sin(radLat)
+        val scale = 1 - eccentricitySquared * latSine * latSine
+        val meridian = (semiMajorAxis * (1 - eccentricitySquared)) / (scale * sqrt(scale))
+        val parallel = semiMajorAxis / sqrt(scale) * cos(radLat)
+        return (lat + north * 180.0 / (meridian * PI)) to (lng + east * 180.0 / (parallel * PI))
     }
 
     /** 解析高德逆地理编码：名字优先取所在区域（小区/园区/商场），其次最近的地点，再次街道门牌。 */
     fun parseAmap(body: String): Place? {
-        val root = JSONObject(body)
-        if (root.optString("status") != "1") throw IllegalStateException("高德：" + root.optString("info", "查询失败"))
-        val re = root.optJSONObject("regeocode") ?: return null
-        val address = re.opt("formatted_address").let { if (it is String) it else "" }
-        val comp = re.optJSONObject("addressComponent")
-        fun firstName(arr: JSONArray?): String? = arr?.takeIf { it.length() > 0 }?.optJSONObject(0)?.optString("name")?.takeIf { it.isNotBlank() }
-        val street = comp?.optJSONObject("streetNumber")?.let { s ->
-            listOf(s.opt("street"), s.opt("number")).filterIsInstance<String>().joinToString("")
-        }?.takeIf { it.isNotBlank() }
-        val district = comp?.opt("township")?.let { it as? String }
-        val name = firstName(re.optJSONArray("aois")) ?: firstName(re.optJSONArray("pois")) ?: street ?: district ?: address
-        if (name.isBlank()) return null
-        return Place(name, address, "高德")
+        val result = JSONObject(body)
+        check(result.optString("status") == "1") { "高德：" + result.optString("info", "查询失败") }
+        val location = result.optJSONObject("regeocode") ?: return null
+        val address = (location.opt("formatted_address") as? String).orEmpty()
+        val component = location.optJSONObject("addressComponent")
+        val door = component?.optJSONObject("streetNumber")
+        val doorName = door?.let { (it.opt("street") as? String).orEmpty() + (it.opt("number") as? String).orEmpty() }
+        val neighborhood = sequenceOf("aois", "pois").firstNotNullOfOrNull { group ->
+            location.optJSONArray(group)?.optJSONObject(0)?.optString("name")?.takeIf(String::isNotBlank)
+        }
+        val district = component?.opt("township") as? String
+        val label = neighborhood ?: doorName?.takeIf(String::isNotBlank) ?: district ?: address
+        return label.takeIf(String::isNotBlank)?.let { Place(it, address, "高德") }
     }
 }
 
@@ -99,8 +102,11 @@ class PlaceResolver(
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError: StateFlow<String?> = _lastError
 
-    suspend fun cached(lat: Double, lng: Double): Place? = with(Places) {
-        nearestManual(dao.manualNow(), lat, lng)?.toPlace() ?: dao.get(cell(lat, lng))?.takeIf { it.source != MANUAL }?.toPlace()
+    suspend fun cached(lat: Double, lng: Double): Place? {
+        val named = Places.nearestManual(dao.manualNow(), lat, lng)
+        if (named != null) return named.toPlace()
+        val row = dao.get(Places.cell(lat, lng))
+        return row?.takeUnless { it.source == Places.MANUAL }?.toPlace()
     }
 
     val manual = dao.manual()
@@ -115,19 +121,24 @@ class PlaceResolver(
     suspend fun removeManual(row: PlaceRow) = dao.delete(row.cell)
 
     suspend fun resolve(lat: Double, lng: Double): Place? = lock.withLock {
-        cached(lat, lng)?.let { return it }
-        val cell = Places.cell(lat, lng)
-        if (!settings.lookup.value) return null
-        val place = withContext(Dispatchers.IO) {
+        val stored = cached(lat, lng)
+        if (stored != null || !settings.lookup.value) return@withLock stored
+
+        val found = withContext(Dispatchers.IO) {
             try {
-                val key = amapKey()
-                (if (key.isNotBlank()) amap(key, lat, lng) else system(lat, lng)).also { _lastError.value = null }
-            } catch (e: Exception) {
-                _lastError.value = e.message ?: "查地名失败"; null
+                val credential = amapKey()
+                val resolved = if (credential.isBlank()) system(lat, lng) else amap(credential, lat, lng)
+                _lastError.value = null
+                resolved
+            } catch (error: Exception) {
+                _lastError.value = error.message ?: "查地名失败"
+                null
             }
-        } ?: return null
-        dao.put(PlaceRow(cell, place.name, place.address, place.source, System.currentTimeMillis()))
-        place
+        }
+        if (found != null) {
+            dao.put(PlaceRow(Places.cell(lat, lng), found.name, found.address, found.source, System.currentTimeMillis()))
+        }
+        found
     }
 
     suspend fun clearCache() = dao.clear()

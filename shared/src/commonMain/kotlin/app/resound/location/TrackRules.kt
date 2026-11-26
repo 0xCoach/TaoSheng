@@ -33,37 +33,60 @@ class TrackRules(private val radians: (Double) -> Double) {
         return DayTrack(points, stays(points), distance(points))
     }
 
-    /** 顺序聚类：点落在当前簇中心半径内就并入，否则另起一簇；时长够的簇算停留。 */
+    /** 每个候选停留只保存中心、时间边界和最低误差，无需保留簇内的点列表。 */
     fun stays(points: List<LocationPoint>): List<Stay> {
-        val out = ArrayList<Stay>()
-        var cluster = ArrayList<LocationPoint>()
-        var cLat = 0.0; var cLng = 0.0
-        fun flush() {
-            if (cluster.size >= 2 && cluster.last().at - cluster.first().at >= STAY_MIN_MS)
-                out += Stay(cluster.first().at, cluster.last().at, cLat, cLng, cluster.size, cluster.minOf { it.accuracy })
-        }
-        for (p in points) {
-            if (cluster.isNotEmpty() && meters(cLat, cLng, p.lat, p.lng) <= STAY_RADIUS_M) {
-                cluster += p
-                cLat += (p.lat - cLat) / cluster.size; cLng += (p.lng - cLng) / cluster.size
-            } else {
-                flush()
-                cluster = arrayListOf(p); cLat = p.lat; cLng = p.lng
+        val pending = points.iterator()
+        if (!pending.hasNext()) return emptyList()
+        val first = pending.next()
+        return buildList {
+            var start = first.at
+            var end = first.at
+            var lat = first.lat
+            var lng = first.lng
+            var accuracy = first.accuracy
+            var count = 1
+
+            fun emit() {
+                if (count > 1 && end - start >= STAY_MIN_MS) {
+                    add(Stay(start, end, lat, lng, count, accuracy))
+                }
             }
+
+            while (pending.hasNext()) {
+                val location = pending.next()
+                if (meters(lat, lng, location.lat, location.lng) <= STAY_RADIUS_M) {
+                    count += 1
+                    end = location.at
+                    lat += (location.lat - lat) / count
+                    lng += (location.lng - lng) / count
+                    accuracy = minOf(accuracy, location.accuracy)
+                } else {
+                    emit()
+                    start = location.at
+                    end = location.at
+                    lat = location.lat
+                    lng = location.lng
+                    accuracy = location.accuracy
+                    count = 1
+                }
+            }
+            emit()
         }
-        flush()
-        return out
     }
 
     fun distance(points: List<LocationPoint>): Double {
-        var total = 0.0
-        var last: LocationPoint? = null
-        for (p in points) {
-            val prev = last
-            if (prev == null) { last = p; continue }
-            val d = meters(prev.lat, prev.lng, p.lat, p.lng)
-            if (d >= JITTER_M) { total += d; last = p }
+        val pending = points.iterator()
+        if (!pending.hasNext()) return 0.0
+        var anchor = pending.next()
+        var traveled = 0.0
+        while (pending.hasNext()) {
+            val next = pending.next()
+            val length = meters(anchor.lat, anchor.lng, next.lat, next.lng)
+            if (length >= JITTER_M) {
+                anchor = next
+                traveled += length
+            }
         }
-        return total
+        return traveled
     }
 }

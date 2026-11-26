@@ -12,7 +12,6 @@ import app.resound.audio.speakerMedia
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
@@ -46,26 +45,33 @@ class PlaybackMonitor(context: Context, scope: CoroutineScope) {
     }
     val state: StateFlow<PlaybackState> = flow {
         manager.registerAudioPlaybackCallback(callback, handler)
-        manager.registerAudioDeviceCallback(devices, handler)
         try {
-            while (true) {
-                emit(compute())
-                // 有活动播放配置才按 ACTIVE_CHECK_MS 轮询；没有就挂起等下一次系统回调，不空转。
-                if (manager.activePlaybackConfigurations.isEmpty()) changes.receive() else delay(ACTIVE_CHECK_MS)
+            manager.registerAudioDeviceCallback(devices, handler)
+            try {
+                while (true) {
+                    emit(compute())
+                    val active = manager.activePlaybackConfigurations.isNotEmpty()
+                    if (active) delay(ACTIVE_CHECK_MS) else changes.receive()
+                }
+            } finally {
+                manager.unregisterAudioDeviceCallback(devices)
             }
         } finally {
             manager.unregisterAudioPlaybackCallback(callback)
-            manager.unregisterAudioDeviceCallback(devices)
         }
     }.stateIn(scope, SharingStarted.WhileSubscribed(0), PlaybackState(false, false))
 
     @Suppress("DEPRECATION")
     private fun compute(): PlaybackState {
-        val outputs = manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).map { it.type }
-        val configs = manager.activePlaybackConfigurations.map {
-            PlaybackConfigSnapshot(it.audioAttributes.usage, if (Build.VERSION.SDK_INT >= 33) it.audioDeviceInfo?.type else null)
+        val outputs = manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).map { device -> device.type }
+        val exposesRoute = Build.VERSION.SDK_INT >= 33
+        val configs = manager.activePlaybackConfigurations.map { configuration ->
+            val route = if (exposesRoute) configuration.audioDeviceInfo?.type else null
+            PlaybackConfigSnapshot(configuration.audioAttributes.usage, route)
         }
-        return playbackState(configs, outputs, manager.isMusicActive, manager.getStreamVolume(AudioManager.STREAM_MUSIC))
+        val playing = manager.isMusicActive
+        val volume = manager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        return playbackState(configs, outputs, playing, volume)
     }
     private companion object { const val ACTIVE_CHECK_MS = 500L }
 }

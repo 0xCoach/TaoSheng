@@ -9,7 +9,7 @@ data class ClassModeState(
     val endsAtMillis: Long? = null,
 )
 
-/** 界面由 Claude 实现；通过 AppGraph.asrSpeed 使用本约定。 */
+/** 课堂模式和说话人区分设置，应用通过 AppGraph.asrSpeed 获取实现。 */
 interface AsrSpeedSettings {
     val classMode: StateFlow<ClassModeState>
 

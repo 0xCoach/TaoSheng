@@ -1,3 +1,12 @@
 {
-   "signedContributors": []
+  "signedContributors": [
+    {
+      "name": "r266-tech",
+      "id": 233881301,
+      "comment_id": 7226286029,
+      "created_at": "2026-11-27T19:11:51Z",
+      "repoId": 1431782080,
+      "pullRequestNo": 75
+    }
+  ]
 }

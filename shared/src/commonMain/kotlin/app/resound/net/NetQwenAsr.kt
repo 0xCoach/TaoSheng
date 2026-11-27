@@ -66,7 +66,11 @@ suspend fun qwenRecognize(client: HttpClient, url: String, key: String, headers:
         catch (_: IllegalStateException) { throw AsrException(AsrError.Protocol) }
         val root = try { Json.parseToJsonElement(text) as? JsonObject } catch (_: IllegalArgumentException) { null }
         val code = (root?.get("code") as? JsonPrimitive)?.contentOrNull.orEmpty()
+        val message = (root?.get("message") as? JsonPrimitive)?.contentOrNull.orEmpty()
         when {
+            // 整段没有能识别的话（环境声、咳嗽等）时，千问返回 400 CLIENT_ERROR + ASR_RESPONSE_HAVE_NO_WORDS，
+            // 不是故障：按“只有声音、没有文字”处理，不标失败、不反复重试。
+            code == "CLIENT_ERROR" && message == "ASR_RESPONSE_HAVE_NO_WORDS" -> return@execute AsrResult(emptyList(), duration, null)
             code == "InvalidApiKey" -> throw AsrException(AsrError.Auth, detail = "鉴权失败，请检查密钥")
             code.startsWith("Throttling") -> throw AsrException(AsrError.Server)
             code == "DataInspectionFailed" -> throw AsrException(AsrError.Protocol, detail = "内容没通过千问审核，这段跳过")

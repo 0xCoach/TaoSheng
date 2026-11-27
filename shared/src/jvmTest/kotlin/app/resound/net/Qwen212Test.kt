@@ -89,6 +89,16 @@ class Qwen212Test {
             if (code == "InvalidParameter") assertTrue(error.detail.contains(code))
         }
     }
+    @Test fun noWordsIsEmptyResultButOtherClientErrorsStillFail() = runBlocking {
+        val empty = recognize(MockEngine {
+            respond("""{"code":"CLIENT_ERROR","message":"ASR_RESPONSE_HAVE_NO_WORDS","request_id":"r"}""", HttpStatusCode.BadRequest)
+        })
+        assertTrue(empty.sentences.isEmpty()); assertEquals(9000, empty.durationMillis)
+        val error = runCatching { recognize(MockEngine {
+            respond("""{"code":"CLIENT_ERROR","message":"something else"}""", HttpStatusCode.BadRequest)
+        }) }.exceptionOrNull() as AsrException
+        assertEquals(AsrError.Protocol, error.type); assertEquals("千问接口返回错误（CLIENT_ERROR）", error.detail)
+    }
     private suspend fun openAi(engine: MockEngine): AsrResult {
         val client = networkClient(engine, NetworkTimeouts(1000,1000,1000))
         return try { customRecognize(client, listOf("https://synthetic.invalid/asr"), "", emptyList(), upload,
